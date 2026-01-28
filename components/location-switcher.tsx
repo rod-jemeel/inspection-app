@@ -48,8 +48,8 @@ export function LocationSwitcher({
         <MapPin className="size-4" />
       </div>
       <div className="grid flex-1 text-left leading-tight min-w-0">
-        <span className="truncate font-semibold">{currentLocation.name}</span>
-        <span className="truncate text-xs text-muted-foreground">Location</span>
+        <span className="truncate text-[11px] font-semibold">{currentLocation.name}</span>
+        <span className="truncate text-[10px] text-muted-foreground">Location</span>
       </div>
       <ChevronsUpDown className="ml-auto size-4" />
     </SidebarMenuButton>
