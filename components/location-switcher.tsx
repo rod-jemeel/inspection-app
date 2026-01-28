@@ -20,28 +20,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { useFitText } from "@/hooks/use-fit-text"
 
 interface LocationSwitcherProps {
   locations: { id: string; name: string }[]
   currentLocationId: string | null
   onLocationChange: (id: string) => void
-}
-
-function FitText({ children }: { children: string }) {
-  const { containerRef, textRef, style } = useFitText({
-    minFontSize: 10,
-    maxFontSize: 13,
-    maxLines: 2,
-  })
-
-  return (
-    <div ref={containerRef} className="w-full overflow-hidden">
-      <span ref={textRef} className="font-semibold" style={style}>
-        {children}
-      </span>
-    </div>
-  )
 }
 
 export function LocationSwitcher({
@@ -64,9 +47,9 @@ export function LocationSwitcher({
       <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg shrink-0">
         <MapPin className="size-4" />
       </div>
-      <div className="grid flex-1 text-left leading-tight min-w-0 gap-0.5">
-        <FitText>{currentLocation.name}</FitText>
-        <span className="truncate text-[10px] text-muted-foreground">Location</span>
+      <div className="grid flex-1 text-left leading-tight min-w-0">
+        <span className="truncate text-[10px] font-semibold">{currentLocation.name}</span>
+        <span className="truncate text-[9px] text-muted-foreground">Location</span>
       </div>
       <ChevronsUpDown className="ml-auto size-4 shrink-0" />
     </SidebarMenuButton>
