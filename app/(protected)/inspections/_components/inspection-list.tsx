@@ -63,6 +63,13 @@ interface FrequencyGroups {
   every_3_years: Instance[]
 }
 
+// Hoisted static JSX for empty state
+const EmptyState = (
+  <div className="py-20 text-center text-xs text-muted-foreground">
+    No inspections found
+  </div>
+)
+
 export function InspectionList({
   instances,
   locationId,
@@ -77,8 +84,14 @@ export function InspectionList({
   const [search, setSearch] = useState("")
   const [groupView, setGroupView] = useState<"urgency" | "frequency">("urgency")
 
-  const isOverdue = (dueAt: string, status: string) =>
-    (status === "pending" || status === "in_progress") && new Date(dueAt) < new Date()
+  // Cache current time to avoid creating new Date objects repeatedly
+  const now = useMemo(() => new Date(), [])
+
+  const isOverdue = useCallback(
+    (dueAt: string, status: string) =>
+      (status === "pending" || status === "in_progress") && new Date(dueAt) < now,
+    [now]
+  )
 
   // Prefetch instance data on hover for faster modal loading
   const prefetchInstance = useCallback(
@@ -181,84 +194,89 @@ export function InspectionList({
     return groups
   }, [filteredInstances])
 
-  const formatDueDate = (dueAt: string) => {
-    const date = new Date(dueAt)
-    const today = new Date()
-    const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
+  const formatDueDate = useCallback(
+    (dueAt: string) => {
+      const date = new Date(dueAt)
+      const tomorrow = new Date(now)
+      tomorrow.setDate(tomorrow.getDate() + 1)
 
-    if (date.toDateString() === today.toDateString()) return "Today"
-    if (date.toDateString() === tomorrow.toDateString()) return "Tomorrow"
-    return date.toLocaleDateString(undefined, { month: "short", day: "numeric" })
-  }
+      if (date.toDateString() === now.toDateString()) return "Today"
+      if (date.toDateString() === tomorrow.toDateString()) return "Tomorrow"
+      return date.toLocaleDateString(undefined, { month: "short", day: "numeric" })
+    },
+    [now]
+  )
 
-  const renderInstanceCard = (inst: Instance) => {
-    const overdue = isOverdue(inst.due_at, inst.status)
-    const config = statusConfig[inst.status] ?? { variant: "outline" }
+  const renderInstanceCard = useCallback(
+    (inst: Instance) => {
+      const overdue = isOverdue(inst.due_at, inst.status)
+      const config = statusConfig[inst.status] ?? { variant: "outline" }
 
-    return (
-      <button
-        key={inst.id}
-        onClick={() => setInstanceId(inst.id)}
-        onMouseEnter={() => prefetchInstance(inst.id)}
-        onFocus={() => prefetchInstance(inst.id)}
-        className={cn(
-          "group flex w-full items-center gap-3 rounded-md border bg-card p-3 text-left shadow-sm transition-all",
-          "hover:border-primary/50 hover:shadow-md",
-          inst.status === "void" && "opacity-60"
-        )}
-      >
-        {/* Overdue indicator */}
-        {overdue && (
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-destructive/10">
-            <AlertTriangle className="size-4 text-destructive" />
-          </div>
-        )}
-
-        {/* Main content */}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="truncate text-xs font-medium">
-              {inst.template_task || `Inspection #${inst.id}`}
-            </span>
-          </div>
-          <div className="mt-0.5 flex flex-col gap-0.5 text-[11px] text-muted-foreground sm:flex-row sm:items-center sm:gap-2">
-            <span className={cn(overdue && "text-destructive font-medium")}>
-              Due {formatDueDate(inst.due_at)}
-            </span>
-            {inst.assigned_to_email && (
-              <>
-                <span className="hidden sm:inline">·</span>
-                <span className="truncate">{inst.assigned_to_email}</span>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Badges and arrow */}
-        <div className="flex shrink-0 items-center gap-2">
-          {inst.template_frequency && (
-            <Badge
-              variant="outline"
-              className={cn(
-                "text-[10px]",
-                FREQ_CONFIG[inst.template_frequency]?.className
-              )}
-            >
-              {FREQ_CONFIG[inst.template_frequency]?.label ?? "Unknown"}
-            </Badge>
+      return (
+        <button
+          key={inst.id}
+          onClick={() => setInstanceId(inst.id)}
+          onMouseEnter={() => prefetchInstance(inst.id)}
+          onFocus={() => prefetchInstance(inst.id)}
+          className={cn(
+            "group flex w-full items-center gap-3 rounded-md border bg-card p-3 text-left shadow-sm transition-all",
+            "hover:border-primary/50 hover:shadow-md",
+            inst.status === "void" && "opacity-60"
           )}
-          <Badge
-            variant={config.variant as "outline" | "secondary" | "destructive" | "default"}
-            className={cn("text-[10px] capitalize", config.className)}
-          >
-            {inst.status.replace("_", " ")}
-          </Badge>
-          <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-        </div>
-      </button>
-    )
-  }
+        >
+          {/* Overdue indicator */}
+          {overdue && (
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-destructive/10">
+              <AlertTriangle className="size-4 text-destructive" />
+            </div>
+          )}
+
+          {/* Main content */}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="truncate text-xs font-medium">
+                {inst.template_task || `Inspection #${inst.id}`}
+              </span>
+            </div>
+            <div className="mt-0.5 flex flex-col gap-0.5 text-[11px] text-muted-foreground sm:flex-row sm:items-center sm:gap-2">
+              <span className={cn(overdue && "text-destructive font-medium")}>
+                Due {formatDueDate(inst.due_at)}
+              </span>
+              {inst.assigned_to_email && (
+                <>
+                  <span className="hidden sm:inline">·</span>
+                  <span className="truncate">{inst.assigned_to_email}</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Badges and arrow */}
+          <div className="flex shrink-0 items-center gap-2">
+            {inst.template_frequency && (
+              <Badge
+                variant="outline"
+                className={cn(
+                  "text-[10px]",
+                  FREQ_CONFIG[inst.template_frequency]?.className
+                )}
+              >
+                {FREQ_CONFIG[inst.template_frequency]?.label ?? "Unknown"}
+              </Badge>
+            )}
+            <Badge
+              variant={config.variant as "outline" | "secondary" | "destructive" | "default"}
+              className={cn("text-[10px] capitalize", config.className)}
+            >
+              {inst.status.replace("_", " ")}
+            </Badge>
+            <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+          </div>
+        </button>
+      )
+    },
+    [isOverdue, prefetchInstance, setInstanceId, formatDueDate]
+  )
 
   const renderCollapsibleSection = (
     title: string,
@@ -346,11 +364,7 @@ export function InspectionList({
           {renderCollapsibleSection("Later", groupedByUrgency.later, false)}
           {renderCollapsibleSection("Passed", groupedByUrgency.passed, false, "text-green-600")}
 
-          {filteredInstances.length === 0 && (
-            <div className="py-20 text-center text-xs text-muted-foreground">
-              No inspections found
-            </div>
-          )}
+          {filteredInstances.length === 0 && EmptyState}
         </TabsContent>
 
         <TabsContent value="frequency" className="mt-4 space-y-4">
@@ -359,11 +373,7 @@ export function InspectionList({
           {renderCollapsibleSection("Yearly", groupedByFrequency.yearly, true)}
           {renderCollapsibleSection("Every 3 Years", groupedByFrequency.every_3_years, false)}
 
-          {filteredInstances.length === 0 && (
-            <div className="py-20 text-center text-xs text-muted-foreground">
-              No inspections found
-            </div>
-          )}
+          {filteredInstances.length === 0 && EmptyState}
         </TabsContent>
       </Tabs>
     </div>
