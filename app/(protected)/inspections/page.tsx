@@ -3,13 +3,14 @@ import type { Metadata } from "next"
 import { requireLocationAccess } from "@/lib/server/auth-helpers"
 import { listInstances } from "@/lib/server/services/instances"
 import { InspectionList } from "./_components/inspection-list"
+import { InspectionModal } from "./_components/inspection-modal"
 
 export const metadata: Metadata = {
   title: "Inspections - Inspection Tracker",
 }
 
 async function InspectionsData({ loc, status }: { loc: string; status?: string }) {
-  await requireLocationAccess(loc)
+  const { profile } = await requireLocationAccess(loc)
 
   const filters = {
     status: status as any,
@@ -18,7 +19,12 @@ async function InspectionsData({ loc, status }: { loc: string; status?: string }
 
   const instances = await listInstances(loc, filters)
 
-  return <InspectionList instances={instances} locationId={loc} activeStatus={status} />
+  return (
+    <>
+      <InspectionList instances={instances} locationId={loc} activeStatus={status} />
+      <InspectionModal locationId={loc} profileId={profile.id} />
+    </>
+  )
 }
 
 export default async function InspectionsPage({

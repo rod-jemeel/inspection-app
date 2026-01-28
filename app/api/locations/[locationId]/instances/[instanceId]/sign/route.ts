@@ -2,9 +2,27 @@ import { NextRequest } from "next/server"
 import { requireLocationAccess } from "@/lib/server/auth-helpers"
 import { handleError } from "@/lib/server/errors"
 import { getInstance } from "@/lib/server/services/instances"
-import { createSignature, uploadSignatureImage } from "@/lib/server/services/signatures"
+import { createSignature, getSignatures, uploadSignatureImage } from "@/lib/server/services/signatures"
 import { appendEvent } from "@/lib/server/services/events"
 import { after } from "next/server"
+
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ locationId: string; instanceId: string }> }
+) {
+  try {
+    const { locationId, instanceId } = await params
+    await requireLocationAccess(locationId)
+
+    // Verify instance exists and belongs to location
+    await getInstance(locationId, instanceId)
+
+    const signatures = await getSignatures(instanceId)
+    return Response.json({ data: signatures })
+  } catch (error) {
+    return handleError(error)
+  }
+}
 
 export async function POST(
   request: NextRequest,
@@ -15,7 +33,15 @@ export async function POST(
     const { profile } = await requireLocationAccess(locationId)
 
     // Verify instance exists and belongs to location
-    await getInstance(locationId, instanceId)
+    const instance = await getInstance(locationId, instanceId)
+
+    // AUTHORIZATION: Only assigned inspector can sign
+    if (instance.assigned_to_profile_id !== profile.id) {
+      return Response.json(
+        { error: { code: "FORBIDDEN", message: "Only the assigned inspector can sign this inspection" } },
+        { status: 403 }
+      )
+    }
 
     // Get signature image from form data
     const formData = await request.formData()
