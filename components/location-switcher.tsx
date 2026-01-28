@@ -15,6 +15,11 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface LocationSwitcherProps {
   locations: { id: string; name: string }[]
@@ -27,32 +32,47 @@ export function LocationSwitcher({
   currentLocationId,
   onLocationChange,
 }: LocationSwitcherProps) {
-  const { isMobile } = useSidebar()
+  const { isMobile, state } = useSidebar()
   const currentLocation = locations.find((loc) => loc.id === currentLocationId) ?? locations[0]
 
   if (!currentLocation) {
     return null
   }
 
+  const trigger = (
+    <SidebarMenuButton
+      size="lg"
+      className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+    >
+      <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+        <MapPin className="size-4" />
+      </div>
+      <div className="grid flex-1 text-left leading-tight min-w-0">
+        <span className="truncate font-semibold">{currentLocation.name}</span>
+        <span className="truncate text-xs text-muted-foreground">Location</span>
+      </div>
+      <ChevronsUpDown className="ml-auto size-4" />
+    </SidebarMenuButton>
+  )
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                {trigger}
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent
+              side="right"
+              align="center"
+              hidden={state !== "collapsed" || isMobile}
             >
-              <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                <MapPin className="size-4" />
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight min-w-0">
-                <span className="truncate font-medium">{currentLocation.name}</span>
-                <span className="truncate text-xs text-muted-foreground">Location</span>
-              </div>
-              <ChevronsUpDown className="ml-auto" />
-            </SidebarMenuButton>
-          </DropdownMenuTrigger>
+              {currentLocation.name}
+            </TooltipContent>
+          </Tooltip>
           <DropdownMenuContent
             className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
             align="start"
