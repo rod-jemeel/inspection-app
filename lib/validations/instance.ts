@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { templateIdSchema } from "./common"
 
 export const instanceStatusEnum = z.enum([
   "pending",
@@ -11,7 +12,7 @@ export const instanceStatusEnum = z.enum([
 export type InstanceStatus = z.infer<typeof instanceStatusEnum>
 
 export const createInstanceSchema = z.object({
-  template_id: z.string().uuid(),
+  template_id: templateIdSchema,
   due_at: z.string().datetime(),
   assigned_to_profile_id: z.string().uuid().optional(),
   assigned_to_email: z.string().email().optional(),
