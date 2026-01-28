@@ -2,8 +2,8 @@
 
 import {
   Plus, UserPlus, Play, XCircle, CheckCircle,
-  PenNib, ChatText, Bell, Warning, Clock
-} from "@phosphor-icons/react"
+  PenTool, MessageSquare, Bell, AlertTriangle, Clock
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface TimelineEvent {
@@ -20,10 +20,10 @@ const EVENT_CONFIG: Record<string, { icon: any; label: string; color: string }> 
   started: { icon: Play, label: "Started", color: "text-primary" },
   failed: { icon: XCircle, label: "Failed", color: "text-destructive" },
   passed: { icon: CheckCircle, label: "Passed", color: "text-primary" },
-  signed: { icon: PenNib, label: "Signed", color: "text-primary" },
-  comment: { icon: ChatText, label: "Comment", color: "text-foreground" },
+  signed: { icon: PenTool, label: "Signed", color: "text-primary" },
+  comment: { icon: MessageSquare, label: "Comment", color: "text-foreground" },
   reminder_sent: { icon: Bell, label: "Reminder Sent", color: "text-muted-foreground" },
-  escalated: { icon: Warning, label: "Escalated", color: "text-destructive" },
+  escalated: { icon: AlertTriangle, label: "Escalated", color: "text-destructive" },
 }
 
 export function EventTimeline({ events }: { events: TimelineEvent[] }) {
@@ -60,7 +60,7 @@ export function EventTimeline({ events }: { events: TimelineEvent[] }) {
                 config.color
               )}
             >
-              <Icon weight="bold" className="size-3.5" />
+              <Icon className="size-3.5" />
             </div>
 
             {/* Content */}

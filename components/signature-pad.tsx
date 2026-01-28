@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useEffect, useState, useCallback } from "react"
-import { Eraser, Check } from "@phosphor-icons/react"
+import { Eraser, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import type SignaturePadType from "signature_pad"
@@ -115,7 +115,7 @@ export function SignaturePad({ onSave, onCancel, disabled, className }: Signatur
           onClick={handleClear}
           disabled={isEmpty || disabled}
         >
-          <Eraser weight="bold" className="size-3.5" />
+          <Eraser className="size-3.5" />
           Clear
         </Button>
         <Button
@@ -125,7 +125,7 @@ export function SignaturePad({ onSave, onCancel, disabled, className }: Signatur
           disabled={isEmpty || disabled}
           className="flex-1"
         >
-          <Check weight="bold" className="size-3.5" />
+          <Check className="size-3.5" />
           Save Signature
         </Button>
         {onCancel && (
