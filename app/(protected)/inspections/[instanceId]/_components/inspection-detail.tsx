@@ -8,16 +8,16 @@ import {
   Play,
   XCircle,
   CheckCircle,
-  Prohibit,
-  ArrowCounterClockwise,
-  PenNib,
+  Ban,
+  RefreshCw,
+  PenTool,
   Plus,
-  Warning,
+  AlertTriangle,
   Bell,
-  ChatText,
+  MessageSquare,
   UserPlus,
   Clock,
-} from "@phosphor-icons/react"
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
@@ -53,10 +53,10 @@ const EVENT_ICONS = {
   started: { Icon: Play, color: "text-primary" },
   failed: { Icon: XCircle, color: "text-destructive" },
   passed: { Icon: CheckCircle, color: "text-primary" },
-  signed: { Icon: PenNib, color: "text-primary" },
-  comment: { Icon: ChatText, color: "text-muted-foreground" },
+  signed: { Icon: PenTool, color: "text-primary" },
+  comment: { Icon: MessageSquare, color: "text-muted-foreground" },
   reminder_sent: { Icon: Bell, color: "text-muted-foreground" },
-  escalated: { Icon: Warning, color: "text-destructive" },
+  escalated: { Icon: AlertTriangle, color: "text-destructive" },
 }
 
 export function InspectionDetail({
@@ -177,7 +177,7 @@ export function InspectionDetail({
         href={`/inspections?loc=${locationId}`}
         className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
       >
-        <ArrowLeft weight="bold" className="size-3.5" />
+        <ArrowLeft className="size-3.5" />
         Back to Inspections
       </Link>
 
@@ -274,7 +274,7 @@ export function InspectionDetail({
                       disabled={loading}
                       size="sm"
                     >
-                      <Play weight="bold" className="size-3.5" />
+                      <Play className="size-3.5" />
                       Start Inspection
                     </Button>
                     <Button
@@ -283,7 +283,7 @@ export function InspectionDetail({
                       variant="outline"
                       size="sm"
                     >
-                      <Prohibit weight="bold" className="size-3.5" />
+                      <Ban className="size-3.5" />
                       Void
                     </Button>
                   </>
@@ -296,7 +296,7 @@ export function InspectionDetail({
                       disabled={loading}
                       size="sm"
                     >
-                      <CheckCircle weight="bold" className="size-3.5" />
+                      <CheckCircle className="size-3.5" />
                       Mark Passed
                     </Button>
                     <Button
@@ -305,7 +305,7 @@ export function InspectionDetail({
                       variant="destructive"
                       size="sm"
                     >
-                      <XCircle weight="bold" className="size-3.5" />
+                      <XCircle className="size-3.5" />
                       Mark Failed
                     </Button>
                     <Button
@@ -314,7 +314,7 @@ export function InspectionDetail({
                       variant="outline"
                       size="sm"
                     >
-                      <Prohibit weight="bold" className="size-3.5" />
+                      <Ban className="size-3.5" />
                       Void
                     </Button>
                   </>
@@ -326,7 +326,7 @@ export function InspectionDetail({
                     disabled={loading}
                     size="sm"
                   >
-                    <ArrowCounterClockwise weight="bold" className="size-3.5" />
+                    <RefreshCw className="size-3.5" />
                     Re-inspect
                   </Button>
                 )}
@@ -351,7 +351,7 @@ export function InspectionDetail({
                     className="flex items-center justify-between rounded-none border border-border p-3"
                   >
                     <div className="flex items-center gap-2">
-                      <PenNib weight="bold" className="size-4 text-primary" />
+                      <PenTool className="size-4 text-primary" />
                       <div className="text-xs">
                         <div className="font-medium">Signed</div>
                         <div className="text-muted-foreground">{formatDate(sig.signed_at)}</div>
@@ -372,7 +372,7 @@ export function InspectionDetail({
                 disabled={loading}
                 size="sm"
               >
-                <PenNib weight="bold" className="size-3.5" />
+                <PenTool className="size-3.5" />
                 Add Signature
               </Button>
             ) : null}
@@ -402,7 +402,7 @@ export function InspectionDetail({
                         config.color
                       )}
                     >
-                      <Icon weight="bold" className="size-4" />
+                      <Icon className="size-4" />
                     </div>
                     <div className="flex-1 space-y-1 pt-0.5">
                       <div className="flex items-baseline justify-between gap-2">

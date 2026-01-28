@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { Lock, CheckCircle } from "@phosphor-icons/react"
+import { Lock, CheckCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -97,7 +97,7 @@ export function ResetPasswordForm() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <CheckCircle className="size-5 text-primary" weight="bold" />
+            <CheckCircle className="size-5 text-primary" />
             Password Reset
           </CardTitle>
           <CardDescription>
@@ -126,7 +126,7 @@ export function ResetPasswordForm() {
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <Field>
             <FieldLabel htmlFor="password" className="gap-2 flex items-center">
-              <Lock className="size-4" weight="bold" />
+              <Lock className="size-4" />
               <span>New Password</span>
             </FieldLabel>
             <Input
@@ -158,7 +158,7 @@ export function ResetPasswordForm() {
           {error && <FieldError>{error}</FieldError>}
 
           <Button type="submit" disabled={loading} className="w-full gap-2">
-            <Lock className="size-4" weight="bold" />
+            <Lock className="size-4" />
             {loading ? "Resetting..." : "Reset Password"}
           </Button>
         </form>

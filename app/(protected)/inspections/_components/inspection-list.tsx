@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Warning, ArrowRight } from "@phosphor-icons/react"
+import { AlertTriangle, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 
@@ -56,7 +56,7 @@ export function InspectionList({
           <Button
             key={tab.label}
             variant={activeStatus === tab.value ? "default" : "outline"}
-            size="xs"
+            size="sm"
             onClick={() => {
               const params = new URLSearchParams({ loc: locationId })
               if (tab.value) params.set("status", tab.value)
@@ -83,7 +83,7 @@ export function InspectionList({
             >
               <div className="flex items-center gap-3">
                 {isOverdue(inst.due_at, inst.status) && (
-                  <Warning weight="bold" className="size-4 text-destructive shrink-0" />
+                  <AlertTriangle className="size-4 text-destructive shrink-0" />
                 )}
                 <div className="space-y-0.5">
                   <div className="font-medium">Inspection #{inst.id.slice(0, 8)}</div>
@@ -97,7 +97,7 @@ export function InspectionList({
                 <Badge variant={(statusVariant[inst.status] ?? "outline") as any} className="capitalize">
                   {inst.status.replace("_", " ")}
                 </Badge>
-                <ArrowRight weight="bold" className="size-3.5 text-muted-foreground" />
+                <ArrowRight className="size-3.5 text-muted-foreground" />
               </div>
             </Link>
           ))}

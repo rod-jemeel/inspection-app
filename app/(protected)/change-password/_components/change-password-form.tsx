@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Lock, ShieldCheck } from "@phosphor-icons/react"
+import { Lock, ShieldCheck } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -80,7 +80,7 @@ export function ChangePasswordForm() {
     <Card className="w-full max-w-md">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <ShieldCheck className="size-5" weight="bold" />
+          <ShieldCheck className="size-5" />
           Change Password Required
         </CardTitle>
         <CardDescription>
@@ -96,7 +96,7 @@ export function ChangePasswordForm() {
               htmlFor="currentPassword"
               className="gap-2 flex items-center"
             >
-              <Lock className="size-4" weight="bold" />
+              <Lock className="size-4" />
               <span>Current Password</span>
             </FieldLabel>
             <Input
@@ -144,7 +144,7 @@ export function ChangePasswordForm() {
           {error && <FieldError>{error}</FieldError>}
 
           <Button type="submit" disabled={loading} className="w-full gap-2">
-            <ShieldCheck className="size-4" weight="bold" />
+            <ShieldCheck className="size-4" />
             {loading ? "Changing..." : "Change Password & Continue"}
           </Button>
         </form>

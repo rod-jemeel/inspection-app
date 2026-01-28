@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ClipboardText, Warning, CheckCircle, Clock } from "@phosphor-icons/react"
+import { ClipboardList, AlertTriangle, CheckCircle, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -34,10 +34,10 @@ export function DashboardContent({ stats, upcomingInstances, locationId }: Dashb
 
       {/* Stats grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card size="sm">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Clock weight="bold" className="size-4 text-muted-foreground" />
+              <Clock className="size-4 text-muted-foreground" />
               Pending
             </CardTitle>
           </CardHeader>
@@ -46,10 +46,10 @@ export function DashboardContent({ stats, upcomingInstances, locationId }: Dashb
           </CardContent>
         </Card>
 
-        <Card size="sm">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Warning weight="bold" className="size-4 text-destructive" />
+              <AlertTriangle className="size-4 text-destructive" />
               Overdue
             </CardTitle>
           </CardHeader>
@@ -60,10 +60,10 @@ export function DashboardContent({ stats, upcomingInstances, locationId }: Dashb
           </CardContent>
         </Card>
 
-        <Card size="sm">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CheckCircle weight="bold" className="size-4 text-primary" />
+              <CheckCircle className="size-4 text-primary" />
               Passed
             </CardTitle>
           </CardHeader>
@@ -77,7 +77,7 @@ export function DashboardContent({ stats, upcomingInstances, locationId }: Dashb
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <ClipboardText weight="bold" className="size-4" />
+            <ClipboardList className="size-4" />
             Upcoming Inspections
           </CardTitle>
         </CardHeader>

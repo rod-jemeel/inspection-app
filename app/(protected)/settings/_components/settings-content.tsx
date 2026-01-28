@@ -1,6 +1,6 @@
 "use client"
 
-import { Users, MapPin, Bell } from "@phosphor-icons/react"
+import { Users, MapPin, Bell } from "lucide-react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -46,7 +46,7 @@ export function SettingsContent({ location, teamMembers, canEdit }: SettingsCont
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <MapPin weight="bold" className="size-4" />
+            <MapPin className="size-4" />
             Location Details
           </CardTitle>
         </CardHeader>
@@ -76,7 +76,7 @@ export function SettingsContent({ location, teamMembers, canEdit }: SettingsCont
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Bell weight="bold" className="size-4" />
+            <Bell className="size-4" />
             Notifications
           </CardTitle>
         </CardHeader>
@@ -89,7 +89,7 @@ export function SettingsContent({ location, teamMembers, canEdit }: SettingsCont
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Users weight="bold" className="size-4" />
+            <Users className="size-4" />
             Team Members ({teamMembers.length})
           </CardTitle>
         </CardHeader>
