@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Key, Copy, Clock, X } from "@phosphor-icons/react"
+import { Plus, Key, Copy, Clock, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -119,7 +119,7 @@ export function InviteManagement({
         <h1 className="text-sm font-medium">Invite Codes</h1>
         {!showForm && !generatedCode && (
           <Button size="sm" onClick={() => setShowForm(true)}>
-            <Plus weight="bold" className="size-3.5" />
+            <Plus className="size-3.5" />
             Generate Code
           </Button>
         )}
@@ -130,16 +130,17 @@ export function InviteManagement({
         <Card className="border-2 border-primary">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Key weight="bold" className="size-4" />
+              <Key className="size-4" />
               New Invite Code Generated
             </CardTitle>
             <CardAction>
               <Button
                 variant="ghost"
-                size="icon-xs"
+                size="icon-sm"
                 onClick={() => setGeneratedCode(null)}
+                aria-label="Close"
               >
-                <X weight="bold" />
+                <X />
               </Button>
             </CardAction>
           </CardHeader>
@@ -154,7 +155,7 @@ export function InviteManagement({
                 className="flex-1"
                 onClick={() => copyToClipboard(generatedCode)}
               >
-                <Copy weight="bold" className="size-3.5" />
+                <Copy className="size-3.5" />
                 Copy Code
               </Button>
               <Button
@@ -175,8 +176,8 @@ export function InviteManagement({
           <CardHeader>
             <CardTitle>Generate New Invite Code</CardTitle>
             <CardAction>
-              <Button variant="ghost" size="icon-xs" onClick={resetForm}>
-                <X weight="bold" />
+              <Button variant="ghost" size="icon-sm" onClick={resetForm} aria-label="Close">
+                <X />
               </Button>
             </CardAction>
           </CardHeader>
@@ -191,6 +192,7 @@ export function InviteManagement({
                   placeholder="inspector@example.com"
                   required
                   disabled={loading}
+                  autoComplete="email"
                 />
               </Field>
               <Field>
@@ -203,6 +205,7 @@ export function InviteManagement({
                   max={30}
                   required
                   disabled={loading}
+                  autoComplete="off"
                 />
               </Field>
               <Field>
@@ -215,6 +218,7 @@ export function InviteManagement({
                   max={10}
                   required
                   disabled={loading}
+                  autoComplete="off"
                 />
               </Field>
               {error && <FieldError>{error}</FieldError>}
@@ -247,7 +251,7 @@ export function InviteManagement({
           {invites.map((invite) => {
             const status = getStatus(invite)
             return (
-              <Card key={invite.id} size="sm">
+              <Card key={invite.id}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 flex-wrap">
                     <span className="truncate">{invite.assigned_email}</span>
@@ -269,11 +273,11 @@ export function InviteManagement({
                 <CardContent>
                   <div className="space-y-1.5 text-xs text-muted-foreground">
                     <div className="flex items-center gap-2">
-                      <Clock weight="bold" className="size-3.5" />
+                      <Clock className="size-3.5" />
                       <span>Created: {formatDate(invite.created_at)}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Clock weight="bold" className="size-3.5" />
+                      <Clock className="size-3.5" />
                       <span
                         className={cn(
                           isExpired(invite.expires_at) && "text-destructive"
@@ -283,7 +287,7 @@ export function InviteManagement({
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Key weight="bold" className="size-3.5" />
+                      <Key className="size-3.5" />
                       <span>
                         Uses: {invite.uses}/{invite.max_uses}
                       </span>

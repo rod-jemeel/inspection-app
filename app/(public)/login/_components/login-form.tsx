@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { User, SignIn } from "@phosphor-icons/react"
+import { User, LogIn } from "lucide-react"
 
 import { authClient } from "@/lib/auth-client"
 import { Button } from "@/components/ui/button"
@@ -69,7 +69,7 @@ export function LoginForm({ showSetupSuccess }: LoginFormProps) {
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <Field>
             <FieldLabel htmlFor="username" className="gap-2 flex items-center">
-              <User className="size-4" weight="bold" />
+              <User className="size-4" />
               <span>Username</span>
             </FieldLabel>
             <Input
@@ -107,7 +107,7 @@ export function LoginForm({ showSetupSuccess }: LoginFormProps) {
             disabled={loading}
             className="w-full gap-2"
           >
-            <SignIn className="size-4" weight="bold" />
+            <LogIn className="size-4" />
             {loading ? "Signing in..." : "Sign in"}
           </Button>
         </form>

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, PencilSimple, X } from "@phosphor-icons/react"
+import { Plus, Pencil, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -110,7 +110,7 @@ export function TemplateList({
         <h1 className="text-sm font-medium">Templates</h1>
         {canManage && !showForm && (
           <Button size="sm" onClick={() => setShowForm(true)}>
-            <Plus weight="bold" className="size-3.5" />
+            <Plus className="size-3.5" />
             New Template
           </Button>
         )}
@@ -122,8 +122,8 @@ export function TemplateList({
           <CardHeader>
             <CardTitle>{editingId ? "Edit Template" : "New Template"}</CardTitle>
             <CardAction>
-              <Button variant="ghost" size="icon-xs" onClick={resetForm}>
-                <X weight="bold" />
+              <Button variant="ghost" size="icon-sm" onClick={resetForm} aria-label="Close">
+                <X />
               </Button>
             </CardAction>
           </CardHeader>
@@ -138,6 +138,7 @@ export function TemplateList({
                   required
                   maxLength={255}
                   disabled={loading}
+                  autoComplete="off"
                 />
               </Field>
               <Field>
@@ -150,6 +151,7 @@ export function TemplateList({
                   rows={3}
                   disabled={loading}
                   className="rounded-none text-xs"
+                  autoComplete="off"
                 />
               </Field>
               <Field>
@@ -157,8 +159,9 @@ export function TemplateList({
                 <select
                   value={frequency}
                   onChange={(e) => setFrequency(e.target.value)}
-                  className="h-8 w-full rounded-none border border-input bg-transparent px-2.5 text-xs"
+                  className="h-8 w-full rounded-none border border-input bg-background px-2.5 text-xs"
                   disabled={loading}
+                  aria-label="Frequency"
                 >
                   <option value="weekly">Weekly</option>
                   <option value="monthly">Monthly</option>
@@ -188,7 +191,7 @@ export function TemplateList({
       ) : (
         <div className="space-y-2">
           {templates.map((t) => (
-            <Card key={t.id} size="sm">
+            <Card key={t.id}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   {t.task}
@@ -203,8 +206,8 @@ export function TemplateList({
                 </CardTitle>
                 {canManage && (
                   <CardAction>
-                    <Button variant="ghost" size="icon-xs" onClick={() => startEdit(t)}>
-                      <PencilSimple weight="bold" />
+                    <Button variant="ghost" size="icon-sm" onClick={() => startEdit(t)} aria-label="Edit template">
+                      <Pencil />
                     </Button>
                   </CardAction>
                 )}

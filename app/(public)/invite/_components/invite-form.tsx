@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Key, User } from "@phosphor-icons/react"
+import { Key, User } from "lucide-react"
 
 import { signIn } from "@/lib/auth-client"
 import { Button } from "@/components/ui/button"
@@ -84,7 +84,7 @@ export function InviteForm() {
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <Field>
             <FieldLabel htmlFor="code" className="gap-2 flex items-center">
-              <Key className="size-4" weight="bold" />
+              <Key className="size-4" />
               <span>Invite Code</span>
             </FieldLabel>
             <Input
@@ -106,7 +106,7 @@ export function InviteForm() {
 
           <Field>
             <FieldLabel htmlFor="name" className="gap-2 flex items-center">
-              <User className="size-4" weight="bold" />
+              <User className="size-4" />
               <span>Your Name (optional)</span>
             </FieldLabel>
             <Input
@@ -129,7 +129,7 @@ export function InviteForm() {
             disabled={loading}
             className="w-full gap-2"
           >
-            <Key className="size-4" weight="bold" />
+            <Key className="size-4" />
             {loading ? "Verifying..." : "Enter"}
           </Button>
         </form>

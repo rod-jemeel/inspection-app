@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { EnvelopeSimple, PaperPlaneTilt, ArrowLeft } from "@phosphor-icons/react"
+import { Mail, Send, ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -55,7 +55,7 @@ export function ForgotPasswordForm() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <PaperPlaneTilt className="size-5" weight="bold" />
+            <Send className="size-5" />
             Check Your Email
           </CardTitle>
           <CardDescription>
@@ -103,7 +103,7 @@ export function ForgotPasswordForm() {
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <Field>
             <FieldLabel htmlFor="email" className="gap-2 flex items-center">
-              <EnvelopeSimple className="size-4" weight="bold" />
+              <Mail className="size-4" />
               <span>Email</span>
             </FieldLabel>
             <Input
@@ -121,7 +121,7 @@ export function ForgotPasswordForm() {
           {error && <FieldError>{error}</FieldError>}
 
           <Button type="submit" disabled={loading} className="w-full gap-2">
-            <PaperPlaneTilt className="size-4" weight="bold" />
+            <Send className="size-4" />
             {loading ? "Sending..." : "Send Reset Link"}
           </Button>
         </form>

@@ -4,13 +4,13 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   User,
-  EnvelopeSimple,
+  Mail,
   Lock,
-  Buildings,
+  Building,
   Globe,
   Rocket,
-  At,
-} from "@phosphor-icons/react"
+  AtSign,
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -116,7 +116,7 @@ export function SetupForm() {
     <Card className="w-full max-w-lg">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Rocket className="size-5" weight="bold" />
+          <Rocket className="size-5" />
           Initial Setup
         </CardTitle>
         <CardDescription>
@@ -134,7 +134,7 @@ export function SetupForm() {
 
             <Field>
               <FieldLabel htmlFor="fullName" className="gap-2 flex items-center">
-                <User className="size-4" weight="bold" />
+                <User className="size-4" />
                 <span>Full Name</span>
               </FieldLabel>
               <Input
@@ -150,7 +150,7 @@ export function SetupForm() {
 
             <Field>
               <FieldLabel htmlFor="username" className="gap-2 flex items-center">
-                <At className="size-4" weight="bold" />
+                <AtSign className="size-4" />
                 <span>Username</span>
               </FieldLabel>
               <Input
@@ -170,7 +170,7 @@ export function SetupForm() {
 
             <Field>
               <FieldLabel htmlFor="email" className="gap-2 flex items-center">
-                <EnvelopeSimple className="size-4" weight="bold" />
+                <Mail className="size-4" />
                 <span>Email</span>
                 <span className="text-muted-foreground">(optional)</span>
               </FieldLabel>
@@ -190,7 +190,7 @@ export function SetupForm() {
 
             <Field>
               <FieldLabel htmlFor="password" className="gap-2 flex items-center">
-                <Lock className="size-4" weight="bold" />
+                <Lock className="size-4" />
                 <span>Password</span>
               </FieldLabel>
               <Input
@@ -231,7 +231,7 @@ export function SetupForm() {
                 htmlFor="locationName"
                 className="gap-2 flex items-center"
               >
-                <Buildings className="size-4" weight="bold" />
+                <Building className="size-4" />
                 <span>Location Name</span>
               </FieldLabel>
               <Input
@@ -247,7 +247,7 @@ export function SetupForm() {
 
             <Field>
               <FieldLabel htmlFor="timezone" className="gap-2 flex items-center">
-                <Globe className="size-4" weight="bold" />
+                <Globe className="size-4" />
                 <span>Timezone</span>
               </FieldLabel>
               <Select value={timezone} onValueChange={(v) => v && setTimezone(v)}>
@@ -268,7 +268,7 @@ export function SetupForm() {
           {error && <FieldError>{error}</FieldError>}
 
           <Button type="submit" disabled={loading} className="w-full gap-2">
-            <Rocket className="size-4" weight="bold" />
+            <Rocket className="size-4" />
             {loading ? "Setting up..." : "Complete Setup"}
           </Button>
         </form>
