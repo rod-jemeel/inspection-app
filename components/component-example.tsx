@@ -65,7 +65,36 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { PlusIcon, BluetoothIcon, DotsThreeVerticalIcon, FileIcon, FolderIcon, FolderOpenIcon, CodeIcon, DotsThreeOutlineIcon, MagnifyingGlassIcon, FloppyDiskIcon, DownloadIcon, EyeIcon, LayoutIcon, PaletteIcon, SunIcon, MoonIcon, MonitorIcon, UserIcon, CreditCardIcon, GearIcon, KeyboardIcon, TranslateIcon, BellIcon, EnvelopeIcon, ShieldIcon, QuestionIcon, FileTextIcon, SignOutIcon } from "@phosphor-icons/react"
+import {
+  Plus,
+  Bluetooth,
+  MoreVertical,
+  File,
+  Folder,
+  FolderOpen,
+  Code,
+  MoreHorizontal,
+  Search,
+  Save,
+  Download,
+  Eye,
+  PanelLeft,
+  Paintbrush,
+  Sun,
+  Moon,
+  Monitor,
+  User,
+  CreditCard,
+  Settings,
+  Keyboard,
+  Languages,
+  Bell,
+  Mail,
+  Shield,
+  HelpCircle,
+  StickyNote,
+  LogOut,
+} from "lucide-react"
 
 export function ComponentExample() {
   return (
@@ -98,14 +127,13 @@ function CardExample() {
         <CardFooter>
           <AlertDialog>
             <AlertDialogTrigger render={<Button />}>
-              <PlusIcon data-icon="inline-start" />
+              <Plus data-icon="inline-start" />
               Show Dialog
             </AlertDialogTrigger>
             <AlertDialogContent size="sm">
               <AlertDialogHeader>
                 <AlertDialogMedia>
-                  <BluetoothIcon
-                  />
+                  <Bluetooth />
                 </AlertDialogMedia>
                 <AlertDialogTitle>Allow accessory to connect?</AlertDialogTitle>
                 <AlertDialogDescription>
@@ -159,32 +187,28 @@ function FormExample() {
           <CardDescription>Please fill in your details below</CardDescription>
           <CardAction>
             <DropdownMenu>
-              <DropdownMenuTrigger
-                render={<Button variant="ghost" size="icon" />}
-              >
-                <DotsThreeVerticalIcon
-                />
-                <span className="sr-only">More options</span>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MoreVertical />
+                  <span className="sr-only">More options</span>
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuGroup>
                   <DropdownMenuLabel>File</DropdownMenuLabel>
                   <DropdownMenuItem>
-                    <FileIcon
-                    />
+                    <File />
                     New File
                     <DropdownMenuShortcut>⌘N</DropdownMenuShortcut>
                   </DropdownMenuItem>
                   <DropdownMenuItem>
-                    <FolderIcon
-                    />
+                    <Folder />
                     New Folder
                     <DropdownMenuShortcut>⇧⌘N</DropdownMenuShortcut>
                   </DropdownMenuItem>
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger>
-                      <FolderOpenIcon
-                      />
+                      <FolderOpen />
                       Open Recent
                     </DropdownMenuSubTrigger>
                     <DropdownMenuPortal>
@@ -192,30 +216,27 @@ function FormExample() {
                         <DropdownMenuGroup>
                           <DropdownMenuLabel>Recent Projects</DropdownMenuLabel>
                           <DropdownMenuItem>
-                            <CodeIcon
-                            />
+                            <Code />
                             Project Alpha
                           </DropdownMenuItem>
                           <DropdownMenuItem>
-                            <CodeIcon
-                            />
+                            <Code />
                             Project Beta
                           </DropdownMenuItem>
                           <DropdownMenuSub>
                             <DropdownMenuSubTrigger>
-                              <DotsThreeOutlineIcon
-                              />
+                              <MoreHorizontal />
                               More Projects
                             </DropdownMenuSubTrigger>
                             <DropdownMenuPortal>
                               <DropdownMenuSubContent>
                                 <DropdownMenuItem>
-                                  <CodeIcon
+                                  <Code
                                   />
                                   Project Gamma
                                 </DropdownMenuItem>
                                 <DropdownMenuItem>
-                                  <CodeIcon
+                                  <Code
                                   />
                                   Project Delta
                                 </DropdownMenuItem>
@@ -226,8 +247,7 @@ function FormExample() {
                         <DropdownMenuSeparator />
                         <DropdownMenuGroup>
                           <DropdownMenuItem>
-                            <MagnifyingGlassIcon
-                            />
+                            <Search />
                             Browse...
                           </DropdownMenuItem>
                         </DropdownMenuGroup>
@@ -236,14 +256,12 @@ function FormExample() {
                   </DropdownMenuSub>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem>
-                    <FloppyDiskIcon
-                    />
+                    <Save />
                     Save
                     <DropdownMenuShortcut>⌘S</DropdownMenuShortcut>
                   </DropdownMenuItem>
                   <DropdownMenuItem>
-                    <DownloadIcon
-                    />
+                    <Download />
                     Export
                     <DropdownMenuShortcut>⇧⌘E</DropdownMenuShortcut>
                   </DropdownMenuItem>
@@ -260,8 +278,7 @@ function FormExample() {
                       })
                     }
                   >
-                    <EyeIcon
-                    />
+                    <Eye />
                     Show Sidebar
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
@@ -273,14 +290,12 @@ function FormExample() {
                       })
                     }
                   >
-                    <LayoutIcon
-                    />
+                    <PanelLeft />
                     Show Status Bar
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger>
-                      <PaletteIcon
-                      />
+                      <Paintbrush />
                       Theme
                     </DropdownMenuSubTrigger>
                     <DropdownMenuPortal>
@@ -292,18 +307,15 @@ function FormExample() {
                             onValueChange={setTheme}
                           >
                             <DropdownMenuRadioItem value="light">
-                              <SunIcon
-                              />
+                              <Sun />
                               Light
                             </DropdownMenuRadioItem>
                             <DropdownMenuRadioItem value="dark">
-                              <MoonIcon
-                              />
+                              <Moon />
                               Dark
                             </DropdownMenuRadioItem>
                             <DropdownMenuRadioItem value="system">
-                              <MonitorIcon
-                              />
+                              <Monitor />
                               System
                             </DropdownMenuRadioItem>
                           </DropdownMenuRadioGroup>
@@ -316,20 +328,17 @@ function FormExample() {
                 <DropdownMenuGroup>
                   <DropdownMenuLabel>Account</DropdownMenuLabel>
                   <DropdownMenuItem>
-                    <UserIcon
-                    />
+                    <User />
                     Profile
                     <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
                   </DropdownMenuItem>
                   <DropdownMenuItem>
-                    <CreditCardIcon
-                    />
+                    <CreditCard />
                     Billing
                   </DropdownMenuItem>
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger>
-                      <GearIcon
-                      />
+                      <Settings />
                       Settings
                     </DropdownMenuSubTrigger>
                     <DropdownMenuPortal>
@@ -337,19 +346,16 @@ function FormExample() {
                         <DropdownMenuGroup>
                           <DropdownMenuLabel>Preferences</DropdownMenuLabel>
                           <DropdownMenuItem>
-                            <KeyboardIcon
-                            />
+                            <Keyboard />
                             Keyboard Shortcuts
                           </DropdownMenuItem>
                           <DropdownMenuItem>
-                            <TranslateIcon
-                            />
+                            <Languages />
                             Language
                           </DropdownMenuItem>
                           <DropdownMenuSub>
                             <DropdownMenuSubTrigger>
-                              <BellIcon
-                              />
+                              <Bell />
                               Notifications
                             </DropdownMenuSubTrigger>
                             <DropdownMenuPortal>
@@ -367,7 +373,7 @@ function FormExample() {
                                       })
                                     }
                                   >
-                                    <BellIcon
+                                    <Bell
                                     />
                                     Push Notifications
                                   </DropdownMenuCheckboxItem>
@@ -380,8 +386,7 @@ function FormExample() {
                                       })
                                     }
                                   >
-                                    <EnvelopeIcon
-                                    />
+                                    <Mail />
                                     Email Notifications
                                   </DropdownMenuCheckboxItem>
                                 </DropdownMenuGroup>
@@ -392,8 +397,7 @@ function FormExample() {
                         <DropdownMenuSeparator />
                         <DropdownMenuGroup>
                           <DropdownMenuItem>
-                            <ShieldIcon
-                            />
+                            <Shield />
                             Privacy & Security
                           </DropdownMenuItem>
                         </DropdownMenuGroup>
@@ -404,21 +408,18 @@ function FormExample() {
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
                   <DropdownMenuItem>
-                    <QuestionIcon
-                    />
+                    <HelpCircle />
                     Help & Support
                   </DropdownMenuItem>
                   <DropdownMenuItem>
-                    <FileTextIcon
-                    />
+                    <StickyNote />
                     Documentation
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
                   <DropdownMenuItem variant="destructive">
-                    <SignOutIcon
-                    />
+                    <LogOut />
                     Sign Out
                     <DropdownMenuShortcut>⇧⌘Q</DropdownMenuShortcut>
                   </DropdownMenuItem>
