@@ -88,9 +88,7 @@ export function LocationSwitcher({
                 onClick={() => onLocationChange(location.id)}
                 className="gap-2 p-2"
               >
-                <div className="flex size-6 items-center justify-center rounded-md border shrink-0">
-                  <MapPin className="size-3.5 shrink-0" />
-                </div>
+                <MapPin className="size-4 shrink-0" />
                 <span className="flex-1">{location.name}</span>
                 {location.id === currentLocationId && <Check className="size-4 shrink-0" />}
               </DropdownMenuItem>
