@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useQueryState } from "nuqs"
 import {
@@ -300,6 +300,12 @@ export function InspectionModal({ locationId, profileId }: InspectionModalProps)
     })
   }
 
+  // Memoize filtered events to avoid recalculating on every render
+  const filteredEvents = useMemo(
+    () => events.filter((e) => !(e.event_type === "signed" && signatures.length > 0)),
+    [events, signatures.length]
+  )
+
   // Show fullscreen signature pad
   if (showSignature) {
     return (
@@ -554,47 +560,44 @@ export function InspectionModal({ locationId, profileId }: InspectionModalProps)
             )}
 
             {/* Event Timeline - hide signed events if signatures are shown above */}
-            {events.length > 0 && (
+            {filteredEvents.length > 0 && (
               <>
                 <Separator />
                 <div className="space-y-3">
                   <div className="text-xs font-medium">Activity Timeline</div>
                   <div className="space-y-3">
-                    {events
-                      .filter(e => !(e.event_type === "signed" && signatures.length > 0))
-                      .slice(0, 5)
-                      .map((event) => {
-                        const config =
-                          EVENT_ICONS[event.event_type as keyof typeof EVENT_ICONS] ??
-                          EVENT_ICONS.comment
-                        const Icon = config.Icon
+                    {filteredEvents.slice(0, 5).map((event) => {
+                      const config =
+                        EVENT_ICONS[event.event_type as keyof typeof EVENT_ICONS] ??
+                        EVENT_ICONS.comment
+                      const Icon = config.Icon
 
-                        return (
-                          <div key={event.id} className="flex gap-2">
-                            <div
-                              className={cn(
-                                "flex size-6 shrink-0 items-center justify-center rounded-md border bg-background",
-                                config.color
-                              )}
-                            >
-                              <Icon className="size-3" />
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-baseline justify-between gap-2">
-                                <div className="text-xs font-medium capitalize">
-                                  {event.event_type.replace("_", " ")}
-                                </div>
-                                <div className="text-[10px] text-muted-foreground">
-                                  {formatEventTime(event.event_at)}
-                                </div>
+                      return (
+                        <div key={event.id} className="flex gap-2">
+                          <div
+                            className={cn(
+                              "flex size-6 shrink-0 items-center justify-center rounded-md border bg-background",
+                              config.color
+                            )}
+                          >
+                            <Icon className="size-3" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <div className="text-xs font-medium capitalize">
+                                {event.event_type.replace("_", " ")}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground">
+                                {formatEventTime(event.event_at)}
                               </div>
                             </div>
                           </div>
-                        )
-                      })}
-                    {events.filter(e => !(e.event_type === "signed" && signatures.length > 0)).length > 5 && (
+                        </div>
+                      )
+                    })}
+                    {filteredEvents.length > 5 && (
                       <p className="text-[10px] text-muted-foreground">
-                        +{events.filter(e => !(e.event_type === "signed" && signatures.length > 0)).length - 5} more events
+                        +{filteredEvents.length - 5} more events
                       </p>
                     )}
                   </div>
