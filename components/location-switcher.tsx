@@ -48,8 +48,8 @@ export function LocationSwitcher({
         <MapPin className="size-4" />
       </div>
       <div className="grid flex-1 text-left leading-tight min-w-0">
-        <span className="truncate text-[10px] font-semibold">{currentLocation.name}</span>
-        <span className="truncate text-[9px] text-muted-foreground">Location</span>
+        <span className="truncate text-sm font-semibold">{currentLocation.name}</span>
+        <span className="truncate text-xs text-muted-foreground">Location</span>
       </div>
       <ChevronsUpDown className="ml-auto size-4 shrink-0" />
     </SidebarMenuButton>
@@ -68,13 +68,13 @@ export function LocationSwitcher({
             <TooltipContent
               side="right"
               align="center"
-              hidden={state !== "collapsed" || isMobile}
+              hidden={isMobile}
             >
               {currentLocation.name}
             </TooltipContent>
           </Tooltip>
           <DropdownMenuContent
-            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+            className="min-w-56 rounded-lg"
             align="start"
             side={isMobile ? "bottom" : "right"}
             sideOffset={4}
@@ -88,11 +88,11 @@ export function LocationSwitcher({
                 onClick={() => onLocationChange(location.id)}
                 className="gap-2 p-2"
               >
-                <div className="flex size-6 items-center justify-center rounded-md border">
+                <div className="flex size-6 items-center justify-center rounded-md border shrink-0">
                   <MapPin className="size-3.5 shrink-0" />
                 </div>
-                <span className="flex-1 truncate">{location.name}</span>
-                {location.id === currentLocationId && <Check className="size-4" />}
+                <span className="flex-1">{location.name}</span>
+                {location.id === currentLocationId && <Check className="size-4 shrink-0" />}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
