@@ -1,14 +1,14 @@
 import { betterAuth } from "better-auth"
 import { nextCookies } from "better-auth/next-js"
 import { username } from "better-auth/plugins"
+import { Pool } from "pg"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
 
 export const auth = betterAuth({
-  database: {
-    type: "postgres",
-    url: process.env.DATABASE_URL!,
-  },
+  database: new Pool({
+    connectionString: process.env.DATABASE_URL,
+  }),
   emailAndPassword: {
     enabled: true,
     sendResetPassword: async ({ user, url }) => {
