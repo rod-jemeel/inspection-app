@@ -1,30 +1,58 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Pencil, X } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Plus, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Card, CardHeader, CardTitle, CardContent, CardAction } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Field, FieldLabel, FieldError } from "@/components/ui/field"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { TemplateDialog } from "./template-dialog"
+import { FrequencySection } from "./frequency-section"
+
+interface DueRule {
+  dayOfWeek?: number
+  dayOfMonth?: number
+  month?: number
+}
 
 interface Template {
   id: string
   task: string
   description: string | null
   frequency: "weekly" | "monthly" | "yearly" | "every_3_years"
+  default_due_rule: DueRule | null
   active: boolean
+  sort_order: number
+  created_by: string | null
+  created_by_name?: string | null
+  updated_by: string | null
+  updated_by_name?: string | null
   created_at: string
+  updated_at: string
 }
 
-const FREQ_LABELS: Record<string, string> = {
-  weekly: "Weekly",
-  monthly: "Monthly",
-  yearly: "Yearly",
-  every_3_years: "Every 3 Years",
+const FREQUENCY_ORDER = ["weekly", "monthly", "yearly", "every_3_years"] as const
+
+function groupByFrequency(templates: Template[]) {
+  const groups: Record<string, Template[]> = {
+    weekly: [],
+    monthly: [],
+    yearly: [],
+    every_3_years: [],
+  }
+  for (const t of templates) {
+    groups[t.frequency].push(t)
+  }
+  return groups
 }
 
 export function TemplateList({
@@ -38,189 +66,222 @@ export function TemplateList({
 }) {
   const router = useRouter()
   const [templates, setTemplates] = useState(initialTemplates)
-  const [showForm, setShowForm] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null)
+  const [deleteTemplate, setDeleteTemplate] = useState<Template | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [search, setSearch] = useState("")
+  const [showInactive, setShowInactive] = useState(false)
 
-  // Form state
-  const [task, setTask] = useState("")
-  const [description, setDescription] = useState("")
-  const [frequency, setFrequency] = useState<string>("weekly")
+  // Filter templates based on search and active status
+  const filteredTemplates = useMemo(() => {
+    return templates.filter((t) => {
+      // Filter by active status
+      if (!showInactive && !t.active) return false
+      // Filter by search
+      if (search) {
+        const query = search.toLowerCase()
+        return (
+          t.task.toLowerCase().includes(query) ||
+          t.description?.toLowerCase().includes(query)
+        )
+      }
+      return true
+    })
+  }, [templates, search, showInactive])
 
-  const resetForm = () => {
-    setTask("")
-    setDescription("")
-    setFrequency("weekly")
-    setShowForm(false)
-    setEditingId(null)
-    setError(null)
-  }
+  const grouped = groupByFrequency(filteredTemplates)
 
-  const startEdit = (t: Template) => {
-    setTask(t.task)
-    setDescription(t.description ?? "")
-    setFrequency(t.frequency)
-    setEditingId(t.id)
-    setShowForm(true)
-  }
+  const handleEdit = useCallback((template: Template) => {
+    setEditingTemplate(template)
+    setDialogOpen(true)
+  }, [])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
+  const handleCreate = useCallback(() => {
+    setEditingTemplate(null)
+    setDialogOpen(true)
+  }, [])
 
-    try {
-      const body = { task, description: description || undefined, frequency }
-      const url = editingId
-        ? `/api/locations/${locationId}/templates/${editingId}`
-        : `/api/locations/${locationId}/templates`
-      const method = editingId ? "PUT" : "POST"
+  const handleDialogSuccess = useCallback(
+    (updated: Template) => {
+      if (editingTemplate) {
+        setTemplates((prev) =>
+          prev.map((t) => (t.id === updated.id ? updated : t))
+        )
+      } else {
+        setTemplates((prev) => [updated, ...prev])
+      }
+    },
+    [editingTemplate]
+  )
 
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+  const handleReorder = useCallback(
+    async (frequency: string, orderedIds: string[]) => {
+      // Optimistic update
+      setTemplates((prev) => {
+        const newTemplates = [...prev]
+        const frequencyTemplates = newTemplates.filter(
+          (t) => t.frequency === frequency
+        )
+        const reorderedMap = new Map(
+          orderedIds.map((id, index) => [id, index])
+        )
+        for (const t of frequencyTemplates) {
+          const newOrder = reorderedMap.get(t.id)
+          if (newOrder !== undefined) {
+            t.sort_order = newOrder
+          }
+        }
+        return newTemplates
       })
 
-      if (!res.ok) {
-        const err = await res.json()
-        setError(err.error?.message ?? "Something went wrong")
-        return
+      // Persist to API
+      try {
+        const res = await fetch(
+          `/api/locations/${locationId}/templates/reorder`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ frequency, order: orderedIds }),
+          }
+        )
+        if (!res.ok) {
+          // Revert on error
+          router.refresh()
+        }
+      } catch {
+        router.refresh()
       }
+    },
+    [locationId, router]
+  )
 
-      const { data } = await res.json()
-      if (editingId) {
-        setTemplates((prev) => prev.map((t) => (t.id === editingId ? data : t)))
-      } else {
-        setTemplates((prev) => [data, ...prev])
+  const handleDelete = useCallback((template: Template) => {
+    setDeleteTemplate(template)
+  }, [])
+
+  const confirmDelete = useCallback(async () => {
+    if (!deleteTemplate) return
+    setIsDeleting(true)
+
+    try {
+      const res = await fetch(
+        `/api/locations/${locationId}/templates/${deleteTemplate.id}`,
+        { method: "DELETE" }
+      )
+      if (res.ok) {
+        // Remove from local state (soft delete sets active = false)
+        setTemplates((prev) =>
+          prev.map((t) =>
+            t.id === deleteTemplate.id ? { ...t, active: false } : t
+          )
+        )
       }
-      resetForm()
-      router.refresh()
     } catch {
-      setError("Network error. Please try again.")
+      // Ignore errors, will show on next refresh
     } finally {
-      setLoading(false)
+      setIsDeleting(false)
+      setDeleteTemplate(null)
+      router.refresh()
     }
-  }
+  }, [deleteTemplate, locationId, router])
+
+  const hasTemplates = templates.length > 0
+  const hasFilteredTemplates = filteredTemplates.length > 0
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-sm font-medium">Templates</h1>
-        {canManage && !showForm && (
-          <Button size="sm" onClick={() => setShowForm(true)}>
+    <div className="space-y-4">
+      {/* Action Bar */}
+      <div className="flex items-center gap-3">
+        {/* Search & Filters */}
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search templates..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-8 pl-8 text-xs"
+          />
+        </div>
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={showInactive}
+            onChange={(e) => setShowInactive(e.target.checked)}
+            className="size-3.5 rounded border"
+          />
+          Show inactive
+        </label>
+        {canManage && (
+          <Button size="sm" onClick={handleCreate}>
             <Plus className="size-3.5" />
             New Template
           </Button>
         )}
       </div>
 
-      {/* Form */}
-      {showForm && canManage && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{editingId ? "Edit Template" : "New Template"}</CardTitle>
-            <CardAction>
-              <Button variant="ghost" size="icon-sm" onClick={resetForm} aria-label="Close">
-                <X />
-              </Button>
-            </CardAction>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <Field>
-                <FieldLabel>Task Name</FieldLabel>
-                <Input
-                  value={task}
-                  onChange={(e) => setTask(e.target.value)}
-                  placeholder="e.g., Fire extinguisher check"
-                  required
-                  maxLength={255}
-                  disabled={loading}
-                  autoComplete="off"
-                />
-              </Field>
-              <Field>
-                <FieldLabel>Description (optional)</FieldLabel>
-                <Textarea
-                  value={description}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
-                  placeholder="Detailed instructions..."
-                  maxLength={2000}
-                  rows={3}
-                  disabled={loading}
-                  className="rounded-none text-xs"
-                  autoComplete="off"
-                />
-              </Field>
-              <Field>
-                <FieldLabel>Frequency</FieldLabel>
-                <select
-                  value={frequency}
-                  onChange={(e) => setFrequency(e.target.value)}
-                  className="h-8 w-full rounded-none border border-input bg-background px-2.5 text-xs"
-                  disabled={loading}
-                  aria-label="Frequency"
-                >
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="yearly">Yearly</option>
-                  <option value="every_3_years">Every 3 Years</option>
-                </select>
-              </Field>
-              {error && <FieldError>{error}</FieldError>}
-              <div className="flex gap-2">
-                <Button type="submit" size="sm" disabled={loading}>
-                  {loading ? "Saving..." : editingId ? "Update" : "Create"}
-                </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={resetForm} disabled={loading}>
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* List */}
-      {templates.length === 0 ? (
+      {/* Template Sections */}
+      {!hasTemplates ? (
         <div className="py-20 text-center text-xs text-muted-foreground">
-          No templates yet. {canManage && "Create your first template to get started."}
+          No templates yet.{" "}
+          {canManage && "Create your first template to get started."}
+        </div>
+      ) : !hasFilteredTemplates ? (
+        <div className="py-20 text-center text-xs text-muted-foreground">
+          No templates match your search.
         </div>
       ) : (
         <div className="space-y-2">
-          {templates.map((t) => (
-            <Card key={t.id}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  {t.task}
-                  <Badge variant="outline" className={cn(!t.active && "opacity-50")}>
-                    {FREQ_LABELS[t.frequency]}
-                  </Badge>
-                  {!t.active && (
-                    <Badge variant="outline" className="opacity-50">
-                      Inactive
-                    </Badge>
-                  )}
-                </CardTitle>
-                {canManage && (
-                  <CardAction>
-                    <Button variant="ghost" size="icon-sm" onClick={() => startEdit(t)} aria-label="Edit template">
-                      <Pencil />
-                    </Button>
-                  </CardAction>
-                )}
-              </CardHeader>
-              {t.description && (
-                <CardContent>
-                  <p className="text-xs text-muted-foreground line-clamp-2">{t.description}</p>
-                </CardContent>
-              )}
-            </Card>
-          ))}
+          {FREQUENCY_ORDER.map((freq) => {
+            const freqTemplates = grouped[freq]
+            if (freqTemplates.length === 0) return null
+            return (
+              <FrequencySection
+                key={freq}
+                frequency={freq}
+                templates={freqTemplates}
+                canManage={canManage}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onReorder={handleReorder}
+              />
+            )
+          })}
         </div>
       )}
+
+      {/* Edit/Create Dialog */}
+      <TemplateDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        locationId={locationId}
+        template={editingTemplate}
+        onSuccess={handleDialogSuccess}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTemplate} onOpenChange={() => setDeleteTemplate(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Template</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &quot;{deleteTemplate?.task}&quot;? This will
+              deactivate the template. Existing inspection records will be preserved.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
