@@ -211,12 +211,12 @@ export function TemplateList({
             onChange={(e) => setShowInactive(e.target.checked)}
             className="size-3.5 rounded border"
           />
-          Show inactive
+          <span className="hidden sm:inline">Show inactive</span>
         </label>
         {canManage && (
-          <Button size="sm" onClick={handleCreate}>
-            <Plus className="size-3.5" />
-            New Template
+          <Button size="sm" onClick={handleCreate} className="px-2 sm:px-3">
+            <Plus className="size-4 sm:size-3.5" />
+            <span className="hidden sm:inline">New Template</span>
           </Button>
         )}
       </div>
