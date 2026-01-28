@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 function isProtectedRoute(pathname: string): boolean {
-  const publicPaths = ["/login", "/invite"]
+  const publicPaths = ["/login", "/setup", "/invite", "/forgot-password", "/reset-password"]
   return !publicPaths.some((p) => pathname.startsWith(p))
 }
 
