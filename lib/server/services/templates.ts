@@ -12,9 +12,40 @@ export interface Template {
   default_assignee_profile_id: string | null
   default_due_rule: Record<string, unknown> | null
   active: boolean
+  sort_order: number
   created_by: string
+  updated_by: string | null
   created_at: string
   updated_at: string
+  created_by_name?: string | null
+  updated_by_name?: string | null
+}
+
+// Helper to enrich templates with user names
+async function enrichWithUserNames(templates: Template[]): Promise<Template[]> {
+  const userIds = new Set<string>()
+  for (const t of templates) {
+    if (t.created_by) userIds.add(t.created_by)
+    if (t.updated_by) userIds.add(t.updated_by)
+  }
+
+  if (userIds.size === 0) return templates
+
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("user_id, full_name")
+    .in("user_id", Array.from(userIds))
+
+  const nameMap = new Map<string, string>()
+  for (const p of profiles ?? []) {
+    nameMap.set(p.user_id, p.full_name)
+  }
+
+  return templates.map((t) => ({
+    ...t,
+    created_by_name: t.created_by ? nameMap.get(t.created_by) ?? null : null,
+    updated_by_name: t.updated_by ? nameMap.get(t.updated_by) ?? null : null,
+  }))
 }
 
 export async function listTemplates(locationId: string, opts?: { active?: boolean }) {
@@ -22,6 +53,7 @@ export async function listTemplates(locationId: string, opts?: { active?: boolea
     .from("inspection_templates")
     .select("*")
     .eq("location_id", locationId)
+    .order("sort_order", { ascending: true })
     .order("created_at", { ascending: false })
 
   if (opts?.active !== undefined) {
@@ -30,7 +62,7 @@ export async function listTemplates(locationId: string, opts?: { active?: boolea
 
   const { data, error } = await query
   if (error) throw new ApiError("INTERNAL_ERROR", error.message)
-  return data as Template[]
+  return enrichWithUserNames(data as Template[])
 }
 
 export async function getTemplate(locationId: string, templateId: string) {
@@ -42,7 +74,8 @@ export async function getTemplate(locationId: string, templateId: string) {
     .single()
 
   if (error || !data) throw new ApiError("NOT_FOUND", "Template not found")
-  return data as Template
+  const [enriched] = await enrichWithUserNames([data as Template])
+  return enriched
 }
 
 export async function createTemplate(locationId: string, userId: string, input: CreateTemplateInput) {
@@ -57,18 +90,53 @@ export async function createTemplate(locationId: string, userId: string, input: 
     .single()
 
   if (error) throw new ApiError("INTERNAL_ERROR", error.message)
-  return data as Template
+  const [enriched] = await enrichWithUserNames([data as Template])
+  return enriched
 }
 
-export async function updateTemplate(locationId: string, templateId: string, input: UpdateTemplateInput) {
+export async function updateTemplate(locationId: string, templateId: string, userId: string, input: UpdateTemplateInput) {
   const { data, error } = await supabase
     .from("inspection_templates")
-    .update({ ...input, updated_at: new Date().toISOString() })
+    .update({ ...input, updated_at: new Date().toISOString(), updated_by: userId })
     .eq("id", templateId)
     .eq("location_id", locationId)
     .select()
     .single()
 
   if (error || !data) throw new ApiError("NOT_FOUND", "Template not found")
-  return data as Template
+  const [enriched] = await enrichWithUserNames([data as Template])
+  return enriched
+}
+
+export async function reorderTemplates(
+  locationId: string,
+  frequency: string,
+  orderedIds: string[]
+) {
+  // Update sort_order for each template in the new order
+  const updates = orderedIds.map((id, index) =>
+    supabase
+      .from("inspection_templates")
+      .update({ sort_order: index, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("location_id", locationId)
+      .eq("frequency", frequency)
+  )
+
+  const results = await Promise.all(updates)
+  const errors = results.filter((r) => r.error)
+  if (errors.length > 0) {
+    throw new ApiError("INTERNAL_ERROR", "Failed to reorder templates")
+  }
+}
+
+export async function deleteTemplate(locationId: string, templateId: string, userId: string) {
+  // Soft delete by setting active = false (preserves history for linked instances)
+  const { error } = await supabase
+    .from("inspection_templates")
+    .update({ active: false, updated_at: new Date().toISOString(), updated_by: userId })
+    .eq("id", templateId)
+    .eq("location_id", locationId)
+
+  if (error) throw new ApiError("INTERNAL_ERROR", error.message)
 }

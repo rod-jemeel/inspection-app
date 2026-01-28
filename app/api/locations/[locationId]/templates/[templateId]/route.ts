@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { requireLocationAccess } from "@/lib/server/auth-helpers"
 import { handleError, validationError } from "@/lib/server/errors"
-import { getTemplate, updateTemplate } from "@/lib/server/services/templates"
+import { getTemplate, updateTemplate, deleteTemplate } from "@/lib/server/services/templates"
 import { updateTemplateSchema } from "@/lib/validations/template"
 
 export async function GET(
@@ -25,7 +25,7 @@ export async function PUT(
 ) {
   try {
     const { locationId, templateId } = await params
-    await requireLocationAccess(locationId, ["admin", "owner"])
+    const { session } = await requireLocationAccess(locationId, ["admin", "owner"])
 
     const body = await request.json()
     const parsed = updateTemplateSchema.safeParse(body)
@@ -33,8 +33,23 @@ export async function PUT(
       return validationError(parsed.error.issues).toResponse()
     }
 
-    const template = await updateTemplate(locationId, templateId, parsed.data)
+    const template = await updateTemplate(locationId, templateId, session.user.id, parsed.data)
     return Response.json({ data: template })
+  } catch (error) {
+    return handleError(error)
+  }
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ locationId: string; templateId: string }> }
+) {
+  try {
+    const { locationId, templateId } = await params
+    const { session } = await requireLocationAccess(locationId, ["admin", "owner"])
+
+    await deleteTemplate(locationId, templateId, session.user.id)
+    return Response.json({ success: true })
   } catch (error) {
     return handleError(error)
   }
