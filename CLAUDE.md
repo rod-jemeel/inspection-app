@@ -15,8 +15,8 @@ Inspection PWA -- online-first progressive web app that replaces paper inspectio
 - **Storage**: Supabase Storage (signature images)
 - **Validation**: Zod (schema validation for API inputs and forms)
 - **State**: nuqs (URL state), Zustand (local state)
-- **Styling**: Tailwind CSS v4, shadcn/ui (base-lyra style), Phosphor icons, Noto Sans font
-- **UI Primitives**: @base-ui/react (headless components)
+- **Styling**: Tailwind CSS v4, shadcn/ui (new-york style), Lucide icons, Inter font
+- **UI Primitives**: @radix-ui/react (headless components via shadcn)
 - **Signature Capture**: signature_pad
 - **Email**: Resend (transactional)
 - **Push**: Web Push API with VAPID (PWA notifications)
@@ -31,7 +31,7 @@ Inspection PWA -- online-first progressive web app that replaces paper inspectio
 - Get usage examples: `mcp__shadcn__get_item_examples_from_registries`
 - Get install commands: `mcp__shadcn__get_add_command_for_items`
 
-Registry uses `base-lyra` style in `components.json`.
+Registry uses `nova` style in `components.json`.
 
 ## Build Commands
 
@@ -86,7 +86,7 @@ inspection-app/
 │   ├── api/cron/           # Vercel Cron Jobs (reminders + push)
 │   └── manifest.ts         # PWA manifest
 ├── components/             # React components
-│   └── ui/                 # shadcn/ui base-lyra components
+│   └── ui/                 # shadcn/ui nova components
 ├── lib/                    # Utilities
 │   ├── auth.ts             # Better Auth server config
 │   ├── auth-client.ts      # Better Auth client config
@@ -222,10 +222,10 @@ after(async () => { await logInspectionEvent(...) })
 ## Design System
 
 See `docs/DESIGN-SYSTEM.md` for full reference. Key points:
-- Style: `base-lyra` (shadcn/ui)
+- Style: `nova` (shadcn/ui)
 - Primitives: `@base-ui/react` (headless)
-- Icons: Phosphor (`@phosphor-icons/react`)
-- Font: Noto Sans
+- Icons: Hugeicons (`hugeicons-react`)
+- Font: Inter
 - Color space: OKLCH
 - Corners: `rounded-none` (sharp edges throughout)
 - Default text: `text-xs` / `text-xs/relaxed`

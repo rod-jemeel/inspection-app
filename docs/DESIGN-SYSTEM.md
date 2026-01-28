@@ -4,14 +4,14 @@
 
 | Property | Value |
 |----------|-------|
-| **Style preset** | `base-lyra` (shadcn/ui) |
+| **Style preset** | `nova` (shadcn/ui) |
 | **UI primitives** | `@base-ui/react` (headless) |
 | **Styling** | Tailwind CSS v4 + class-variance-authority (cva) |
-| **Icons** | Phosphor (`@phosphor-icons/react`) |
-| **Font** | Noto Sans (Google Fonts, `--font-sans`) |
+| **Icons** | Hugeicons (`hugeicons-react`) |
+| **Font** | Inter (Google Fonts, `--font-sans`) |
 | **Mono font** | Geist Mono (`--font-geist-mono`) |
 | **Color space** | OKLCH |
-| **Corners** | `rounded-none` (sharp edges -- distinctive design choice) |
+| **Corners** | Default radius (`rounded-md` for inputs/buttons, `rounded-lg` for dialogs, `rounded-xl` for cards) |
 | **Component data** | `data-slot` attributes for identification |
 
 ---
@@ -114,16 +114,17 @@ Dedicated sidebar tokens are defined for both light and dark modes. Use `sidebar
 
 ### Border radius
 
-**This project uses `rounded-none` (sharp corners) as the default** -- this is a deliberate design choice that gives the UI a distinctive, technical/industrial look appropriate for an inspection tool.
+This project uses the default shadcn Nova radius tokens:
 
-| Token | Value |
-|-------|-------|
-| `--radius` | `0.625rem` (base, used for calculations) |
-| `--radius-sm` | `calc(var(--radius) - 4px)` |
-| `--radius-md` | `calc(var(--radius) - 2px)` |
-| `--radius-lg` | `var(--radius)` |
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--radius` | `0.625rem` (10px) | Base radius |
+| `rounded-sm` | `calc(var(--radius) - 4px)` | Small elements |
+| `rounded-md` | `calc(var(--radius) - 2px)` | Buttons, inputs, badges |
+| `rounded-lg` | `var(--radius)` | Dialogs, popovers |
+| `rounded-xl` | `calc(var(--radius) + 4px)` | Cards |
 
-Note: Despite these tokens existing, all current components use `rounded-none`. The tokens are available if you need rounded elements for specific cases (e.g., avatars, pills).
+Components use appropriate radius by default - no need to add radius classes manually.
 
 ---
 
@@ -138,7 +139,7 @@ import { Button } from "@/components/ui/button"
 // Sizes: default (h-8), xs (h-6), sm (h-7), lg (h-9), icon, icon-xs, icon-sm, icon-lg
 
 <Button variant="default" size="default">
-  <PhosphorIcon weight="bold" /> Label
+  <HugeIcon strokeWidth={2} /> Label
 </Button>
 ```
 
@@ -222,14 +223,14 @@ Supports orientations: `vertical` (default), `horizontal`, `responsive`.
 
 ## Icons
 
-Use **Phosphor icons** (`@phosphor-icons/react`). NEVER use Lucide or Hugeicons.
+Use **Lucide** (`lucide-react`). NEVER use Hugeicons or Phosphor.
 
 ```tsx
-import { Check, X, Plus, Warning, CaretDown } from "@phosphor-icons/react"
+import { CheckSquare, X, Plus, AlertTriangle, ChevronDown } from "lucide-react"
 
-// Default weight is "regular". Use "bold" for emphasis.
-<Check weight="bold" className="size-4" />
-<Warning weight="fill" className="size-4 text-destructive" />
+// Icons use default stroke width. Size via className.
+<CheckSquare className="size-4" />
+<AlertTriangle className="size-4 text-destructive" />
 ```
 
 ### Icon sizing in buttons
@@ -320,8 +321,8 @@ const myVariants = cva("base-classes", {
 
 - **DO NOT** use raw color values (`bg-blue-500`, `text-gray-600`)
 - **DO NOT** use `text-base`, `text-lg`, `text-xl` (too large)
-- **DO NOT** use Lucide or Hugeicons (use Phosphor only)
-- **DO NOT** use `rounded-md`, `rounded-lg` on components (this project uses `rounded-none`)
+- **DO NOT** use Lucide or Phosphor (use Hugeicons only)
+- **DO NOT** use `rounded-none` on components (use default radius classes)
 - **DO NOT** skip focus states on interactive elements
 - **DO NOT** skip `data-slot` attributes on components
 - **DO NOT** import from `@base-ui/react` directly in feature code -- use `@/components/ui/*` wrappers
