@@ -16,7 +16,6 @@ import {
   Bell,
   MessageSquare,
   UserPlus,
-  Clock,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -47,6 +46,13 @@ const STATUS_VARIANT: Record<string, string> = {
   void: "ghost",
 }
 
+const FREQ_CONFIG: Record<string, { label: string; className: string }> = {
+  weekly: { label: "Weekly", className: "bg-blue-100 text-blue-700 border-blue-200" },
+  monthly: { label: "Monthly", className: "bg-green-100 text-green-700 border-green-200" },
+  yearly: { label: "Yearly", className: "bg-amber-100 text-amber-700 border-amber-200" },
+  every_3_years: { label: "Every 3 Years", className: "bg-purple-100 text-purple-700 border-purple-200" },
+}
+
 const EVENT_ICONS = {
   created: { Icon: Plus, color: "text-primary" },
   assigned: { Icon: UserPlus, color: "text-primary" },
@@ -75,7 +81,8 @@ export function InspectionDetail({
   const [error, setError] = useState<string | null>(null)
 
   const isTerminal = instance.status === "passed" || instance.status === "void"
-  const canSign = instance.status === "passed" && signatures.length === 0
+  const isAssignedInspector = instance.assigned_to_profile_id === profileId
+  const canSign = instance.status === "passed" && signatures.length === 0 && isAssignedInspector
 
   const handleStatusChange = async (newStatus: string) => {
     setLoading(true)
@@ -87,7 +94,7 @@ export function InspectionDetail({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           status: newStatus,
-          remarks: remarks || null,
+          ...(remarks ? { remarks } : {}),
         }),
       })
 
@@ -202,12 +209,25 @@ export function InspectionDetail({
                 <CardDescription>{template.description}</CardDescription>
               )}
             </div>
-            <Badge
-              variant={(STATUS_VARIANT[instance.status] ?? "outline") as any}
-              className="shrink-0 capitalize"
-            >
-              {instance.status.replace("_", " ")}
-            </Badge>
+            <div className="flex shrink-0 items-center gap-2">
+              {template?.frequency && (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-[10px]",
+                    FREQ_CONFIG[template.frequency]?.className
+                  )}
+                >
+                  {FREQ_CONFIG[template.frequency]?.label ?? "Unknown"}
+                </Badge>
+              )}
+              <Badge
+                variant={(STATUS_VARIANT[instance.status] ?? "outline") as any}
+                className="capitalize"
+              >
+                {instance.status.replace("_", " ")}
+              </Badge>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -242,8 +262,8 @@ export function InspectionDetail({
             )}
           </div>
 
-          {/* Remarks Section */}
-          {(instance.remarks || !isTerminal) && (
+          {/* Remarks Section - only show during/after inspection (not pending) */}
+          {(instance.status !== "pending" || instance.remarks) && (
             <>
               <Separator />
               <div className="space-y-2">
@@ -254,7 +274,7 @@ export function InspectionDetail({
                   id="remarks"
                   value={remarks}
                   onChange={(e) => setRemarks(e.target.value)}
-                  placeholder="Add any notes or comments..."
+                  placeholder="Add any notes or comments while inspecting..."
                   disabled={isTerminal || loading}
                   className="min-h-20"
                 />
@@ -337,7 +357,7 @@ export function InspectionDetail({
       </Card>
 
       {/* Signature Section */}
-      {(canSign || showSignature || signatures.length > 0) && (
+      {(canSign || showSignature || signatures.length > 0 || (instance.status === "passed" && !isAssignedInspector)) && (
         <Card>
           <CardHeader>
             <CardTitle className="text-sm">Signature</CardTitle>
@@ -375,6 +395,10 @@ export function InspectionDetail({
                 <PenTool className="size-3.5" />
                 Add Signature
               </Button>
+            ) : instance.status === "passed" && !isAssignedInspector && signatures.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Only the assigned inspector ({instance.assigned_to_email ?? "unassigned"}) can sign this inspection.
+              </p>
             ) : null}
           </CardContent>
         </Card>

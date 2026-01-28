@@ -1,7 +1,14 @@
 import "server-only"
+import { unstable_cache, revalidateTag } from "next/cache"
 import { supabase } from "@/lib/server/db"
 import { ApiError } from "@/lib/server/errors"
 import type { CreateTemplateInput, UpdateTemplateInput } from "@/lib/validations/template"
+
+// Helper to revalidate templates cache
+function revalidateTemplatesCache(locationId: string) {
+  revalidateTag("templates", "max")
+  revalidateTag(`templates-${locationId}`, "max")
+}
 
 export interface Template {
   id: string
@@ -48,7 +55,7 @@ async function enrichWithUserNames(templates: Template[]): Promise<Template[]> {
   }))
 }
 
-export async function listTemplates(locationId: string, opts?: { active?: boolean }) {
+async function fetchTemplates(locationId: string, active?: boolean) {
   let query = supabase
     .from("inspection_templates")
     .select("*")
@@ -56,13 +63,23 @@ export async function listTemplates(locationId: string, opts?: { active?: boolea
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: false })
 
-  if (opts?.active !== undefined) {
-    query = query.eq("active", opts.active)
+  if (active !== undefined) {
+    query = query.eq("active", active)
   }
 
   const { data, error } = await query
   if (error) throw new ApiError("INTERNAL_ERROR", error.message)
   return enrichWithUserNames(data as Template[])
+}
+
+// Cached version for server components
+export async function listTemplates(locationId: string, opts?: { active?: boolean }) {
+  const getCachedTemplates = unstable_cache(
+    () => fetchTemplates(locationId, opts?.active),
+    ["templates", locationId, String(opts?.active)],
+    { revalidate: 60, tags: ["templates", `templates-${locationId}`] }
+  )
+  return getCachedTemplates()
 }
 
 export async function getTemplate(locationId: string, templateId: string) {
@@ -90,6 +107,9 @@ export async function createTemplate(locationId: string, userId: string, input: 
     .single()
 
   if (error) throw new ApiError("INTERNAL_ERROR", error.message)
+
+  revalidateTemplatesCache(locationId)
+
   const [enriched] = await enrichWithUserNames([data as Template])
   return enriched
 }
@@ -104,6 +124,9 @@ export async function updateTemplate(locationId: string, templateId: string, use
     .single()
 
   if (error || !data) throw new ApiError("NOT_FOUND", "Template not found")
+
+  revalidateTemplatesCache(locationId)
+
   const [enriched] = await enrichWithUserNames([data as Template])
   return enriched
 }
@@ -139,4 +162,6 @@ export async function deleteTemplate(locationId: string, templateId: string, use
     .eq("location_id", locationId)
 
   if (error) throw new ApiError("INTERNAL_ERROR", error.message)
+
+  revalidateTemplatesCache(locationId)
 }

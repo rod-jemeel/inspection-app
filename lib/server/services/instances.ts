@@ -1,12 +1,19 @@
 import "server-only"
+import { unstable_cache, revalidateTag } from "next/cache"
 import { supabase } from "@/lib/server/db"
 import { ApiError } from "@/lib/server/errors"
 import type { CreateInstanceInput, UpdateInstanceInput, InstanceFilters } from "@/lib/validations/instance"
+
+// Helper to revalidate instances cache
+function revalidateInstancesCache() {
+  revalidateTag("instances", "max")
+}
 
 export interface Instance {
   id: string
   template_id: string
   template_task?: string
+  template_frequency?: "weekly" | "monthly" | "yearly" | "every_3_years" | null
   location_id: string
   due_at: string
   assigned_to_profile_id: string | null
@@ -28,10 +35,10 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   void: [], // terminal
 }
 
-export async function listInstances(locationId: string, filters: InstanceFilters) {
+async function fetchInstances(locationId: string, filters: InstanceFilters) {
   let query = supabase
     .from("inspection_instances")
-    .select("*, inspection_templates(task)")
+    .select("*, inspection_templates(task, frequency)")
     .eq("location_id", locationId)
     .order("due_at", { ascending: true })
     .limit(filters.limit)
@@ -45,13 +52,21 @@ export async function listInstances(locationId: string, filters: InstanceFilters
   const { data, error } = await query
   if (error) throw new ApiError("INTERNAL_ERROR", error.message)
 
-  // Flatten the template task into the instance
+  // Flatten the template task and frequency into the instance
   return (data ?? []).map((row: any) => ({
     ...row,
     template_task: row.inspection_templates?.task ?? null,
+    template_frequency: row.inspection_templates?.frequency ?? null,
     inspection_templates: undefined,
   })) as Instance[]
 }
+
+// Cached version for server components - revalidates on instance mutations
+export const listInstances = unstable_cache(
+  fetchInstances,
+  ["instances"],
+  { revalidate: 30, tags: ["instances"] }
+)
 
 export async function getInstance(locationId: string, instanceId: string) {
   const { data, error } = await supabase
@@ -77,6 +92,10 @@ export async function createInstance(locationId: string, userId: string, input: 
     .single()
 
   if (error) throw new ApiError("INTERNAL_ERROR", error.message)
+
+  // Revalidate instances cache
+  revalidateInstancesCache()
+
   return data as Instance
 }
 
@@ -106,5 +125,9 @@ export async function updateInstance(locationId: string, instanceId: string, inp
     .single()
 
   if (error || !data) throw new ApiError("INTERNAL_ERROR", error?.message ?? "Update failed")
+
+  // Revalidate instances cache
+  revalidateInstancesCache()
+
   return data as Instance
 }

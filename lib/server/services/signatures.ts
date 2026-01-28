@@ -1,4 +1,5 @@
 import "server-only"
+import sharp from "sharp"
 import { supabase } from "@/lib/server/db"
 import { ApiError } from "@/lib/server/errors"
 
@@ -60,9 +61,22 @@ export async function uploadSignatureImage(
   const bucket = process.env.SIGNATURES_BUCKET ?? "signatures"
   const path = `${instanceId}/${profileId}-${Date.now()}.png`
 
+  // Trim whitespace around the signature and add padding
+  const trimmedBuffer = await sharp(Buffer.from(imageBuffer))
+    .trim() // Remove blank space around signature
+    .extend({
+      top: 20,
+      bottom: 20,
+      left: 20,
+      right: 20,
+      background: { r: 255, g: 255, b: 255, alpha: 0 }, // Transparent padding
+    })
+    .png()
+    .toBuffer()
+
   const { error } = await supabase.storage
     .from(bucket)
-    .upload(path, imageBuffer, {
+    .upload(path, trimmedBuffer, {
       contentType: "image/png",
       upsert: false,
     })

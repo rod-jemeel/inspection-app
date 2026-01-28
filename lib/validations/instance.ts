@@ -22,7 +22,7 @@ export type CreateInstanceInput = z.infer<typeof createInstanceSchema>
 
 export const updateInstanceSchema = z.object({
   status: z.enum(["in_progress", "failed", "passed", "void"]).optional(),
-  remarks: z.string().max(5000).optional(),
+  remarks: z.string().max(5000).nullish(),
   inspected_at: z.string().datetime().optional(),
 })
 
