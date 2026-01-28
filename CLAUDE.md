@@ -10,7 +10,7 @@ Inspection PWA -- online-first progressive web app that replaces paper inspectio
 ## Tech Stack
 
 - **Framework**: Next.js 16 (App Router), React 19
-- **Auth**: Better Auth (email/password for staff + invite-code for inspectors)
+- **Auth**: Better Auth (username/password for staff + invite-code for inspectors)
 - **Database**: Supabase Postgres (server-side only)
 - **Storage**: Supabase Storage (signature images)
 - **Validation**: Zod (schema validation for API inputs and forms)
@@ -18,7 +18,8 @@ Inspection PWA -- online-first progressive web app that replaces paper inspectio
 - **Styling**: Tailwind CSS v4, shadcn/ui (base-lyra style), Phosphor icons, Noto Sans font
 - **UI Primitives**: @base-ui/react (headless components)
 - **Signature Capture**: signature_pad
-- **Email**: Resend or SendGrid (transactional)
+- **Email**: Resend (transactional)
+- **Push**: Web Push API with VAPID (PWA notifications)
 - **Cron**: Vercel Cron Jobs (reminders/escalations)
 - **Package Manager**: pnpm
 
@@ -81,7 +82,8 @@ inspection-app/
 ├── app/                    # App Router: pages, layouts, API routes
 │   ├── api/auth/[...all]/  # Better Auth handler
 │   ├── api/locations/      # Location-scoped endpoints
-│   ├── api/cron/           # Vercel Cron Jobs (reminders)
+│   ├── api/push/           # Push subscription endpoints
+│   ├── api/cron/           # Vercel Cron Jobs (reminders + push)
 │   └── manifest.ts         # PWA manifest
 ├── components/             # React components
 │   └── ui/                 # shadcn/ui base-lyra components
@@ -95,9 +97,9 @@ inspection-app/
 │       ├── db.ts           # Supabase client
 │       ├── auth-helpers.ts # Session + location + role enforcement
 │       ├── errors.ts       # ApiError class
-│       └── services/       # Business logic
-├── hooks/                  # Cross-feature hooks
-├── public/                 # Static assets (icons, SW)
+│       └── services/       # Business logic (incl. push-sender.ts)
+├── hooks/                  # Cross-feature hooks (incl. use-push-notifications.ts)
+├── public/                 # Static assets (icons, sw.js)
 └── docs/                   # Documentation
 ```
 
@@ -110,6 +112,12 @@ All location-scoped endpoints:
 /api/locations/:locationId/instances/:instanceId
 /api/locations/:locationId/instances/:instanceId/sign
 /api/locations/:locationId/instances/:instanceId/events
+```
+
+Push notification endpoints:
+```
+/api/push/subscribe      # Save push subscription
+/api/push/unsubscribe    # Remove push subscription
 ```
 
 Each endpoint must:
@@ -131,7 +139,13 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 SIGNATURES_BUCKET=signatures
 RESEND_API_KEY=
 OWNER_ESCALATION_EMAIL=
+CRON_SECRET=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Push Notifications (generate with: npx web-push generate-vapid-keys)
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=mailto:admin@yourdomain.com
 ```
 
 ## Better Auth Patterns
@@ -202,6 +216,8 @@ after(async () => { await logInspectionEvent(...) })
 **Signature storage**: Upload PNG to Supabase Storage via signed URL, store path in `inspection_signatures` table.
 
 **Reminder rules**: Weekly = every Monday; Monthly = 1 week before due; Overdue = immediate escalation to inspector + owner.
+
+**Push notifications**: Use `usePushNotifications()` hook for client-side subscription management. Server-side use `sendPushToProfile()`, `sendPushToLocation()`, or `sendPushToRolesInLocation()` from `lib/server/services/push-sender.ts`.
 
 ## Design System
 
