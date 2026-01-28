@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { LogOut, Settings, User } from "lucide-react"
+import { ChevronsUpDown, LogOut, Settings, User } from "lucide-react"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
@@ -64,11 +64,9 @@ export function NavUser({ user, locationId, onSignOut }: NavUserProps) {
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.name}</span>
-                <span className="truncate text-xs">{user.email}</span>
+                <span className="truncate text-xs text-muted-foreground">{user.email}</span>
               </div>
-              <Badge variant={roleVariant[user.role]} className="ml-auto capitalize">
-                {user.role}
-              </Badge>
+              <ChevronsUpDown className="ml-auto size-4" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -84,8 +82,11 @@ export function NavUser({ user, locationId, onSignOut }: NavUserProps) {
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{user.name}</span>
-                  <span className="truncate text-xs">{user.email}</span>
+                  <span className="truncate text-xs text-muted-foreground">{user.email}</span>
                 </div>
+                <Badge variant={roleVariant[user.role]} className="capitalize">
+                  {user.role}
+                </Badge>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />

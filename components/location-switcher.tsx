@@ -46,9 +46,9 @@ export function LocationSwitcher({
               <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
                 <MapPin className="size-4" />
               </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
+              <div className="grid flex-1 text-left text-sm leading-tight min-w-0">
                 <span className="truncate font-medium">{currentLocation.name}</span>
-                <span className="truncate text-xs">Location</span>
+                <span className="truncate text-xs text-muted-foreground">Location</span>
               </div>
               <ChevronsUpDown className="ml-auto" />
             </SidebarMenuButton>
@@ -71,7 +71,7 @@ export function LocationSwitcher({
                 <div className="flex size-6 items-center justify-center rounded-md border">
                   <MapPin className="size-3.5 shrink-0" />
                 </div>
-                <span className="flex-1">{location.name}</span>
+                <span className="flex-1 truncate">{location.name}</span>
                 {location.id === currentLocationId && <Check className="size-4" />}
               </DropdownMenuItem>
             ))}
