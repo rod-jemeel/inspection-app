@@ -6,6 +6,7 @@ import type { CreateInstanceInput, UpdateInstanceInput, InstanceFilters } from "
 export interface Instance {
   id: string
   template_id: string
+  template_task?: string
   location_id: string
   due_at: string
   assigned_to_profile_id: string | null
@@ -30,7 +31,7 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 export async function listInstances(locationId: string, filters: InstanceFilters) {
   let query = supabase
     .from("inspection_instances")
-    .select("*")
+    .select("*, inspection_templates(task)")
     .eq("location_id", locationId)
     .order("due_at", { ascending: true })
     .limit(filters.limit)
@@ -43,7 +44,13 @@ export async function listInstances(locationId: string, filters: InstanceFilters
 
   const { data, error } = await query
   if (error) throw new ApiError("INTERNAL_ERROR", error.message)
-  return data as Instance[]
+
+  // Flatten the template task into the instance
+  return (data ?? []).map((row: any) => ({
+    ...row,
+    template_task: row.inspection_templates?.task ?? null,
+    inspection_templates: undefined,
+  })) as Instance[]
 }
 
 export async function getInstance(locationId: string, instanceId: string) {

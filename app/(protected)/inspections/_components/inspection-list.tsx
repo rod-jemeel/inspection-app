@@ -1,14 +1,18 @@
 "use client"
 
+import { useState, useMemo } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { AlertTriangle, ArrowRight } from "lucide-react"
+import { AlertTriangle, ChevronRight, Search } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 
 interface Instance {
   id: string
   template_id: string
+  template_task?: string
   due_at: string
   assigned_to_email: string | null
   status: "pending" | "in_progress" | "failed" | "passed" | "void"
@@ -22,15 +26,14 @@ const STATUS_TABS = [
   { value: "in_progress", label: "In Progress" },
   { value: "failed", label: "Failed" },
   { value: "passed", label: "Passed" },
-  { value: "void", label: "Void" },
 ] as const
 
-const statusVariant: Record<string, string> = {
-  pending: "outline",
-  in_progress: "secondary",
-  failed: "destructive",
-  passed: "default",
-  void: "ghost",
+const statusConfig: Record<string, { variant: string; className?: string }> = {
+  pending: { variant: "outline" },
+  in_progress: { variant: "secondary" },
+  failed: { variant: "destructive" },
+  passed: { variant: "default", className: "bg-green-600 hover:bg-green-700" },
+  void: { variant: "outline", className: "opacity-50" },
 }
 
 export function InspectionList({
@@ -43,20 +46,76 @@ export function InspectionList({
   activeStatus?: string
 }) {
   const router = useRouter()
+  const [search, setSearch] = useState("")
+  const [showVoid, setShowVoid] = useState(false)
+
   const isOverdue = (dueAt: string, status: string) =>
     (status === "pending" || status === "in_progress") && new Date(dueAt) < new Date()
 
+  const filteredInstances = useMemo(() => {
+    return instances.filter((inst) => {
+      // Hide void unless toggled
+      if (!showVoid && inst.status === "void") return false
+      // Search filter
+      if (search) {
+        const query = search.toLowerCase()
+        return (
+          inst.id.toLowerCase().includes(query) ||
+          inst.template_task?.toLowerCase().includes(query) ||
+          inst.assigned_to_email?.toLowerCase().includes(query)
+        )
+      }
+      return true
+    })
+  }, [instances, search, showVoid])
+
+  const formatDueDate = (dueAt: string) => {
+    const date = new Date(dueAt)
+    const today = new Date()
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+
+    if (date.toDateString() === today.toDateString()) return "Today"
+    if (date.toDateString() === tomorrow.toDateString()) return "Tomorrow"
+    return date.toLocaleDateString(undefined, { month: "short", day: "numeric" })
+  }
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-sm font-medium">Inspections</h1>
+    <div className="space-y-4">
+      {/* Action Bar */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search inspections..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-8 pl-8 text-xs"
+          />
+        </div>
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={showVoid}
+            onChange={(e) => setShowVoid(e.target.checked)}
+            className="size-3.5 rounded border"
+          />
+          <span className="hidden sm:inline">Show void</span>
+        </label>
+      </div>
 
       {/* Status filter tabs */}
-      <div className="flex flex-wrap gap-1">
+      <div className="flex flex-wrap gap-1.5">
         {STATUS_TABS.map((tab) => (
           <Button
             key={tab.label}
-            variant={activeStatus === tab.value ? "default" : "outline"}
+            variant={activeStatus === tab.value ? "default" : "ghost"}
             size="sm"
+            className={cn(
+              "h-7 text-xs",
+              activeStatus !== tab.value && "text-muted-foreground"
+            )}
             onClick={() => {
               const params = new URLSearchParams({ loc: locationId })
               if (tab.value) params.set("status", tab.value)
@@ -69,38 +128,66 @@ export function InspectionList({
       </div>
 
       {/* Instance list */}
-      {instances.length === 0 ? (
+      {filteredInstances.length === 0 ? (
         <div className="py-20 text-center text-xs text-muted-foreground">
           No inspections found
         </div>
       ) : (
-        <div className="space-y-1">
-          {instances.map((inst) => (
-            <Link
-              key={inst.id}
-              href={`/inspections/${inst.id}?loc=${locationId}`}
-              className="flex items-center justify-between rounded-none border border-transparent px-3 py-2.5 text-xs hover:border-border hover:bg-muted/50 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                {isOverdue(inst.due_at, inst.status) && (
-                  <AlertTriangle className="size-4 text-destructive shrink-0" />
+        <div className="space-y-2">
+          {filteredInstances.map((inst) => {
+            const overdue = isOverdue(inst.due_at, inst.status)
+            const config = statusConfig[inst.status] ?? { variant: "outline" }
+
+            return (
+              <Link
+                key={inst.id}
+                href={`/inspections/${inst.id}?loc=${locationId}`}
+                className={cn(
+                  "group flex items-center gap-3 rounded-md border bg-card p-3 shadow-sm transition-all",
+                  "hover:border-primary/50 hover:shadow-md",
+                  inst.status === "void" && "opacity-60"
                 )}
-                <div className="space-y-0.5">
-                  <div className="font-medium">Inspection #{inst.id.slice(0, 8)}</div>
-                  <div className="text-muted-foreground">
-                    Due: {new Date(inst.due_at).toLocaleDateString()}
-                    {inst.assigned_to_email && ` · ${inst.assigned_to_email}`}
+              >
+                {/* Overdue indicator */}
+                {overdue && (
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-destructive/10">
+                    <AlertTriangle className="size-4 text-destructive" />
+                  </div>
+                )}
+
+                {/* Main content */}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-xs font-medium">
+                      {inst.template_task || `Inspection #${inst.id}`}
+                    </span>
+                  </div>
+                  <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+                    <span className={cn(overdue && "text-destructive font-medium")}>
+                      Due {formatDueDate(inst.due_at)}
+                    </span>
+                    {inst.assigned_to_email && (
+                      <>
+                        <span>·</span>
+                        <span className="truncate">{inst.assigned_to_email}</span>
+                      </>
+                    )}
                   </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant={(statusVariant[inst.status] ?? "outline") as any} className="capitalize">
-                  {inst.status.replace("_", " ")}
-                </Badge>
-                <ArrowRight className="size-3.5 text-muted-foreground" />
-              </div>
-            </Link>
-          ))}
+
+                {/* Status badge and arrow */}
+                <div className="flex shrink-0 items-center gap-2">
+                  <Badge
+                    variant={config.variant as any}
+                    className={cn("text-[10px] capitalize", config.className)}
+                  >
+                    {inst.status.replace("_", " ")}
+                  </Badge>
+                  <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                </div>
+              </Link>
+            )
+          })}
         </div>
       )}
     </div>
