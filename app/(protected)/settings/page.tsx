@@ -1,0 +1,64 @@
+import { Suspense } from "react"
+import type { Metadata } from "next"
+import { requireLocationAccess } from "@/lib/server/auth-helpers"
+import { supabase } from "@/lib/server/db"
+import { SettingsContent } from "./_components/settings-content"
+
+export const metadata: Metadata = {
+  title: "Settings - Inspection Tracker",
+}
+
+async function SettingsData({ loc }: { loc: string }) {
+  const { profile } = await requireLocationAccess(loc)
+  const canEdit = profile.role === "admin" || profile.role === "owner"
+
+  const [{ data: location }, { data: members }] = await Promise.all([
+    supabase.from("locations").select("*").eq("id", loc).single(),
+    supabase
+      .from("profile_locations")
+      .select("profiles(id, full_name, email, role)")
+      .eq("location_id", loc),
+  ])
+
+  const teamMembers = (members ?? []).map((m: any) => ({
+    id: m.profiles.id as string,
+    name: m.profiles.full_name as string,
+    email: m.profiles.email as string,
+    role: m.profiles.role as string,
+  }))
+
+  return (
+    <SettingsContent
+      location={location}
+      teamMembers={teamMembers}
+      canEdit={canEdit}
+    />
+  )
+}
+
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ loc?: string }>
+}) {
+  const { loc } = await searchParams
+  if (!loc) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+        <p className="text-sm">Select a location to view settings</p>
+      </div>
+    )
+  }
+
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <div className="mx-auto h-6 w-6 animate-spin rounded-none border-2 border-muted border-t-primary" />
+        </div>
+      }
+    >
+      <SettingsData loc={loc} />
+    </Suspense>
+  )
+}
