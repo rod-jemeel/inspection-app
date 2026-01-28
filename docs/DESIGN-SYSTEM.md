@@ -329,57 +329,272 @@ const myVariants = cva("base-classes", {
 
 ---
 
-## Inspection-Specific UI Patterns
+## List Page Patterns
 
-### Status Badges
+### Action Bar
+
+Standard layout for list pages with search and filters:
 
 ```tsx
-const statusVariant: Record<string, string> = {
-  pending: "outline",
-  in_progress: "secondary",
-  passed: "default",    // primary color
-  failed: "destructive",
-  void: "ghost",
+<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+  {/* Search */}
+  <div className="relative flex-1">
+    <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+    <Input
+      type="search"
+      placeholder="Search..."
+      className="h-8 pl-8 text-xs"
+    />
+  </div>
+
+  {/* Filter buttons - grid on mobile, flex on desktop */}
+  <div className="grid flex-1 grid-cols-3 gap-1.5 sm:flex sm:flex-none sm:flex-wrap">
+    {filters.map((filter) => (
+      <button
+        className={cn(
+          "rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
+          isActive
+            ? "bg-primary text-primary-foreground"
+            : "bg-muted text-muted-foreground hover:bg-muted/80"
+        )}
+      >
+        {filter.label}
+      </button>
+    ))}
+  </div>
+</div>
+```
+
+### Collapsible Sections
+
+Group items with expandable headers:
+
+```tsx
+<Collapsible defaultOpen={defaultOpen}>
+  <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left transition-colors hover:bg-muted">
+    <ChevronRight className={cn(
+      "size-4 text-muted-foreground transition-transform",
+      open && "rotate-90"
+    )} />
+    <span className={cn("text-xs font-medium", headerClassName)}>{title}</span>
+    <Badge variant="secondary" className="ml-auto text-[10px]">
+      {items.length}
+    </Badge>
+  </CollapsibleTrigger>
+  <CollapsibleContent>
+    <div className="grid grid-cols-1 gap-3 pb-4 pt-2 md:grid-cols-2">
+      {items.map(renderCard)}
+    </div>
+  </CollapsibleContent>
+</Collapsible>
+```
+
+### Tabs (Full-width mobile)
+
+```tsx
+<Tabs value={view} onValueChange={setView}>
+  <TabsList className="h-8 w-full sm:w-fit">
+    <TabsTrigger value="urgency" className="text-xs sm:flex-initial">
+      By Urgency
+    </TabsTrigger>
+    <TabsTrigger value="frequency" className="text-xs sm:flex-initial">
+      By Frequency
+    </TabsTrigger>
+  </TabsList>
+  <TabsContent value="urgency">...</TabsContent>
+</Tabs>
+```
+
+---
+
+## List Item Cards
+
+### Clickable Item Card
+
+Standard pattern for list items (inspections, templates):
+
+```tsx
+<button
+  className={cn(
+    "group flex w-full items-center gap-3 rounded-md border bg-card p-3 text-left shadow-sm transition-all",
+    "hover:border-primary/50 hover:shadow-md",
+    isInactive && "opacity-60"
+  )}
+>
+  {/* Optional icon indicator */}
+  {showIcon && (
+    <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-destructive/10">
+      <AlertTriangle className="size-4 text-destructive" />
+    </div>
+  )}
+
+  {/* Main content */}
+  <div className="min-w-0 flex-1">
+    <span className="truncate text-xs font-medium">{title}</span>
+    <div className="mt-0.5 flex flex-col gap-0.5 text-[11px] text-muted-foreground sm:flex-row sm:items-center sm:gap-2">
+      <span>{primaryInfo}</span>
+      {secondaryInfo && (
+        <>
+          <span className="hidden sm:inline">·</span>
+          <span className="truncate">{secondaryInfo}</span>
+        </>
+      )}
+    </div>
+  </div>
+
+  {/* Badges and arrow */}
+  <div className="flex shrink-0 items-center gap-2">
+    <Badge variant="outline" className="text-[10px]">{badge}</Badge>
+    <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+  </div>
+</button>
+```
+
+### Draggable Card (Templates)
+
+```tsx
+<div
+  className={cn(
+    "group relative flex items-center gap-2 rounded-md border bg-card p-3 shadow-sm transition-shadow",
+    isDragging && "shadow-lg ring-2 ring-primary/20",
+    canManage && "cursor-pointer hover:border-primary/50 hover:shadow-md"
+  )}
+>
+  {/* Drag handle - hidden until hover on desktop */}
+  <button
+    data-drag-handle
+    className="flex-shrink-0 cursor-grab text-muted-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100"
+  >
+    <GripVertical className="size-4" />
+  </button>
+
+  <div className="min-w-0 flex-1">...</div>
+
+  {/* Actions - hidden until hover on desktop */}
+  <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100">
+    <Button variant="ghost" size="icon-sm" className="text-destructive/70 hover:text-destructive">
+      <Trash2 className="size-3.5" />
+    </Button>
+  </div>
+</div>
+```
+
+---
+
+## Status & Frequency Badges
+
+### Status Config
+
+```tsx
+const statusConfig: Record<string, { variant: string; className?: string }> = {
+  pending: { variant: "outline" },
+  in_progress: { variant: "secondary" },
+  failed: { variant: "destructive" },
+  passed: { variant: "default", className: "bg-green-600 hover:bg-green-700" },
+  void: { variant: "outline", className: "opacity-50" },
+}
+```
+
+### Frequency Badges (Colored)
+
+```tsx
+const FREQ_CONFIG: Record<string, { label: string; className: string }> = {
+  weekly: { label: "Weekly", className: "bg-blue-100 text-blue-700 border-blue-200" },
+  monthly: { label: "Monthly", className: "bg-green-100 text-green-700 border-green-200" },
+  yearly: { label: "Yearly", className: "bg-amber-100 text-amber-700 border-amber-200" },
+  every_3_years: { label: "Every 3 Years", className: "bg-purple-100 text-purple-700 border-purple-200" },
 }
 
-<Badge variant={statusVariant[status]}>{status}</Badge>
+<Badge variant="outline" className={cn("text-[10px]", FREQ_CONFIG[freq]?.className)}>
+  {FREQ_CONFIG[freq]?.label}
+</Badge>
 ```
 
-### Signature Canvas
+---
 
-Use `signature_pad` on a `<canvas>` element within a Card:
+## Empty States
 
 ```tsx
-<Card>
-  <CardHeader>
-    <CardTitle>Signature</CardTitle>
-  </CardHeader>
-  <CardContent>
-    <canvas
-      ref={canvasRef}
-      className="border-input h-40 w-full border bg-white"
-    />
-  </CardContent>
-  <CardFooter>
-    <Button variant="ghost" size="sm" onClick={clearSignature}>Clear</Button>
-    <Button size="sm" onClick={submitSignature}>Sign & Submit</Button>
-  </CardFooter>
-</Card>
+const EmptyState = (
+  <div className="py-20 text-center text-xs text-muted-foreground">
+    No items found
+  </div>
+)
 ```
 
-### Inspection Instance Card
+---
+
+## Signature Patterns
+
+### Fullscreen Signature Pad
+
+Mobile: fullscreen | Desktop: centered modal
 
 ```tsx
-<Card>
-  <CardHeader>
-    <CardTitle>{instance.task}</CardTitle>
-    <CardDescription>Due: {formatDate(instance.due_at)}</CardDescription>
-    <CardAction>
-      <Badge variant={statusVariant[instance.status]}>{instance.status}</Badge>
-    </CardAction>
-  </CardHeader>
-  <CardContent>
-    <p className="text-muted-foreground">{instance.remarks}</p>
-  </CardContent>
-</Card>
+<div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+  <div className="flex h-full w-full flex-col bg-background md:h-[80vh] md:max-h-[600px] md:w-[90vw] md:max-w-2xl md:rounded-lg md:border md:shadow-lg">
+    {/* Header */}
+    <div className="flex items-center justify-between border-b p-4">
+      <h2 className="text-sm font-medium">Sign Inspection</h2>
+      <div className="flex gap-2">
+        <Button variant="ghost" size="sm" onClick={onUndo}>Undo</Button>
+        <Button variant="ghost" size="sm" onClick={onClear}>Clear</Button>
+      </div>
+    </div>
+
+    {/* Canvas */}
+    <div className="flex-1 p-4">
+      <canvas ref={canvasRef} className="size-full border bg-white" />
+    </div>
+
+    {/* Footer */}
+    <div className="flex gap-2 border-t p-4">
+      <Button variant="outline" className="flex-1" onClick={onCancel}>Cancel</Button>
+      <Button className="flex-1" onClick={onSave}>Save Signature</Button>
+    </div>
+  </div>
+</div>
+```
+
+### Signature Display
+
+```tsx
+<div className="rounded-md border p-4">
+  <div className="mb-3 flex items-center gap-2 text-xs">
+    <PenTool className="size-4 text-primary" />
+    <span className="font-medium">Signed</span>
+    <span className="text-muted-foreground">· {formatDate(signedAt)}</span>
+  </div>
+  <div className="flex justify-center rounded border bg-white p-2">
+    <img src={signatureUrl} alt="Signature" className="h-24 max-w-full object-contain" />
+  </div>
+</div>
+```
+
+---
+
+## Modal Patterns
+
+### Detail Modal with Skeleton Loading
+
+```tsx
+<Dialog open={isOpen} onOpenChange={onClose}>
+  <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+    {loading ? (
+      <div className="space-y-4">
+        <DialogHeader>
+          <DialogTitle className="sr-only">Loading...</DialogTitle>
+          <Skeleton className="h-5 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </DialogHeader>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-4 w-40" />
+        </div>
+      </div>
+    ) : (
+      {/* Content */}
+    )}
+  </DialogContent>
+</Dialog>
 ```
