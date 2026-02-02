@@ -9,9 +9,5 @@ export default async function SetupPage() {
     redirect("/login")
   }
 
-  return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <SetupForm />
-    </div>
-  )
+  return <SetupForm />
 }
