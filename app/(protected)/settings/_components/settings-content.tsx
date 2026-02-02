@@ -1,120 +1,39 @@
 "use client"
 
-import { Users, MapPin, Bell } from "lucide-react"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { NotificationSettings } from "@/components/notification-settings"
+import { LocationCard } from "./location-card"
+import { NotificationCard } from "./notification-card"
+import { DangerZone } from "./danger-zone"
+
+interface Location {
+  id: string
+  name: string
+  address: string | null
+  timezone: string
+  active: boolean
+  created_at: string
+  updated_at: string
+}
 
 interface SettingsContentProps {
-  location: {
-    id: string
-    name: string
-    timezone: string
-    active: boolean
-  } | null
-  teamMembers: {
-    id: string
-    name: string
-    email: string
-    role: string
-  }[]
+  location: Location
   canEdit: boolean
+  isOwner: boolean
 }
 
-const roleVariant: Record<string, string> = {
-  owner: "default",
-  admin: "secondary",
-  nurse: "outline",
-  inspector: "outline",
-}
-
-export function SettingsContent({ location, teamMembers, canEdit }: SettingsContentProps) {
-  if (!location) {
-    return (
-      <div className="py-20 text-center text-xs text-muted-foreground">
-        Location not found
-      </div>
-    )
-  }
-
+export function SettingsContent({ location, canEdit, isOwner }: SettingsContentProps) {
   return (
     <div className="space-y-6">
-      <h1 className="text-sm font-medium">Settings</h1>
+      {/* Bento Grid */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {/* Location Card - spans 2 cols */}
+        <LocationCard location={location} canEdit={canEdit} isOwner={isOwner} />
 
-      {/* Location info */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MapPin className="size-4" />
-            Location Details
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div>
-              <div className="text-xs text-muted-foreground">Name</div>
-              <div className="text-xs font-medium">{location.name}</div>
-            </div>
-            <Separator />
-            <div>
-              <div className="text-xs text-muted-foreground">Timezone</div>
-              <div className="text-xs font-medium">{location.timezone}</div>
-            </div>
-            <Separator />
-            <div>
-              <div className="text-xs text-muted-foreground">Status</div>
-              <Badge variant={location.active ? "default" : "outline"}>
-                {location.active ? "Active" : "Inactive"}
-              </Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        {/* Notification Card */}
+        <NotificationCard />
 
-      {/* Notifications */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bell className="size-4" />
-            Notifications
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <NotificationSettings />
-        </CardContent>
-      </Card>
-
-      {/* Team members */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="size-4" />
-            Team Members ({teamMembers.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {teamMembers.length === 0 ? (
-            <p className="py-4 text-center text-xs text-muted-foreground">
-              No team members assigned
-            </p>
-          ) : (
-            <div className="divide-y divide-border">
-              {teamMembers.map((member) => (
-                <div key={member.id} className="flex items-center justify-between py-2.5">
-                  <div className="space-y-0.5">
-                    <div className="text-xs font-medium">{member.name}</div>
-                    <div className="text-xs text-muted-foreground">{member.email}</div>
-                  </div>
-                  <Badge variant={(roleVariant[member.role] ?? "outline") as any} className="capitalize">
-                    {member.role}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        {/* Danger Zone - Owner only, spans full width */}
+        {isOwner && <DangerZone locationId={location.id} isActive={location.active} />}
+      </div>
     </div>
   )
 }

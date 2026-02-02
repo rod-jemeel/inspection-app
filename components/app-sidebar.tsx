@@ -4,7 +4,7 @@ import {
   Home,
   ClipboardList,
   ClipboardCheck,
-  Key,
+  Users,
   Settings,
 } from "lucide-react"
 
@@ -39,15 +39,20 @@ export function AppSidebar({
   onSignOut,
   ...props
 }: AppSidebarProps) {
-  const navItems = [
+  const isAdmin = user.role === "admin" || user.role === "owner"
+
+  const mainItems = [
     { title: "Dashboard", url: "/dashboard", icon: Home },
     { title: "Templates", url: "/templates", icon: ClipboardList },
     { title: "Inspections", url: "/inspections", icon: ClipboardCheck },
-    ...(user.role === "admin" || user.role === "owner"
-      ? [{ title: "Invites", url: "/invites", icon: Key }]
-      : []),
-    { title: "Settings", url: "/settings", icon: Settings },
   ]
+
+  const adminItems = isAdmin
+    ? [
+        { title: "Team", url: "/users", icon: Users },
+        { title: "Settings", url: "/settings", icon: Settings },
+      ]
+    : [{ title: "Settings", url: "/settings", icon: Settings }]
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -56,10 +61,12 @@ export function AppSidebar({
           locations={locations}
           currentLocationId={currentLocationId}
           onLocationChange={onLocationChange}
+          canAddLocation={isAdmin}
         />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navItems} locationId={currentLocationId} />
+        <NavMain items={mainItems} locationId={currentLocationId} label="Main" />
+        <NavMain items={adminItems} locationId={currentLocationId} label={isAdmin ? "Admin" : "Account"} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} locationId={currentLocationId} onSignOut={onSignOut} />

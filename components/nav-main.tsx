@@ -19,14 +19,15 @@ interface NavMainProps {
     icon: LucideIcon
   }[]
   locationId: string | null
+  label?: string
 }
 
-export function NavMain({ items, locationId }: NavMainProps) {
+export function NavMain({ items, locationId, label = "Navigation" }: NavMainProps) {
   const pathname = usePathname()
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+      <SidebarGroupLabel>{label}</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => {
           const href = locationId ? `${item.url}?loc=${locationId}` : item.url

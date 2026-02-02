@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { useQueryState } from "nuqs"
+import { parseAsString, useQueryState } from "nuqs"
 import { AlertTriangle, ChevronRight, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -10,16 +10,31 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
 
-interface Instance {
+// Date formatter using Intl for i18n
+const dateFormatter = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "numeric",
+})
+
+export interface Instance {
   id: string
   template_id: string
   template_task?: string
+  template_description?: string | null
   template_frequency?: "weekly" | "monthly" | "yearly" | "every_3_years" | null
+  location_id?: string
   due_at: string
+  assigned_to_profile_id?: string | null
   assigned_to_email: string | null
   status: "pending" | "in_progress" | "failed" | "passed" | "void"
   remarks: string | null
   inspected_at: string | null
+  failed_at?: string | null
+  passed_at?: string | null
+  // Computed fields from view
+  is_overdue?: boolean
+  signature_count?: number
+  event_count?: number
 }
 
 const STATUS_TABS = [
@@ -80,9 +95,15 @@ export function InspectionList({
   activeStatus?: string
 }) {
   const router = useRouter()
-  const [, setInstanceId] = useQueryState("instance")
+  const [, setInstanceId] = useQueryState("instance", parseAsString)
+  const [groupView, setGroupView] = useQueryState("view", {
+    defaultValue: "urgency",
+    parse: (v) => (v === "frequency" ? "frequency" : "urgency"),
+  })
   const [search, setSearch] = useState("")
-  const [groupView, setGroupView] = useState<"urgency" | "frequency">("urgency")
+
+  // Debounce prefetch to avoid excessive API calls
+  const prefetchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Cache current time to avoid creating new Date objects repeatedly
   const now = useMemo(() => new Date(), [])
@@ -93,11 +114,17 @@ export function InspectionList({
     [now]
   )
 
-  // Prefetch instance data on hover for faster modal loading
+  // Prefetch instance data on hover for faster modal loading (debounced)
   const prefetchInstance = useCallback(
     (instanceId: string) => {
-      // Use link prefetching by fetching the API route
-      fetch(`/api/locations/${locationId}/instances/${instanceId}`)
+      // Clear any pending prefetch
+      if (prefetchTimeoutRef.current) {
+        clearTimeout(prefetchTimeoutRef.current)
+      }
+      // Debounce by 150ms to avoid excessive API calls
+      prefetchTimeoutRef.current = setTimeout(() => {
+        fetch(`/api/locations/${locationId}/instances/${instanceId}`)
+      }, 150)
     },
     [locationId]
   )
@@ -202,7 +229,7 @@ export function InspectionList({
 
       if (date.toDateString() === now.toDateString()) return "Today"
       if (date.toDateString() === tomorrow.toDateString()) return "Tomorrow"
-      return date.toLocaleDateString(undefined, { month: "short", day: "numeric" })
+      return dateFormatter.format(date)
     },
     [now]
   )
@@ -310,10 +337,11 @@ export function InspectionList({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         {/* Search */}
         <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
           <Input
             type="search"
-            placeholder="Search inspections..."
+            placeholder="Search inspections…"
+            aria-label="Search inspections"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-8 pl-8 text-xs"
@@ -344,8 +372,8 @@ export function InspectionList({
         </div>
       </div>
 
-      {/* Group View Tabs */}
-      <Tabs value={groupView} onValueChange={(v) => setGroupView(v as "urgency" | "frequency")}>
+      {/* Group View Tabs - synced to URL for bookmarkability */}
+      <Tabs value={groupView ?? "urgency"} onValueChange={(v) => setGroupView(v as "urgency" | "frequency")}>
         <TabsList className="h-8 w-full sm:w-fit">
           <TabsTrigger value="urgency" className="text-xs sm:flex-initial">
             By Urgency

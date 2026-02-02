@@ -24,6 +24,8 @@ export const updateInstanceSchema = z.object({
   status: z.enum(["in_progress", "failed", "passed", "void"]).optional(),
   remarks: z.string().max(5000).nullish(),
   inspected_at: z.string().datetime().optional(),
+  assigned_to_profile_id: z.string().uuid().nullable().optional(),
+  assigned_to_email: z.string().email().nullable().optional(),
 })
 
 export type UpdateInstanceInput = z.infer<typeof updateInstanceSchema>

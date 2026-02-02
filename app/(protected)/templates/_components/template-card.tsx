@@ -1,7 +1,7 @@
 "use client"
 
 import { forwardRef } from "react"
-import { GripVertical, Trash2, Calendar } from "lucide-react"
+import { GripVertical, Trash2, Calendar, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -18,6 +18,7 @@ interface Template {
   description: string | null
   frequency: "weekly" | "monthly" | "yearly" | "every_3_years"
   default_due_rule: DueRule | null
+  default_assignee_email: string | null
   active: boolean
   sort_order: number
   created_by: string | null
@@ -31,19 +32,34 @@ interface Template {
 const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
-function formatDueRule(frequency: string, rule: DueRule | null): string | null {
+// Frequency badge colors
+const FREQUENCY_COLORS: Record<string, string> = {
+  weekly: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800",
+  monthly: "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800",
+  yearly: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800",
+  every_3_years: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800",
+}
+
+const FREQUENCY_LABELS: Record<string, string> = {
+  weekly: "Weekly",
+  monthly: "Monthly",
+  yearly: "Yearly",
+  every_3_years: "Every 3 Years",
+}
+
+function formatDueDate(frequency: string, rule: DueRule | null): string | null {
   if (!rule) return null
 
   switch (frequency) {
     case "weekly":
       if (rule.dayOfWeek !== undefined) {
-        return `Every ${DAYS_OF_WEEK[rule.dayOfWeek]}`
+        return DAYS_OF_WEEK[rule.dayOfWeek]
       }
       break
     case "monthly":
       if (rule.dayOfMonth !== undefined) {
         const suffix = getOrdinalSuffix(rule.dayOfMonth)
-        return `${rule.dayOfMonth}${suffix} of month`
+        return `${rule.dayOfMonth}${suffix}`
       }
       break
     case "yearly":
@@ -129,12 +145,38 @@ export const TemplateCard = forwardRef<HTMLDivElement, TemplateCardProps>(
               {template.description}
             </p>
           )}
-          {template.default_due_rule && (
-            <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
-              <Calendar className="size-3" />
-              <span>{formatDueRule(template.frequency, template.default_due_rule)}</span>
-            </div>
-          )}
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            {/* Frequency badge */}
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-[10px] font-medium",
+                FREQUENCY_COLORS[template.frequency]
+              )}
+            >
+              {FREQUENCY_LABELS[template.frequency]}
+            </Badge>
+            {/* Due date badge */}
+            {template.default_due_rule && (
+              <Badge
+                variant="outline"
+                className="bg-muted/50 text-[10px] font-medium"
+              >
+                <Calendar className="mr-1 size-3" />
+                {formatDueDate(template.frequency, template.default_due_rule)}
+              </Badge>
+            )}
+            {/* Assignee badge */}
+            {template.default_assignee_email && (
+              <Badge
+                variant="outline"
+                className="bg-muted/50 text-[10px] font-medium"
+              >
+                <User className="mr-1 size-3" />
+                {template.default_assignee_email}
+              </Badge>
+            )}
+          </div>
         </div>
 
         {canManage && (
