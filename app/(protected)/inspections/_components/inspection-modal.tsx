@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { useQueryState } from "nuqs"
+import { parseAsString, useQueryState } from "nuqs"
 import {
   Play,
   XCircle,
@@ -15,6 +15,7 @@ import {
   Bell,
   MessageSquare,
   UserPlus,
+  UserCog,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -29,6 +30,12 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { FullscreenSignaturePad } from "@/components/fullscreen-signature-pad"
 
 interface Instance {
@@ -76,6 +83,22 @@ const STATUS_VARIANT: Record<string, string> = {
   void: "ghost",
 }
 
+// Date formatters using Intl for i18n
+const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+})
+
+const shortDateTimeFormatter = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+})
+
 const FREQ_CONFIG: Record<string, { label: string; className: string }> = {
   weekly: { label: "Weekly", className: "bg-blue-100 text-blue-700 border-blue-200" },
   monthly: { label: "Monthly", className: "bg-green-100 text-green-700 border-green-200" },
@@ -95,14 +118,34 @@ const EVENT_ICONS = {
   escalated: { Icon: AlertTriangle, color: "text-destructive" },
 }
 
+interface PreloadedInstance {
+  id: string
+  template_id: string
+  template_task?: string
+  template_description?: string | null
+  template_frequency?: "weekly" | "monthly" | "yearly" | "every_3_years" | null
+  location_id?: string
+  due_at: string
+  assigned_to_profile_id?: string | null
+  assigned_to_email: string | null
+  status: "pending" | "in_progress" | "failed" | "passed" | "void"
+  remarks: string | null
+  inspected_at: string | null
+  failed_at?: string | null
+  passed_at?: string | null
+  signature_count?: number
+  event_count?: number
+}
+
 interface InspectionModalProps {
   locationId: string
   profileId: string
+  instances?: PreloadedInstance[]
 }
 
-export function InspectionModal({ locationId, profileId }: InspectionModalProps) {
+export function InspectionModal({ locationId, profileId, instances = [] }: InspectionModalProps) {
   const router = useRouter()
-  const [instanceId, setInstanceId] = useQueryState("instance")
+  const [instanceId, setInstanceId] = useQueryState("instance", parseAsString)
 
   const [instance, setInstance] = useState<Instance | null>(null)
   const [template, setTemplate] = useState<Template | null>(null)
@@ -113,6 +156,8 @@ export function InspectionModal({ locationId, profileId }: InspectionModalProps)
   const [fetching, setFetching] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showSignature, setShowSignature] = useState(false)
+  const [showReassign, setShowReassign] = useState(false)
+  const [reassignEmail, setReassignEmail] = useState("")
 
   const isOpen = !!instanceId
   const isTerminal = instance?.status === "passed" || instance?.status === "void"
@@ -131,50 +176,121 @@ export function InspectionModal({ locationId, profileId }: InspectionModalProps)
     }
 
     async function fetchData() {
-      setFetching(true)
       setError(null)
 
-      try {
-        // Fetch instance
-        const instanceRes = await fetch(`/api/locations/${locationId}/instances/${instanceId}`)
-        if (!instanceRes.ok) throw new Error("Failed to fetch inspection")
-        const instanceJson = await instanceRes.json()
-        const instanceData = instanceJson.data ?? instanceJson
-        setInstance(instanceData)
+      // Check if we have pre-loaded data from the list
+      const preloaded = instances.find((i) => i.id === instanceId)
 
-        // Initialize remarks from instance
-        setRemarks(instanceData.remarks ?? "")
+      if (preloaded) {
+        // Use pre-loaded data - instant modal open!
+        setInstance({
+          id: preloaded.id,
+          template_id: preloaded.template_id,
+          template_task: preloaded.template_task,
+          template_frequency: preloaded.template_frequency,
+          location_id: preloaded.location_id ?? locationId,
+          due_at: preloaded.due_at,
+          assigned_to_profile_id: preloaded.assigned_to_profile_id ?? null,
+          assigned_to_email: preloaded.assigned_to_email,
+          status: preloaded.status,
+          remarks: preloaded.remarks,
+          inspected_at: preloaded.inspected_at,
+          failed_at: preloaded.failed_at ?? null,
+          passed_at: preloaded.passed_at ?? null,
+        })
+        setRemarks(preloaded.remarks ?? "")
 
-        // Fetch template, events, signatures in parallel
-        const [templateRes, eventsRes, signaturesRes] = await Promise.all([
-          fetch(`/api/locations/${locationId}/templates/${instanceData.template_id}`).catch(() => null),
-          fetch(`/api/locations/${locationId}/instances/${instanceId}/events`),
-          fetch(`/api/locations/${locationId}/instances/${instanceId}/sign`),
-        ])
-
-        if (templateRes?.ok) {
-          const templateJson = await templateRes.json()
-          setTemplate(templateJson.data ?? templateJson)
+        // Set template from preloaded data
+        if (preloaded.template_task) {
+          setTemplate({
+            id: preloaded.template_id,
+            task: preloaded.template_task,
+            description: preloaded.template_description ?? null,
+            frequency: preloaded.template_frequency ?? "monthly",
+          })
         }
 
-        if (eventsRes.ok) {
-          const eventsData = await eventsRes.json()
-          setEvents(eventsData.data ?? [])
-        }
+        // Only fetch events and signatures (lightweight)
+        // Skip if we know there are none from the view
+        const needsEvents = (preloaded.event_count ?? 1) > 0
+        const needsSignatures = (preloaded.signature_count ?? 0) > 0 || preloaded.status === "passed"
 
-        if (signaturesRes.ok) {
-          const sigsData = await signaturesRes.json()
-          setSignatures(sigsData.data ?? [])
+        if (needsEvents || needsSignatures) {
+          setFetching(true)
+          try {
+            const promises: Promise<Response>[] = []
+            if (needsEvents) {
+              promises.push(fetch(`/api/locations/${locationId}/instances/${instanceId}/events`))
+            }
+            if (needsSignatures) {
+              promises.push(fetch(`/api/locations/${locationId}/instances/${instanceId}/sign`))
+            }
+
+            const responses = await Promise.all(promises)
+            let idx = 0
+
+            if (needsEvents && responses[idx]?.ok) {
+              const eventsData = await responses[idx].json()
+              setEvents(eventsData.data ?? [])
+              idx++
+            }
+
+            if (needsSignatures && responses[idx]?.ok) {
+              const sigsData = await responses[idx].json()
+              setSignatures(sigsData.data ?? [])
+            }
+          } catch {
+            // Non-critical - events/signatures can fail silently
+          } finally {
+            setFetching(false)
+          }
         }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred")
-      } finally {
-        setFetching(false)
+      } else {
+        // No pre-loaded data - fetch everything (e.g., direct URL access)
+        setFetching(true)
+
+        try {
+          // Fetch instance
+          const instanceRes = await fetch(`/api/locations/${locationId}/instances/${instanceId}`)
+          if (!instanceRes.ok) throw new Error("Failed to fetch inspection")
+          const instanceJson = await instanceRes.json()
+          const instanceData = instanceJson.data ?? instanceJson
+          setInstance(instanceData)
+
+          // Initialize remarks from instance
+          setRemarks(instanceData.remarks ?? "")
+
+          // Fetch template, events, signatures in parallel
+          const [templateRes, eventsRes, signaturesRes] = await Promise.all([
+            fetch(`/api/locations/${locationId}/templates/${instanceData.template_id}`).catch(() => null),
+            fetch(`/api/locations/${locationId}/instances/${instanceId}/events`),
+            fetch(`/api/locations/${locationId}/instances/${instanceId}/sign`),
+          ])
+
+          if (templateRes?.ok) {
+            const templateJson = await templateRes.json()
+            setTemplate(templateJson.data ?? templateJson)
+          }
+
+          if (eventsRes.ok) {
+            const eventsData = await eventsRes.json()
+            setEvents(eventsData.data ?? [])
+          }
+
+          if (signaturesRes.ok) {
+            const sigsData = await signaturesRes.json()
+            setSignatures(sigsData.data ?? [])
+          }
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "An error occurred")
+        } finally {
+          setFetching(false)
+        }
       }
     }
 
     fetchData()
-  }, [instanceId, locationId])
+  }, [instanceId, locationId, instances])
 
   // Handle remarks change (local state only - no URL sync)
   const handleRemarksChange = useCallback((value: string) => {
@@ -279,25 +395,44 @@ export function InspectionModal({ locationId, profileId }: InspectionModalProps)
     }
   }
 
+  const handleReassign = async () => {
+    if (!instance || !reassignEmail.trim()) return
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch(`/api/locations/${locationId}/instances/${instance.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assigned_to_email: reassignEmail.trim(),
+        }),
+      })
+
+      if (!response.ok) {
+        const err = await response.json()
+        throw new Error(err.error?.message || "Failed to reassign")
+      }
+
+      const updatedJson = await response.json()
+      const updated = updatedJson.data ?? updatedJson
+      setInstance(updated)
+      setShowReassign(false)
+      setReassignEmail("")
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    })
+    return dateTimeFormatter.format(new Date(dateString))
   }
 
   const formatEventTime = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    })
+    return shortDateTimeFormatter.format(new Date(dateString))
   }
 
   // Memoize filtered events to avoid recalculating on every render
@@ -319,7 +454,7 @@ export function InspectionModal({ locationId, profileId }: InspectionModalProps)
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto overscroll-contain">
         {fetching ? (
           <div className="space-y-4">
             <DialogHeader>
@@ -403,12 +538,65 @@ export function InspectionModal({ locationId, profileId }: InspectionModalProps)
                 <div className="text-muted-foreground">Due Date</div>
                 <div className="font-medium">{formatDate(instance.due_at)}</div>
               </div>
-              {instance.assigned_to_email && (
-                <div>
-                  <div className="text-muted-foreground">Assigned To</div>
-                  <div className="font-medium">{instance.assigned_to_email}</div>
+              <div>
+                <div className="text-muted-foreground">Assigned To</div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">
+                    {instance.assigned_to_email || "Unassigned"}
+                  </span>
+                  {!isTerminal && (
+                    <Popover open={showReassign} onOpenChange={setShowReassign}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <UserCog className="size-3.5" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-72" align="start">
+                        <div className="space-y-3">
+                          <div className="space-y-1">
+                            <h4 className="text-xs font-medium">Reassign Inspector</h4>
+                            <p className="text-[11px] text-muted-foreground">
+                              Enter the email of the inspector to assign this task to.
+                            </p>
+                          </div>
+                          <Input
+                            type="email"
+                            placeholder="inspector@example.com"
+                            value={reassignEmail}
+                            onChange={(e) => setReassignEmail(e.target.value)}
+                            disabled={loading}
+                            className="h-8 text-xs"
+                          />
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setShowReassign(false)
+                                setReassignEmail("")
+                              }}
+                              disabled={loading}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={handleReassign}
+                              disabled={loading || !reassignEmail.trim()}
+                            >
+                              {loading ? "Saving..." : "Reassign"}
+                            </Button>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  )}
                 </div>
-              )}
+              </div>
               {instance.inspected_at && (
                 <div>
                   <div className="text-muted-foreground">Inspected At</div>
@@ -548,8 +736,11 @@ export function InspectionModal({ locationId, profileId }: InspectionModalProps)
                         <div className="flex justify-center rounded border bg-white p-2">
                           <img
                             src={`/api/locations/${locationId}/instances/${instance.id}/sign/${sig.id}/image`}
-                            alt="Signature"
-                            className="h-24 max-w-full object-contain"
+                            alt="Inspector signature"
+                            width={300}
+                            height={96}
+                            className="h-24 w-auto max-w-full object-contain"
+                            loading="lazy"
                           />
                         </div>
                       </div>

@@ -17,6 +17,7 @@ export interface Template {
   description: string | null
   frequency: "weekly" | "monthly" | "yearly" | "every_3_years"
   default_assignee_profile_id: string | null
+  default_assignee_email: string | null
   default_due_rule: Record<string, unknown> | null
   active: boolean
   sort_order: number
@@ -96,12 +97,26 @@ export async function getTemplate(locationId: string, templateId: string) {
 }
 
 export async function createTemplate(locationId: string, userId: string, input: CreateTemplateInput) {
+  // If email is provided, try to find matching profile
+  let assigneeProfileId = input.default_assignee_profile_id
+  if (input.default_assignee_email && !assigneeProfileId) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("email", input.default_assignee_email)
+      .single()
+    if (profile) {
+      assigneeProfileId = profile.id
+    }
+  }
+
   const { data, error } = await supabase
     .from("inspection_templates")
     .insert({
       location_id: locationId,
       created_by: userId,
       ...input,
+      default_assignee_profile_id: assigneeProfileId,
     })
     .select()
     .single()
@@ -115,9 +130,31 @@ export async function createTemplate(locationId: string, userId: string, input: 
 }
 
 export async function updateTemplate(locationId: string, templateId: string, userId: string, input: UpdateTemplateInput) {
+  const updates: Record<string, unknown> = { ...input, updated_at: new Date().toISOString(), updated_by: userId }
+
+  // If email is provided, try to find matching profile
+  if (input.default_assignee_email !== undefined) {
+    if (input.default_assignee_email) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", input.default_assignee_email)
+        .single()
+      if (profile) {
+        updates.default_assignee_profile_id = profile.id
+      } else {
+        // Clear profile if email doesn't match any registered user
+        updates.default_assignee_profile_id = null
+      }
+    } else {
+      // Clearing the email clears the profile too
+      updates.default_assignee_profile_id = null
+    }
+  }
+
   const { data, error } = await supabase
     .from("inspection_templates")
-    .update({ ...input, updated_at: new Date().toISOString(), updated_by: userId })
+    .update(updates)
     .eq("id", templateId)
     .eq("location_id", locationId)
     .select()

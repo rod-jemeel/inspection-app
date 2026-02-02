@@ -1,7 +1,7 @@
 import { Suspense } from "react"
 import type { Metadata } from "next"
 import { requireLocationAccess } from "@/lib/server/auth-helpers"
-import { supabase } from "@/lib/server/db"
+import { getLocation } from "@/lib/server/services/locations"
 import { SettingsContent } from "./_components/settings-content"
 
 export const metadata: Metadata = {
@@ -11,27 +11,15 @@ export const metadata: Metadata = {
 async function SettingsData({ loc }: { loc: string }) {
   const { profile } = await requireLocationAccess(loc)
   const canEdit = profile.role === "admin" || profile.role === "owner"
+  const isOwner = profile.role === "owner"
 
-  const [{ data: location }, { data: members }] = await Promise.all([
-    supabase.from("locations").select("*").eq("id", loc).single(),
-    supabase
-      .from("profile_locations")
-      .select("profiles(id, full_name, email, role)")
-      .eq("location_id", loc),
-  ])
-
-  const teamMembers = (members ?? []).map((m: any) => ({
-    id: m.profiles.id as string,
-    name: m.profiles.full_name as string,
-    email: m.profiles.email as string,
-    role: m.profiles.role as string,
-  }))
+  const location = await getLocation(loc)
 
   return (
     <SettingsContent
       location={location}
-      teamMembers={teamMembers}
       canEdit={canEdit}
+      isOwner={isOwner}
     />
   )
 }

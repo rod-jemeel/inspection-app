@@ -13,6 +13,7 @@ export interface Instance {
   id: string
   template_id: string
   template_task?: string
+  template_description?: string | null
   template_frequency?: "weekly" | "monthly" | "yearly" | "every_3_years" | null
   location_id: string
   due_at: string
@@ -25,6 +26,11 @@ export interface Instance {
   passed_at: string | null
   created_by: string
   created_at: string
+  // Computed fields from view
+  is_overdue?: boolean
+  signature_count?: number
+  latest_signature_at?: string | null
+  event_count?: number
 }
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
@@ -36,9 +42,10 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 }
 
 async function fetchInstances(locationId: string, filters: InstanceFilters) {
+  // Try to use the optimized view first, fallback to base table with JOIN
   let query = supabase
-    .from("inspection_instances")
-    .select("*, inspection_templates(task, frequency)")
+    .from("inspection_instances_detailed")
+    .select("*")
     .eq("location_id", locationId)
     .order("due_at", { ascending: true })
     .limit(filters.limit)
@@ -50,15 +57,37 @@ async function fetchInstances(locationId: string, filters: InstanceFilters) {
   if (filters.cursor) query = query.gt("due_at", filters.cursor)
 
   const { data, error } = await query
-  if (error) throw new ApiError("INTERNAL_ERROR", error.message)
 
-  // Flatten the template task and frequency into the instance
-  return (data ?? []).map((row: any) => ({
-    ...row,
-    template_task: row.inspection_templates?.task ?? null,
-    template_frequency: row.inspection_templates?.frequency ?? null,
-    inspection_templates: undefined,
-  })) as Instance[]
+  // Fallback to base table if view doesn't exist yet
+  if (error?.code === "42P01") {
+    // relation does not exist
+    let fallbackQuery = supabase
+      .from("inspection_instances")
+      .select("*, inspection_templates(task, description, frequency)")
+      .eq("location_id", locationId)
+      .order("due_at", { ascending: true })
+      .limit(filters.limit)
+
+    if (filters.status) fallbackQuery = fallbackQuery.eq("status", filters.status)
+    if (filters.from) fallbackQuery = fallbackQuery.gte("due_at", filters.from)
+    if (filters.to) fallbackQuery = fallbackQuery.lte("due_at", filters.to)
+    if (filters.assignee) fallbackQuery = fallbackQuery.eq("assigned_to_profile_id", filters.assignee)
+    if (filters.cursor) fallbackQuery = fallbackQuery.gt("due_at", filters.cursor)
+
+    const { data: fallbackData, error: fallbackError } = await fallbackQuery
+    if (fallbackError) throw new ApiError("INTERNAL_ERROR", fallbackError.message)
+
+    return (fallbackData ?? []).map((row: any) => ({
+      ...row,
+      template_task: row.inspection_templates?.task ?? null,
+      template_description: row.inspection_templates?.description ?? null,
+      template_frequency: row.inspection_templates?.frequency ?? null,
+      inspection_templates: undefined,
+    })) as Instance[]
+  }
+
+  if (error) throw new ApiError("INTERNAL_ERROR", error.message)
+  return (data ?? []) as Instance[]
 }
 
 // Cached version for server components - revalidates on instance mutations
@@ -114,6 +143,28 @@ export async function updateInstance(locationId: string, instanceId: string, inp
   if (input.status === "passed") updates.passed_at = new Date().toISOString()
   if (input.status === "in_progress" || input.status === "passed" || input.status === "failed") {
     updates.inspected_at = new Date().toISOString()
+  }
+
+  // Handle assignment changes - if email is provided, try to resolve to profile
+  if (input.assigned_to_email !== undefined) {
+    updates.assigned_to_email = input.assigned_to_email
+    // Try to find matching profile by email
+    if (input.assigned_to_email) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", input.assigned_to_email)
+        .single()
+      if (profile) {
+        updates.assigned_to_profile_id = profile.id
+      } else {
+        // Clear profile_id if email doesn't match any profile (external inspector)
+        updates.assigned_to_profile_id = null
+      }
+    } else {
+      // Clearing assignment
+      updates.assigned_to_profile_id = null
+    }
   }
 
   const { data, error } = await supabase

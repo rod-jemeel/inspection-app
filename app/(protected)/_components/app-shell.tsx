@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { useQueryState } from "nuqs"
+import { parseAsString, useQueryState } from "nuqs"
 
 import { AppSidebar } from "@/components/app-sidebar"
 import {
@@ -44,7 +44,7 @@ const pageTitles: Record<string, string> = {
 export function AppShell({ user, locations, children, mustChangePassword }: AppShellProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const [locationId, setLocationId] = useQueryState("loc")
+  const [locationId, setLocationId] = useQueryState("loc", parseAsString.withDefault(""))
 
   // Set default location if none selected
   useEffect(() => {

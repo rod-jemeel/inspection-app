@@ -13,6 +13,7 @@ const setupSchema = z.object({
   email: z.string().email("Invalid email").optional().or(z.literal("")),
   password: z.string().min(12, "Password must be at least 12 characters"),
   locationName: z.string().min(1, "Location name is required"),
+  locationAddress: z.string().max(500).optional(),
   timezone: z.string().min(1, "Timezone is required"),
 })
 
@@ -86,6 +87,7 @@ export async function POST(request: Request) {
       .from("locations")
       .insert({
         name: input.locationName,
+        address: input.locationAddress || null,
         timezone: input.timezone,
         active: true,
       })

@@ -8,6 +8,13 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -34,6 +41,7 @@ interface Template {
   description: string | null
   frequency: "weekly" | "monthly" | "yearly" | "every_3_years"
   default_due_rule: DueRule | null
+  default_assignee_email: string | null
   active: boolean
   sort_order: number
   created_by: string | null
@@ -99,6 +107,9 @@ export function TemplateDialog({
   const [dayOfMonth, setDayOfMonth] = useState<number>(1)
   const [month, setMonth] = useState<number>(1)
 
+  // Assignee field
+  const [assigneeEmail, setAssigneeEmail] = useState("")
+
   useEffect(() => {
     if (open) {
       if (template) {
@@ -106,6 +117,7 @@ export function TemplateDialog({
         setDescription(template.description ?? "")
         setFrequency(template.frequency)
         setActive(template.active)
+        setAssigneeEmail(template.default_assignee_email ?? "")
         // Set due rule values
         const rule = template.default_due_rule
         setDayOfWeek(rule?.dayOfWeek ?? 1)
@@ -116,6 +128,7 @@ export function TemplateDialog({
         setDescription("")
         setFrequency("weekly")
         setActive(true)
+        setAssigneeEmail("")
         setDayOfWeek(1)
         setDayOfMonth(1)
         setMonth(1)
@@ -147,8 +160,21 @@ export function TemplateDialog({
     try {
       const default_due_rule = buildDueRule()
       const body = isEditing
-        ? { task, description: description || undefined, frequency, default_due_rule, active }
-        : { task, description: description || undefined, frequency, default_due_rule }
+        ? {
+            task,
+            description: description || undefined,
+            frequency,
+            default_due_rule,
+            default_assignee_email: assigneeEmail || null,
+            active
+          }
+        : {
+            task,
+            description: description || undefined,
+            frequency,
+            default_due_rule,
+            default_assignee_email: assigneeEmail || undefined
+          }
 
       const url = isEditing
         ? `/api/locations/${locationId}/templates/${template.id}`
@@ -249,37 +275,43 @@ export function TemplateDialog({
 
           <Field>
             <FieldLabel>Frequency</FieldLabel>
-            <select
+            <Select
               value={frequency}
-              onChange={(e) => setFrequency(e.target.value)}
-              className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs"
+              onValueChange={(v) => v && setFrequency(v)}
               disabled={loading}
-              aria-label="Frequency"
             >
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-              <option value="yearly">Yearly</option>
-              <option value="every_3_years">Every 3 Years</option>
-            </select>
+              <SelectTrigger className="h-8 text-xs w-full">
+                <SelectValue placeholder="Select frequency" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="weekly" className="text-xs">Weekly</SelectItem>
+                <SelectItem value="monthly" className="text-xs">Monthly</SelectItem>
+                <SelectItem value="yearly" className="text-xs">Yearly</SelectItem>
+                <SelectItem value="every_3_years" className="text-xs">Every 3 Years</SelectItem>
+              </SelectContent>
+            </Select>
           </Field>
 
           {/* Due Rule Fields - conditional based on frequency */}
           {frequency === "weekly" && (
             <Field>
               <FieldLabel>Due Day</FieldLabel>
-              <select
-                value={dayOfWeek}
-                onChange={(e) => setDayOfWeek(Number(e.target.value))}
-                className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs"
+              <Select
+                value={String(dayOfWeek)}
+                onValueChange={(v) => v && setDayOfWeek(Number(v))}
                 disabled={loading}
-                aria-label="Day of week"
               >
-                {DAYS_OF_WEEK.map((day) => (
-                  <option key={day.value} value={day.value}>
-                    {day.label}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="h-8 text-xs w-full">
+                  <SelectValue placeholder="Select day" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DAYS_OF_WEEK.map((day) => (
+                    <SelectItem key={day.value} value={String(day.value)} className="text-xs">
+                      {day.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FieldDescription>Which day of the week is this due?</FieldDescription>
             </Field>
           )}
@@ -287,20 +319,22 @@ export function TemplateDialog({
           {frequency === "monthly" && (
             <Field>
               <FieldLabel>Due Day of Month</FieldLabel>
-              <select
-                value={dayOfMonth}
-                onChange={(e) => setDayOfMonth(Number(e.target.value))}
-                className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs"
+              <Select
+                value={String(dayOfMonth)}
+                onValueChange={(v) => v && setDayOfMonth(Number(v))}
                 disabled={loading}
-                aria-label="Day of month"
               >
-                {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                  <option key={day} value={day}>
-                    {day}
-                    {day === 31 && " (or last day)"}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="h-8 text-xs w-full">
+                  <SelectValue placeholder="Select day" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                    <SelectItem key={day} value={String(day)} className="text-xs">
+                      {day}{day === 31 && " (or last day)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FieldDescription>Which day of the month is this due?</FieldDescription>
             </Field>
           )}
@@ -309,38 +343,59 @@ export function TemplateDialog({
             <div className="grid grid-cols-2 gap-3">
               <Field>
                 <FieldLabel>Due Month</FieldLabel>
-                <select
-                  value={month}
-                  onChange={(e) => setMonth(Number(e.target.value))}
-                  className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs"
+                <Select
+                  value={String(month)}
+                  onValueChange={(v) => v && setMonth(Number(v))}
                   disabled={loading}
-                  aria-label="Month"
                 >
-                  {MONTHS.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-8 text-xs w-full">
+                    <SelectValue placeholder="Select month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTHS.map((m) => (
+                      <SelectItem key={m.value} value={String(m.value)} className="text-xs">
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
               <Field>
                 <FieldLabel>Due Day</FieldLabel>
-                <select
-                  value={dayOfMonth}
-                  onChange={(e) => setDayOfMonth(Number(e.target.value))}
-                  className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs"
+                <Select
+                  value={String(dayOfMonth)}
+                  onValueChange={(v) => v && setDayOfMonth(Number(v))}
                   disabled={loading}
-                  aria-label="Day"
                 >
-                  {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                    <option key={day} value={day}>
-                      {day}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-8 text-xs w-full">
+                    <SelectValue placeholder="Select day" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                      <SelectItem key={day} value={String(day)} className="text-xs">
+                        {day}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
             </div>
           )}
+
+          <Field>
+            <FieldLabel>Default Assignee Email</FieldLabel>
+            <Input
+              type="email"
+              value={assigneeEmail}
+              onChange={(e) => setAssigneeEmail(e.target.value)}
+              placeholder="inspector@example.com"
+              disabled={loading}
+              autoComplete="off"
+            />
+            <FieldDescription>
+              Email of the inspector to assign by default. They will receive an invite if not already registered.
+            </FieldDescription>
+          </Field>
 
           {isEditing && (
             <Field>

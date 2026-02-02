@@ -22,7 +22,7 @@ async function InspectionsData({ loc, status }: { loc: string; status?: string }
   return (
     <>
       <InspectionList instances={instances} locationId={loc} activeStatus={status} />
-      <InspectionModal locationId={loc} profileId={profile.id} />
+      <InspectionModal locationId={loc} profileId={profile.id} instances={instances} />
     </>
   )
 }

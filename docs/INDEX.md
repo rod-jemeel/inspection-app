@@ -13,6 +13,7 @@ Multi-location inspection tracking PWA with recurring checklists, signature capt
 | [AUTH.md](AUTH.md) | Better Auth setup, invite codes, roles, authorization helpers |
 | [DATABASE.md](DATABASE.md) | Schema, tables, RLS policies, audit log |
 | [API.md](API.md) | Endpoint contracts for all resources |
+| [ASSIGNMENT.md](ASSIGNMENT.md) | Inspector assignment by email, reassignment flow |
 | [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md) | UI tokens, component patterns, icon usage |
 | [FILE_STRUCTURE.md](FILE_STRUCTURE.md) | Codebase layout and feature module anatomy |
 | [BEST_PRACTICES.md](BEST_PRACTICES.md) | Day-to-day implementation patterns |

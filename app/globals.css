@@ -136,3 +136,249 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Schedule-X Calendar Customizations */
+.inspection-calendar {
+  --sx-color-primary: var(--primary);
+  --sx-color-primary-dark: var(--chart-5);
+  --sx-color-on-primary: var(--primary-foreground);
+  --sx-color-surface: var(--background);
+  --sx-color-on-surface: var(--foreground);
+  --sx-color-surface-variant: var(--muted);
+  --sx-color-on-surface-variant: var(--muted-foreground);
+  --sx-color-outline: var(--border);
+  --sx-color-outline-variant: var(--border);
+  font-family: var(--font-sans);
+}
+
+.inspection-calendar {
+  width: 100%;
+  max-width: 100%;
+}
+
+.inspection-calendar .sx-react-calendar-wrapper {
+  width: 100%;
+  max-width: 100%;
+  border: none;
+}
+
+/* Month grid - allow full height */
+.inspection-calendar .sx__month-grid {
+  width: 100%;
+  max-width: 100%;
+}
+
+.inspection-calendar .sx__month-grid-wrapper {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Week rows in month grid */
+.inspection-calendar .sx__month-grid-week {
+  display: grid !important;
+  grid-template-columns: repeat(7, 1fr) !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.inspection-calendar .sx__month-grid-day {
+  aspect-ratio: 1.4 / 1 !important;
+  min-height: 60px !important;
+  height: auto !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.inspection-calendar .sx__month-grid-day__header {
+  padding: 2px 4px;
+  font-size: 0.65rem;
+}
+
+.inspection-calendar .sx__month-grid-day__events {
+  padding: 1px 2px;
+  overflow: hidden !important;
+  max-height: calc(100% - 20px);
+  min-width: 0 !important;
+}
+
+.inspection-calendar .sx__month-grid-event {
+  font-size: 0.6rem;
+  padding: 1px 3px;
+  margin-bottom: 1px;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  display: block !important;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .inspection-calendar .sx__month-grid-day {
+    aspect-ratio: 1 / 1 !important;
+    min-height: 50px !important;
+  }
+
+  .inspection-calendar .sx__month-grid-day__header {
+    padding: 1px 2px;
+    font-size: 0.6rem;
+  }
+
+  .inspection-calendar .sx__month-grid-event {
+    font-size: 0.55rem;
+    padding: 1px 2px;
+  }
+
+  .inspection-calendar .sx-calendar-header__btn {
+    font-size: 0.65rem;
+    padding: 4px 8px;
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+  .inspection-calendar .sx__month-grid-day {
+    min-height: 40px !important;
+  }
+
+  .inspection-calendar .sx__month-grid-day__header {
+    font-size: 0.55rem;
+  }
+
+  .inspection-calendar .sx__month-grid-event {
+    font-size: 0.5rem;
+    padding: 0 2px;
+  }
+}
+
+/* Status-based event colors - using direct styles */
+.inspection-calendar .status-pending {
+  background-color: oklch(0.92 0.03 264) !important;
+  color: oklch(0.35 0.12 264) !important;
+  border-left: 3px solid oklch(0.5 0.15 264) !important;
+}
+
+.inspection-calendar .status-in_progress {
+  background-color: oklch(0.88 0.08 264) !important;
+  color: oklch(0.3 0.15 264) !important;
+  border-left: 3px solid oklch(0.45 0.2 264) !important;
+}
+
+.inspection-calendar .status-failed,
+.inspection-calendar .status-overdue {
+  background-color: oklch(0.92 0.08 27) !important;
+  color: oklch(0.4 0.18 27) !important;
+  border-left: 3px solid oklch(0.55 0.2 27) !important;
+}
+
+.inspection-calendar .status-passed {
+  background-color: oklch(0.92 0.08 145) !important;
+  color: oklch(0.35 0.15 145) !important;
+  border-left: 3px solid oklch(0.55 0.18 145) !important;
+}
+
+.inspection-calendar .status-void {
+  background-color: var(--muted) !important;
+  color: var(--muted-foreground) !important;
+  border-left: 3px solid var(--border) !important;
+  opacity: 0.6;
+}
+
+/* Dark mode adjustments */
+.dark .inspection-calendar .status-pending {
+  background-color: oklch(0.28 0.06 264) !important;
+  color: oklch(0.85 0.1 264) !important;
+  border-left-color: oklch(0.5 0.15 264) !important;
+}
+
+.dark .inspection-calendar .status-in_progress {
+  background-color: oklch(0.32 0.1 264) !important;
+  color: oklch(0.9 0.08 264) !important;
+  border-left-color: oklch(0.55 0.18 264) !important;
+}
+
+.dark .inspection-calendar .status-failed,
+.dark .inspection-calendar .status-overdue {
+  background-color: oklch(0.32 0.1 27) !important;
+  color: oklch(0.9 0.1 27) !important;
+  border-left-color: oklch(0.6 0.18 27) !important;
+}
+
+.dark .inspection-calendar .status-passed {
+  background-color: oklch(0.32 0.1 145) !important;
+  color: oklch(0.9 0.1 145) !important;
+  border-left-color: oklch(0.55 0.18 145) !important;
+}
+
+/* Calendar typography */
+.inspection-calendar .sx-calendar {
+  font-size: 0.7rem;
+}
+
+.inspection-calendar .sx-calendar__event,
+.inspection-calendar .sx__event,
+.inspection-calendar [class*="event"] {
+  font-size: 0.6rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+.inspection-calendar .sx-calendar__event:hover,
+.inspection-calendar .sx__event:hover {
+  opacity: 0.85;
+}
+
+/* Ensure event title text truncates */
+.inspection-calendar .sx__month-grid-event__title,
+.inspection-calendar [class*="event__title"],
+.inspection-calendar [class*="event-title"] {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  display: block !important;
+  max-width: 100% !important;
+}
+
+/* Calendar header styling */
+.inspection-calendar .sx-calendar-header,
+.inspection-calendar .sx__calendar-header {
+  border-bottom: 1px solid var(--border);
+  background: var(--background);
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.inspection-calendar .sx-calendar-header__btn,
+.inspection-calendar .sx__calendar-header__btn {
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+/* Mobile header adjustments */
+@media (max-width: 480px) {
+  .inspection-calendar .sx-calendar-header,
+  .inspection-calendar .sx__calendar-header {
+    padding: 8px !important;
+    gap: 2px;
+  }
+
+  .inspection-calendar .sx-calendar-header__btn,
+  .inspection-calendar .sx__calendar-header__btn,
+  .inspection-calendar [class*="header"] button {
+    font-size: 0.6rem !important;
+    padding: 4px 6px !important;
+  }
+
+  /* Hide date picker on very small screens */
+  .inspection-calendar .sx__date-picker,
+  .inspection-calendar [class*="date-picker"] {
+    display: none !important;
+  }
+}

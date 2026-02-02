@@ -42,6 +42,16 @@ export const getProfile = cache(async (userId: string): Promise<Profile> => {
   return data as Profile
 })
 
+/**
+ * Require authenticated session with profile (no location check)
+ * Use for endpoints that don't require specific location access
+ */
+export async function requireSession(): Promise<{ session: Session; profile: Profile }> {
+  const session = await getSession()
+  const profile = await getProfile(session.user.id)
+  return { session, profile }
+}
+
 export async function requireLocationAccess(
   locationId: string | null,
   allowedRoles?: string[]

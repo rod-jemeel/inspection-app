@@ -10,6 +10,7 @@ import {
   Globe,
   Rocket,
   AtSign,
+  MapPin,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -54,6 +55,7 @@ export function SetupForm() {
 
   // Location fields
   const [locationName, setLocationName] = useState("")
+  const [locationAddress, setLocationAddress] = useState("")
   const [timezone, setTimezone] = useState("America/New_York")
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -93,6 +95,7 @@ export function SetupForm() {
           email: email || undefined, // Optional
           password,
           locationName,
+          locationAddress: locationAddress || undefined, // Optional
           timezone,
         }),
       })
@@ -241,6 +244,25 @@ export function SetupForm() {
                 onChange={(e) => setLocationName(e.target.value)}
                 placeholder="Main Office"
                 required
+                disabled={loading}
+              />
+            </Field>
+
+            <Field>
+              <FieldLabel
+                htmlFor="locationAddress"
+                className="gap-2 flex items-center"
+              >
+                <MapPin className="size-4" />
+                <span>Address</span>
+                <span className="text-muted-foreground">(optional)</span>
+              </FieldLabel>
+              <Input
+                id="locationAddress"
+                type="text"
+                value={locationAddress}
+                onChange={(e) => setLocationAddress(e.target.value)}
+                placeholder="123 Main St, City, State 12345"
                 disabled={loading}
               />
             </Field>
