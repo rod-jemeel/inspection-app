@@ -1,6 +1,6 @@
 import { betterAuth } from "better-auth"
 import { nextCookies } from "better-auth/next-js"
-import { username } from "better-auth/plugins"
+import { admin, username } from "better-auth/plugins"
 import { Pool } from "pg"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
@@ -46,6 +46,7 @@ export const auth = betterAuth({
   plugins: [
     nextCookies(),
     username(), // Enable username-based authentication
+    admin(), // Enable admin APIs (createUser without session)
   ],
 })
 
