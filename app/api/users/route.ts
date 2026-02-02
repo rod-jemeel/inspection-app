@@ -64,24 +64,24 @@ export async function POST(request: Request) {
     // 5. Generate temp password
     const tempPassword = generateSecurePassword(16)
 
-    // 6. Create user via Better Auth with username
-    const signUpResult = await auth.api.signUpEmail({
+    // 6. Create user via Better Auth admin API (doesn't create session)
+    const createResult = await auth.api.createUser({
       body: {
         email: input.email || `${input.username}@placeholder.local`,
         password: tempPassword,
         name: input.fullName,
-        username: input.username,
+        role: "user", // Better Auth role, not our app role
       },
     })
 
-    if (!signUpResult || !signUpResult.user) {
+    if (!createResult || !createResult.user) {
       return Response.json(
         { error: "Failed to create user account" },
         { status: 500 }
       )
     }
 
-    const userId = signUpResult.user.id
+    const userId = createResult.user.id
 
     // Update user to set correct email (null if not provided) and username
     await supabase
