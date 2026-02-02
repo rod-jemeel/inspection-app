@@ -56,6 +56,32 @@ export async function POST(
       )
     }
 
+    // Parse optional JSON fields with validation
+    let parsedSignaturePoints: unknown | undefined = undefined
+    let parsedDeviceMeta: Record<string, unknown> | undefined = undefined
+
+    if (signaturePoints) {
+      try {
+        parsedSignaturePoints = JSON.parse(signaturePoints)
+      } catch {
+        return Response.json(
+          { error: { code: "VALIDATION_ERROR", message: "Invalid signature points format" } },
+          { status: 400 }
+        )
+      }
+    }
+
+    if (deviceMeta) {
+      try {
+        parsedDeviceMeta = JSON.parse(deviceMeta) as Record<string, unknown>
+      } catch {
+        return Response.json(
+          { error: { code: "VALIDATION_ERROR", message: "Invalid device meta format" } },
+          { status: 400 }
+        )
+      }
+    }
+
     // Upload to Supabase Storage
     const imageBuffer = await signatureFile.arrayBuffer()
     const imagePath = await uploadSignatureImage(instanceId, profile.id, imageBuffer)
@@ -65,8 +91,8 @@ export async function POST(
       inspection_instance_id: instanceId,
       signed_by_profile_id: profile.id,
       signature_image_path: imagePath,
-      signature_points: signaturePoints ? JSON.parse(signaturePoints) : null,
-      device_meta: deviceMeta ? JSON.parse(deviceMeta) : null,
+      signature_points: parsedSignaturePoints,
+      device_meta: parsedDeviceMeta,
     })
 
     after(async () => {

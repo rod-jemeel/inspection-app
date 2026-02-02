@@ -40,7 +40,7 @@ export async function sendPushToProfile(
 ): Promise<{ sent: number; failed: number }> {
   const { data: subscriptions, error } = await supabase
     .from("push_subscriptions")
-    .select("*")
+    .select("id, profile_id, endpoint, p256dh, auth")
     .eq("profile_id", profileId)
 
   if (error || !subscriptions?.length) {
@@ -72,7 +72,7 @@ export async function sendPushToLocation(
   // Get all subscriptions for those profiles
   const { data: subscriptions, error } = await supabase
     .from("push_subscriptions")
-    .select("*")
+    .select("id, profile_id, endpoint, p256dh, auth")
     .in("profile_id", profileIds)
 
   if (error || !subscriptions?.length) {
@@ -111,7 +111,7 @@ export async function sendPushToRolesInLocation(
   // Get all subscriptions for those profiles
   const { data: subscriptions, error } = await supabase
     .from("push_subscriptions")
-    .select("*")
+    .select("id, profile_id, endpoint, p256dh, auth")
     .in("profile_id", profileIds)
 
   if (error || !subscriptions?.length) {

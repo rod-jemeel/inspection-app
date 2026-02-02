@@ -20,7 +20,7 @@ export interface InviteCode {
 export async function listInviteCodes(locationId: string) {
   const { data, error } = await supabase
     .from("invite_codes")
-    .select("*")
+    .select("id, code_hash, expires_at, max_uses, uses, role_grant, location_id, assigned_email, created_by, created_at, consumed_at")
     .eq("location_id", locationId)
     .order("created_at", { ascending: false })
 
@@ -63,7 +63,7 @@ export async function exchangeInviteCode(plainCode: string) {
 
   const { data: invite, error } = await supabase
     .from("invite_codes")
-    .select("*")
+    .select("id, code_hash, expires_at, max_uses, uses, role_grant, location_id, assigned_email, created_by, created_at, consumed_at")
     .eq("code_hash", codeHash)
     .single()
 

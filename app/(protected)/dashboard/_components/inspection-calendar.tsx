@@ -317,9 +317,9 @@ export function InspectionCalendar({ events, locationId, locationName }: Inspect
           calendarRef.current.destroy()
         }
 
-        const isMobile = window.innerWidth < 768
-        // On mobile, show fewer events (dots mode handled via CSS)
-        const nEventsPerDay = isMobile ? 3 : 3
+        const isMobile = window.innerWidth < 640
+        // On mobile, show max 5 dots; desktop shows 3 event titles
+        const nEventsPerDay = isMobile ? 5 : 3
 
         // Get the date for initial view using Temporal
         const viewDateStr = viewDate.toISOString().split("T")[0]
@@ -355,6 +355,31 @@ export function InspectionCalendar({ events, locationId, locationName }: Inspect
           containerRef.current.innerHTML = ""
           calendar.render(containerRef.current)
           calendarRef.current = calendar
+
+          // On mobile, simplify "+N events" buttons to just "+N"
+          if (isMobile) {
+            const simplifyMoreButtons = () => {
+              const buttons = containerRef.current?.querySelectorAll('.sx__month-grid-more-button')
+              buttons?.forEach((btn) => {
+                const text = btn.textContent || ''
+                // Extract number from "+ N events" or "+ N event"
+                const match = text.match(/\+\s*(\d+)/)
+                if (match) {
+                  btn.textContent = `+${match[1]}`
+                }
+              })
+            }
+            // Run immediately and observe for changes
+            simplifyMoreButtons()
+            const observer = new MutationObserver(simplifyMoreButtons)
+            observer.observe(containerRef.current, { childList: true, subtree: true })
+            // Cleanup observer on calendar destroy
+            const originalDestroy = calendar.destroy?.bind(calendar)
+            calendar.destroy = () => {
+              observer.disconnect()
+              originalDestroy?.()
+            }
+          }
         }
 
         setIsLoading(false)
@@ -897,50 +922,65 @@ export function InspectionCalendar({ events, locationId, locationName }: Inspect
           min-height: 44px;
         }
 
-        /* MOBILE: Show dots instead of event titles */
-        @media (max-width: 639px) {
-          .inspection-calendar .sx__month-grid-day__events {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 2px;
-            padding: 2px;
-            justify-content: center;
+        /* MOBILE: Show all events as small dots */
+        @media (max-width: 640px) {
+          /* Day cells */
+          .inspection-calendar .sx__month-grid-day {
+            min-height: 44px !important;
           }
+          .inspection-calendar .sx__month-grid-day__header {
+            font-size: 9px !important;
+            padding: 1px 2px !important;
+          }
+          /* Events container */
+          .inspection-calendar .sx__month-grid-day__events {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 2px !important;
+            padding: 2px !important;
+            justify-content: center !important;
+            align-items: center !important;
+          }
+          /* Each event as a small dot */
           .inspection-calendar .sx__event {
             width: 6px !important;
             height: 6px !important;
-            min-width: 6px;
-            min-height: 6px;
+            min-width: 6px !important;
+            min-height: 6px !important;
+            max-width: 6px !important;
+            max-height: 6px !important;
             padding: 0 !important;
+            margin: 0 !important;
             border-radius: 50% !important;
+            border: none !important;
             border-left: none !important;
             font-size: 0 !important;
-            overflow: hidden;
+            line-height: 0 !important;
+            overflow: hidden !important;
+            flex-shrink: 0 !important;
+            text-indent: -9999px !important;
           }
+          /* Dot colors by status */
           .inspection-calendar .sx__event.status-pending {
-            background: oklch(0.55 0.15 264) !important;
+            background-color: oklch(0.55 0.15 264) !important;
           }
           .inspection-calendar .sx__event.status-in_progress {
-            background: oklch(0.7 0.15 85) !important;
+            background-color: oklch(0.7 0.15 85) !important;
           }
           .inspection-calendar .sx__event.status-passed {
-            background: oklch(0.55 0.18 145) !important;
+            background-color: oklch(0.55 0.18 145) !important;
           }
           .inspection-calendar .sx__event.status-failed,
           .inspection-calendar .sx__event.status-overdue {
-            background: oklch(0.58 0.22 27) !important;
+            background-color: oklch(0.58 0.22 27) !important;
           }
+          /* Fallback color for events without status class */
+          .inspection-calendar .sx__event:not([class*="status-"]) {
+            background-color: oklch(0.55 0.15 264) !important;
+          }
+          /* Hide "+N more" button on mobile - all dots shown */
           .inspection-calendar .sx__month-grid-more-button {
-            font-size: 8px;
-            padding: 1px 3px;
-          }
-          /* Smaller day cells on mobile */
-          .inspection-calendar .sx__month-grid-day {
-            min-height: 40px !important;
-          }
-          .inspection-calendar .sx__month-grid-day__header {
-            font-size: 9px;
-            padding: 1px 2px;
+            display: none !important;
           }
         }
 

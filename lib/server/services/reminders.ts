@@ -39,7 +39,7 @@ export async function queueReminder(input: {
 export async function processQueuedNotifications(limit = 50) {
   const { data: queued, error } = await supabase
     .from("notification_outbox")
-    .select("*")
+    .select("id, type, to_email, subject, payload, status, created_at, sent_at, error")
     .eq("status", "queued")
     .order("created_at", { ascending: true })
     .limit(limit)

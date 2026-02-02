@@ -29,37 +29,17 @@ export interface Template {
   updated_by_name?: string | null
 }
 
-// Helper to enrich templates with user names
-async function enrichWithUserNames(templates: Template[]): Promise<Template[]> {
-  const userIds = new Set<string>()
-  for (const t of templates) {
-    if (t.created_by) userIds.add(t.created_by)
-    if (t.updated_by) userIds.add(t.updated_by)
-  }
-
-  if (userIds.size === 0) return templates
-
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("user_id, full_name")
-    .in("user_id", Array.from(userIds))
-
-  const nameMap = new Map<string, string>()
-  for (const p of profiles ?? []) {
-    nameMap.set(p.user_id, p.full_name)
-  }
-
-  return templates.map((t) => ({
-    ...t,
-    created_by_name: t.created_by ? nameMap.get(t.created_by) ?? null : null,
-    updated_by_name: t.updated_by ? nameMap.get(t.updated_by) ?? null : null,
-  }))
-}
-
 async function fetchTemplates(locationId: string, active?: boolean) {
+  // Use JOINs to get user names in a single query
   let query = supabase
     .from("inspection_templates")
-    .select("*")
+    .select(`
+      id, location_id, task, description, frequency,
+      default_assignee_profile_id, default_assignee_email, default_due_rule,
+      active, sort_order, created_by, updated_by, created_at, updated_at,
+      created_by_profile:profiles!inspection_templates_created_by_fkey(full_name),
+      updated_by_profile:profiles!inspection_templates_updated_by_fkey(full_name)
+    `)
     .eq("location_id", locationId)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: false })
@@ -70,7 +50,26 @@ async function fetchTemplates(locationId: string, active?: boolean) {
 
   const { data, error } = await query
   if (error) throw new ApiError("INTERNAL_ERROR", error.message)
-  return enrichWithUserNames(data as Template[])
+
+  // Map the joined data to the expected format
+  return (data ?? []).map((row: any) => ({
+    id: row.id,
+    location_id: row.location_id,
+    task: row.task,
+    description: row.description,
+    frequency: row.frequency,
+    default_assignee_profile_id: row.default_assignee_profile_id,
+    default_assignee_email: row.default_assignee_email,
+    default_due_rule: row.default_due_rule,
+    active: row.active,
+    sort_order: row.sort_order,
+    created_by: row.created_by,
+    updated_by: row.updated_by,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    created_by_name: row.created_by_profile?.full_name ?? null,
+    updated_by_name: row.updated_by_profile?.full_name ?? null,
+  })) as Template[]
 }
 
 // Cached version for server components
@@ -86,14 +85,38 @@ export async function listTemplates(locationId: string, opts?: { active?: boolea
 export async function getTemplate(locationId: string, templateId: string) {
   const { data, error } = await supabase
     .from("inspection_templates")
-    .select("*")
+    .select(`
+      id, location_id, task, description, frequency,
+      default_assignee_profile_id, default_assignee_email, default_due_rule,
+      active, sort_order, created_by, updated_by, created_at, updated_at,
+      created_by_profile:profiles!inspection_templates_created_by_fkey(full_name),
+      updated_by_profile:profiles!inspection_templates_updated_by_fkey(full_name)
+    `)
     .eq("id", templateId)
     .eq("location_id", locationId)
     .single()
 
   if (error || !data) throw new ApiError("NOT_FOUND", "Template not found")
-  const [enriched] = await enrichWithUserNames([data as Template])
-  return enriched
+
+  const row = data as any
+  return {
+    id: row.id,
+    location_id: row.location_id,
+    task: row.task,
+    description: row.description,
+    frequency: row.frequency,
+    default_assignee_profile_id: row.default_assignee_profile_id,
+    default_assignee_email: row.default_assignee_email,
+    default_due_rule: row.default_due_rule,
+    active: row.active,
+    sort_order: row.sort_order,
+    created_by: row.created_by,
+    updated_by: row.updated_by,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    created_by_name: row.created_by_profile?.full_name ?? null,
+    updated_by_name: row.updated_by_profile?.full_name ?? null,
+  } as Template
 }
 
 export async function createTemplate(locationId: string, userId: string, input: CreateTemplateInput) {
@@ -110,6 +133,7 @@ export async function createTemplate(locationId: string, userId: string, input: 
     }
   }
 
+  // Insert without JOINs to avoid issues with null updated_by
   const { data, error } = await supabase
     .from("inspection_templates")
     .insert({
@@ -118,15 +142,36 @@ export async function createTemplate(locationId: string, userId: string, input: 
       ...input,
       default_assignee_profile_id: assigneeProfileId,
     })
-    .select()
+    .select(`
+      id, location_id, task, description, frequency,
+      default_assignee_profile_id, default_assignee_email, default_due_rule,
+      active, sort_order, created_by, updated_by, created_at, updated_at
+    `)
     .single()
 
   if (error) throw new ApiError("INTERNAL_ERROR", error.message)
 
   revalidateTemplatesCache(locationId)
 
-  const [enriched] = await enrichWithUserNames([data as Template])
-  return enriched
+  const row = data as any
+  return {
+    id: row.id,
+    location_id: row.location_id,
+    task: row.task,
+    description: row.description,
+    frequency: row.frequency,
+    default_assignee_profile_id: row.default_assignee_profile_id,
+    default_assignee_email: row.default_assignee_email,
+    default_due_rule: row.default_due_rule,
+    active: row.active,
+    sort_order: row.sort_order,
+    created_by: row.created_by,
+    updated_by: row.updated_by,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    created_by_name: null, // Will be fetched on next list query
+    updated_by_name: null,
+  } as Template
 }
 
 export async function updateTemplate(locationId: string, templateId: string, userId: string, input: UpdateTemplateInput) {
@@ -157,15 +202,38 @@ export async function updateTemplate(locationId: string, templateId: string, use
     .update(updates)
     .eq("id", templateId)
     .eq("location_id", locationId)
-    .select()
+    .select(`
+      id, location_id, task, description, frequency,
+      default_assignee_profile_id, default_assignee_email, default_due_rule,
+      active, sort_order, created_by, updated_by, created_at, updated_at,
+      created_by_profile:profiles!inspection_templates_created_by_fkey(full_name),
+      updated_by_profile:profiles!inspection_templates_updated_by_fkey(full_name)
+    `)
     .single()
 
   if (error || !data) throw new ApiError("NOT_FOUND", "Template not found")
 
   revalidateTemplatesCache(locationId)
 
-  const [enriched] = await enrichWithUserNames([data as Template])
-  return enriched
+  const row = data as any
+  return {
+    id: row.id,
+    location_id: row.location_id,
+    task: row.task,
+    description: row.description,
+    frequency: row.frequency,
+    default_assignee_profile_id: row.default_assignee_profile_id,
+    default_assignee_email: row.default_assignee_email,
+    default_due_rule: row.default_due_rule,
+    active: row.active,
+    sort_order: row.sort_order,
+    created_by: row.created_by,
+    updated_by: row.updated_by,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    created_by_name: row.created_by_profile?.full_name ?? null,
+    updated_by_name: row.updated_by_profile?.full_name ?? null,
+  } as Template
 }
 
 export async function reorderTemplates(
