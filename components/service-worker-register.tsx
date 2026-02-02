@@ -20,8 +20,7 @@ export function ServiceWorkerRegister() {
                   newWorker.state === "installed" &&
                   navigator.serviceWorker.controller
                 ) {
-                  // New content available, could prompt user to refresh
-                  console.log("New service worker installed")
+                  // New content available - service worker updated silently
                 }
               })
             }

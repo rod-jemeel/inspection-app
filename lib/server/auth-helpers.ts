@@ -31,7 +31,7 @@ export const getSession = cache(async (): Promise<Session> => {
 export const getProfile = cache(async (userId: string): Promise<Profile> => {
   const { data, error } = await supabase
     .from("profiles")
-    .select("*")
+    .select("id, user_id, full_name, username, email, phone, role, must_change_password, created_at, updated_at")
     .eq("user_id", userId)
     .single()
 

@@ -26,7 +26,7 @@ export interface TeamMember {
 export async function getLocation(locationId: string): Promise<Location> {
   const { data, error } = await supabase
     .from("locations")
-    .select("*")
+    .select("id, name, address, timezone, active, created_at, updated_at")
     .eq("id", locationId)
     .single()
 

@@ -14,7 +14,7 @@ export interface InspectionEvent {
 export async function listEvents(instanceId: string) {
   const { data, error } = await supabase
     .from("inspection_events")
-    .select("*")
+    .select("id, inspection_instance_id, event_type, event_at, actor_profile_id, payload")
     .eq("inspection_instance_id", instanceId)
     .order("event_at", { ascending: true })
 

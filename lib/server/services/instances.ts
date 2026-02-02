@@ -100,7 +100,7 @@ export const listInstances = unstable_cache(
 export async function getInstance(locationId: string, instanceId: string) {
   const { data, error } = await supabase
     .from("inspection_instances")
-    .select("*")
+    .select("id, template_id, location_id, due_at, assigned_to_profile_id, assigned_to_email, status, remarks, inspected_at, failed_at, passed_at, created_by, created_at")
     .eq("id", instanceId)
     .eq("location_id", locationId)
     .single()

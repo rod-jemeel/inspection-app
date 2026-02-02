@@ -35,6 +35,17 @@ export async function PUT(
       return validationError(parsed.error.issues).toResponse()
     }
 
+    // AUTHORIZATION: Only admin/owner/nurse can reassign inspections
+    const isReassignment =
+      parsed.data.assigned_to_profile_id !== undefined ||
+      parsed.data.assigned_to_email !== undefined
+    if (isReassignment && profile.role === "inspector") {
+      return Response.json(
+        { error: { code: "FORBIDDEN", message: "Inspectors cannot reassign inspections" } },
+        { status: 403 }
+      )
+    }
+
     const instance = await updateInstance(locationId, instanceId, parsed.data)
 
     if (parsed.data.status) {

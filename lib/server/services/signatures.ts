@@ -16,7 +16,7 @@ export interface Signature {
 export async function getSignatures(instanceId: string) {
   const { data, error } = await supabase
     .from("inspection_signatures")
-    .select("*")
+    .select("id, inspection_instance_id, signed_by_profile_id, signed_at, signature_image_path, signature_points, device_meta")
     .eq("inspection_instance_id", instanceId)
     .order("signed_at", { ascending: true })
 

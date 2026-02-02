@@ -514,6 +514,8 @@ export function DashboardContent({
                       </Badge>
                     </div>
                     <div className="mt-0.5 flex flex-col gap-0.5 text-[11px] text-muted-foreground sm:flex-row sm:items-center sm:gap-2">
+                      <span>Due {formatDate(alert.dueAt)}</span>
+                      <span className="hidden sm:inline">·</span>
                       <span>{alert.daysOverdue} days overdue</span>
                       {!isInspector && alert.assignee && (
                         <>

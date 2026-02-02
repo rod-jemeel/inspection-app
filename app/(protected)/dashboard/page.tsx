@@ -1,6 +1,7 @@
 import { Suspense } from "react"
 import type { Metadata } from "next"
-import { requireLocationAccess, type Profile } from "@/lib/server/auth-helpers"
+import { redirect } from "next/navigation"
+import { requireLocationAccess, getSession, getProfile } from "@/lib/server/auth-helpers"
 import { supabase } from "@/lib/server/db"
 import { DashboardContent } from "./_components/dashboard-content"
 
@@ -204,7 +205,7 @@ async function DashboardData({ loc }: { loc: string }) {
         .gte("due_at", thirtyDaysAgo.toISOString())
         .lte("due_at", now.toISOString())
     ),
-    // Calendar events
+    // Calendar events (limited to prevent unbounded queries)
     addInspectorFilter(
       supabase
         .from("inspection_instances")
@@ -214,8 +215,9 @@ async function DashboardData({ loc }: { loc: string }) {
         .lte("due_at", threeMonthsAhead.toISOString())
         .neq("status", "void")
         .order("due_at", { ascending: true })
+        .limit(500)
     ),
-    // Overdue alerts
+    // Overdue alerts (limit to 5 most urgent)
     addInspectorFilter(
       supabase
         .from("inspection_instances")
@@ -224,7 +226,7 @@ async function DashboardData({ loc }: { loc: string }) {
         .in("status", ["pending", "in_progress"])
         .lt("due_at", now.toISOString())
         .order("due_at", { ascending: true })
-        .limit(10)
+        .limit(5)
     ),
     // Trend data (last 4 weeks) - for charts
     addInspectorFilter(
@@ -422,10 +424,28 @@ export default async function DashboardPage({
 }) {
   const { loc } = await searchParams
 
+  // If no location specified, redirect to first available location
   if (!loc) {
+    const session = await getSession().catch(() => null)
+    if (session) {
+      const profile = await getProfile(session.user.id).catch(() => null)
+      if (profile) {
+        const { data: profileLocations } = await supabase
+          .from("profile_locations")
+          .select("location_id")
+          .eq("profile_id", profile.id)
+          .limit(1)
+          .single()
+
+        if (profileLocations?.location_id) {
+          redirect(`/dashboard?loc=${profileLocations.location_id}`)
+        }
+      }
+    }
+
     return (
       <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-        <p className="text-xs">Select a location to get started</p>
+        <p className="text-xs">No locations available. Please contact an administrator.</p>
       </div>
     )
   }

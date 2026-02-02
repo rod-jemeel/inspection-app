@@ -9,6 +9,7 @@ import {
 } from "@/lib/server/services/reminders"
 import { sendNotificationEmail } from "@/lib/server/services/email-sender"
 import { sendPushToProfile } from "@/lib/server/services/push-sender"
+import { CRON_BATCH_LIMIT, NOTIFICATION_BATCH_LIMIT } from "@/lib/constants"
 
 export async function POST(request: NextRequest) {
   // Verify cron secret
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
       )
       .in("status", ["pending", "in_progress"])
       .lt("due_at", now)
-      .limit(100)
+      .limit(CRON_BATCH_LIMIT)
 
     if (queryError) {
       console.error("Query error fetching overdue instances:", queryError)
@@ -109,7 +110,7 @@ export async function POST(request: NextRequest) {
     // 2. Process queued notifications (send emails via Resend)
     let pending: Awaited<ReturnType<typeof processQueuedNotifications>> = []
     try {
-      pending = await processQueuedNotifications(50)
+      pending = await processQueuedNotifications(NOTIFICATION_BATCH_LIMIT)
     } catch (err) {
       console.error("Failed to fetch pending notifications:", err)
       return Response.json(
@@ -118,34 +119,37 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    let sent = 0
-    let failed = 0
+    // Process notifications in parallel using Promise.allSettled
+    const notificationResults = await Promise.allSettled(
+      pending.map(async (notification) => {
+        const result = await sendNotificationEmail(notification)
 
-    for (const notification of pending) {
-      const result = await sendNotificationEmail(notification)
-
-      if (result.success) {
-        try {
+        if (result.success) {
           await markNotificationSent(notification.id)
-          sent++
-        } catch (err) {
-          console.error(
-            `Failed to mark notification ${notification.id} as sent:`,
-            err
-          )
-        }
-      } else {
-        try {
+          return { status: "sent" as const }
+        } else {
           await markNotificationFailed(
             notification.id,
             result.error || "Unknown error"
           )
-        } catch (failErr) {
-          console.error(
-            `Failed to mark notification ${notification.id} as failed:`,
-            failErr
-          )
+          return { status: "failed" as const }
         }
+      })
+    )
+
+    // Aggregate results from parallel processing
+    let sent = 0
+    let failed = 0
+    for (const result of notificationResults) {
+      if (result.status === "fulfilled") {
+        if (result.value.status === "sent") {
+          sent++
+        } else {
+          failed++
+        }
+      } else {
+        // Promise rejected - count as failed
+        console.error("Notification processing error:", result.reason)
         failed++
       }
     }
