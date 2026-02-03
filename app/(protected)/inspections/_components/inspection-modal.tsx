@@ -298,13 +298,12 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
     setRemarks(value)
   }, [])
 
-  const handleClose = useCallback(() => {
-    setInstanceId(null)
+  const handleClose = useCallback(async () => {
     setShowSignature(false)
-    // Delay refresh to allow URL state to clear first
-    setTimeout(() => {
-      router.refresh()
-    }, 100)
+    // Use nuqs to clear the URL state - await ensures URL is updated before refresh
+    await setInstanceId(null)
+    // Then refresh the list data
+    router.refresh()
   }, [setInstanceId, router])
 
   const handleStatusChange = async (newStatus: string) => {
