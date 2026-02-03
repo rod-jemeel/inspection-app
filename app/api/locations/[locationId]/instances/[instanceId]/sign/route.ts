@@ -48,6 +48,14 @@ export async function POST(
     const signatureFile = formData.get("signature") as File | null
     const signaturePoints = formData.get("points") as string | null
     const deviceMeta = formData.get("deviceMeta") as string | null
+    const signerName = formData.get("signerName") as string | null
+
+    if (!signerName?.trim()) {
+      return Response.json(
+        { error: { code: "VALIDATION_ERROR", message: "Signer name is required" } },
+        { status: 400 }
+      )
+    }
 
     if (!signatureFile) {
       return Response.json(
@@ -93,6 +101,7 @@ export async function POST(
       signature_image_path: imagePath,
       signature_points: parsedSignaturePoints,
       device_meta: parsedDeviceMeta,
+      signer_name: signerName.trim(),
     })
 
     after(async () => {

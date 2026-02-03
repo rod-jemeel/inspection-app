@@ -11,12 +11,13 @@ export interface Signature {
   signature_image_path: string
   signature_points: unknown | null
   device_meta: Record<string, unknown> | null
+  signer_name: string | null
 }
 
 export async function getSignatures(instanceId: string) {
   const { data, error } = await supabase
     .from("inspection_signatures")
-    .select("id, inspection_instance_id, signed_by_profile_id, signed_at, signature_image_path, signature_points, device_meta")
+    .select("id, inspection_instance_id, signed_by_profile_id, signed_at, signature_image_path, signature_points, device_meta, signer_name")
     .eq("inspection_instance_id", instanceId)
     .order("signed_at", { ascending: true })
 
@@ -30,6 +31,7 @@ export async function createSignature(input: {
   signature_image_path: string
   signature_points?: unknown
   device_meta?: Record<string, unknown>
+  signer_name?: string
 }) {
   // Check for existing signature from same profile
   const { data: existing } = await supabase

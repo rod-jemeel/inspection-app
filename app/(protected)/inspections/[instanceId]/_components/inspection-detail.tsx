@@ -120,7 +120,7 @@ export function InspectionDetail({
     }
   }
 
-  const handleSignatureSave = async (data: { imageBlob: Blob; points: unknown }) => {
+  const handleSignatureSave = async (data: { imageBlob: Blob; points: unknown; signerName: string }) => {
     setLoading(true)
     setError(null)
 
@@ -128,6 +128,7 @@ export function InspectionDetail({
       const formData = new FormData()
       formData.append("signature", data.imageBlob, "signature.png")
       formData.append("points", JSON.stringify(data.points))
+      formData.append("signerName", data.signerName)
       formData.append(
         "deviceMeta",
         JSON.stringify({
