@@ -301,8 +301,10 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
   const handleClose = useCallback(() => {
     setInstanceId(null)
     setShowSignature(false)
-    // Refresh the list when modal closes to reflect any status changes
-    router.refresh()
+    // Delay refresh to allow URL state to clear first
+    setTimeout(() => {
+      router.refresh()
+    }, 100)
   }, [setInstanceId, router])
 
   const handleStatusChange = async (newStatus: string) => {
