@@ -232,6 +232,22 @@ export async function updateTemplate(locationId: string, templateId: string, use
 
   if (error || !data) throw new ApiError("NOT_FOUND", "Template not found")
 
+  // If default assignee was updated, propagate to pending instances
+  if (input.default_assignee_email !== undefined) {
+    const newEmail = input.default_assignee_email || null
+    const newProfileId = updates.default_assignee_profile_id as string | null
+
+    // Update all pending instances for this template
+    await supabase
+      .from("inspection_instances")
+      .update({
+        assigned_to_email: newEmail,
+        assigned_to_profile_id: newProfileId,
+      })
+      .eq("template_id", templateId)
+      .eq("status", "pending")
+  }
+
   revalidateTemplatesCache(locationId)
 
   const row = data as any
