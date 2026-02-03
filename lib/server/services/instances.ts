@@ -249,12 +249,43 @@ export function calculateNextDueDate(
 }
 
 /**
- * Check if an instance should receive a reminder based on frequency
+ * Reminder settings type for shouldSendReminder
+ */
+export interface ReminderConfig {
+  weekly_due_day: boolean
+  monthly_days_before: number
+  monthly_due_day: boolean
+  yearly_months_before: number
+  yearly_monthly_reminder: boolean
+  yearly_due_day: boolean
+  three_year_months_before: number
+  three_year_monthly_reminder: boolean
+  three_year_due_day: boolean
+}
+
+/**
+ * Default reminder settings (used if no config provided)
+ */
+const DEFAULT_REMINDER_CONFIG: ReminderConfig = {
+  weekly_due_day: true,
+  monthly_days_before: 7,
+  monthly_due_day: true,
+  yearly_months_before: 6,
+  yearly_monthly_reminder: true,
+  yearly_due_day: true,
+  three_year_months_before: 6,
+  three_year_monthly_reminder: true,
+  three_year_due_day: true,
+}
+
+/**
+ * Check if an instance should receive a reminder based on frequency and settings
  * Returns the reminder type or null if no reminder needed
  */
 export function shouldSendReminder(
   dueAt: Date,
-  frequency: "weekly" | "monthly" | "yearly" | "every_3_years"
+  frequency: "weekly" | "monthly" | "yearly" | "every_3_years",
+  config: ReminderConfig = DEFAULT_REMINDER_CONFIG
 ): "due_today" | "upcoming" | "monthly_warning" | null {
   const now = new Date()
   now.setHours(0, 0, 0, 0)
@@ -266,26 +297,38 @@ export function shouldSendReminder(
 
   switch (frequency) {
     case "weekly":
-      // Remind on the due day (Monday)
-      if (daysUntilDue === 0) return "due_today"
+      // Weekly inspections are due on Monday - remind on due day if enabled
+      if (daysUntilDue === 0 && config.weekly_due_day) return "due_today"
       break
 
     case "monthly":
-      // Remind 1 week before due
-      if (daysUntilDue === 7) return "upcoming"
-      if (daysUntilDue === 0) return "due_today"
+      // Remind X days before due (configurable)
+      if (daysUntilDue === config.monthly_days_before) return "upcoming"
+      // Remind on due day if enabled
+      if (daysUntilDue === 0 && config.monthly_due_day) return "due_today"
       break
 
-    case "yearly":
-    case "every_3_years": {
-      // Remind 6 months before, then every month until due
+    case "yearly": {
+      // Remind X months before, then monthly reminders if enabled
       const monthsUntilDue = Math.ceil(daysUntilDue / 30)
-      if (monthsUntilDue === 6) return "upcoming" // 6 months warning
-      if (monthsUntilDue <= 5 && monthsUntilDue >= 1) {
-        // Check if it's the 1st of the month (monthly reminder)
-        if (now.getDate() === 1) return "monthly_warning"
+      if (monthsUntilDue === config.yearly_months_before) return "upcoming"
+      if (monthsUntilDue < config.yearly_months_before && monthsUntilDue >= 1) {
+        // Monthly reminder on 1st of month if enabled
+        if (config.yearly_monthly_reminder && now.getDate() === 1) return "monthly_warning"
       }
-      if (daysUntilDue === 0) return "due_today"
+      if (daysUntilDue === 0 && config.yearly_due_day) return "due_today"
+      break
+    }
+
+    case "every_3_years": {
+      // Same pattern as yearly but with 3-year settings
+      const monthsUntilDue = Math.ceil(daysUntilDue / 30)
+      if (monthsUntilDue === config.three_year_months_before) return "upcoming"
+      if (monthsUntilDue < config.three_year_months_before && monthsUntilDue >= 1) {
+        // Monthly reminder on 1st of month if enabled
+        if (config.three_year_monthly_reminder && now.getDate() === 1) return "monthly_warning"
+      }
+      if (daysUntilDue === 0 && config.three_year_due_day) return "due_today"
       break
     }
   }

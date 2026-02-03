@@ -9,7 +9,7 @@ import {
 } from "@/lib/server/services/reminders"
 import { sendNotificationEmail } from "@/lib/server/services/email-sender"
 import { sendPushToProfile } from "@/lib/server/services/push-sender"
-import { shouldSendReminder } from "@/lib/server/services/instances"
+import { shouldSendReminder, type ReminderConfig } from "@/lib/server/services/instances"
 import { CRON_BATCH_LIMIT, NOTIFICATION_BATCH_LIMIT } from "@/lib/constants"
 
 type ReminderType = "overdue" | "due_today" | "upcoming" | "monthly_warning"
@@ -39,8 +39,31 @@ export async function POST(request: NextRequest) {
     const now = new Date()
     const nowISO = now.toISOString()
 
+    // Fetch reminder settings from database
+    const { data: settingsRow } = await supabase
+      .from("reminder_settings")
+      .select("*")
+      .limit(1)
+      .single()
+
+    const reminderConfig: ReminderConfig = settingsRow ?? {
+      weekly_due_day: true,
+      monthly_days_before: 7,
+      monthly_due_day: true,
+      yearly_months_before: 6,
+      yearly_monthly_reminder: true,
+      yearly_due_day: true,
+      three_year_months_before: 6,
+      three_year_monthly_reminder: true,
+      three_year_due_day: true,
+    }
+
     // 1. Fetch all pending/in_progress inspections (both overdue and upcoming)
-    // Get instances due within the next 6 months for yearly/3-year reminders
+    // Get instances due within the next X months based on settings
+    const maxMonthsBefore = Math.max(
+      reminderConfig.yearly_months_before,
+      reminderConfig.three_year_months_before
+    )
     const sixMonthsFromNow = new Date(now)
     sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6)
 
@@ -92,8 +115,8 @@ export async function POST(request: NextRequest) {
         // Overdue - always remind
         instancesWithReminder.push({ instance, task, locationName, frequency, reminderType: "overdue" })
       } else {
-        // Check if upcoming reminder is needed based on frequency
-        const reminderType = shouldSendReminder(dueAt, frequency)
+        // Check if upcoming reminder is needed based on frequency and settings
+        const reminderType = shouldSendReminder(dueAt, frequency, reminderConfig)
         if (reminderType) {
           instancesWithReminder.push({ instance, task, locationName, frequency, reminderType })
         }
