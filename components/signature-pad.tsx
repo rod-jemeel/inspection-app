@@ -1,13 +1,14 @@
 "use client"
 
 import { useRef, useEffect, useState, useCallback } from "react"
-import { Eraser, Check } from "lucide-react"
+import { Eraser, Check, ArrowRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import type SignaturePadType from "signature_pad"
 
 interface SignaturePadProps {
-  onSave: (data: { imageBlob: Blob; points: unknown }) => void
+  onSave: (data: { imageBlob: Blob; points: unknown; signerName: string }) => void
   onCancel?: () => void
   disabled?: boolean
   className?: string
@@ -16,6 +17,8 @@ interface SignaturePadProps {
 export function SignaturePad({ onSave, onCancel, disabled, className }: SignaturePadProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const padRef = useRef<SignaturePadType | null>(null)
+  const [step, setStep] = useState<"name" | "signature">("name")
+  const [signerName, setSignerName] = useState("")
   const [isEmpty, setIsEmpty] = useState(true)
   const [loaded, setLoaded] = useState(false)
 
@@ -76,7 +79,7 @@ export function SignaturePad({ onSave, onCancel, disabled, className }: Signatur
 
   const handleSave = useCallback(async () => {
     const pad = padRef.current
-    if (!pad || pad.isEmpty()) return
+    if (!pad || pad.isEmpty() || !signerName.trim()) return
 
     const points = pad.toData()
     const dataUrl = pad.toDataURL("image/png")
@@ -85,11 +88,52 @@ export function SignaturePad({ onSave, onCancel, disabled, className }: Signatur
     const response = await fetch(dataUrl)
     const blob = await response.blob()
 
-    onSave({ imageBlob: blob, points })
-  }, [onSave])
+    onSave({ imageBlob: blob, points, signerName: signerName.trim() })
+  }, [onSave, signerName])
 
+  // Step 1: Name input
+  if (step === "name") {
+    return (
+      <div data-slot="signature-pad" className={cn("flex flex-col gap-3", className)}>
+        <div className="space-y-2">
+          <label htmlFor="signer-name-inline" className="text-xs font-medium">
+            Full Name (printed)
+          </label>
+          <Input
+            id="signer-name-inline"
+            type="text"
+            placeholder="Enter your full name"
+            value={signerName}
+            onChange={(e) => setSignerName(e.target.value)}
+            disabled={disabled}
+            autoFocus
+          />
+        </div>
+        <div className="flex gap-2">
+          {onCancel && (
+            <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={disabled}>
+              Cancel
+            </Button>
+          )}
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setStep("signature")}
+            disabled={!signerName.trim() || disabled}
+            className="flex-1"
+          >
+            Continue to Sign
+            <ArrowRight className="size-3.5" />
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Step 2: Signature capture
   return (
     <div data-slot="signature-pad" className={cn("flex flex-col gap-2", className)}>
+      <p className="text-xs text-muted-foreground">Signing as: <span className="font-medium text-foreground">{signerName}</span></p>
       <div className="relative rounded-none border border-input bg-background">
         <canvas
           ref={canvasRef}
@@ -112,6 +156,15 @@ export function SignaturePad({ onSave, onCancel, disabled, className }: Signatur
           type="button"
           variant="outline"
           size="sm"
+          onClick={() => setStep("name")}
+          disabled={disabled}
+        >
+          Back
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
           onClick={handleClear}
           disabled={isEmpty || disabled}
         >
@@ -128,11 +181,6 @@ export function SignaturePad({ onSave, onCancel, disabled, className }: Signatur
           <Check className="size-3.5" />
           Save Signature
         </Button>
-        {onCancel && (
-          <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={disabled}>
-            Cancel
-          </Button>
-        )}
       </div>
     </div>
   )

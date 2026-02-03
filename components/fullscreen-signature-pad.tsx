@@ -1,13 +1,14 @@
 "use client"
 
 import { useRef, useEffect, useState, useCallback } from "react"
-import { X, Eraser, Check, Undo2, ArrowUp } from "lucide-react"
+import { X, Eraser, Check, Undo2, ArrowUp, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import type SignaturePadType from "signature_pad"
 
 interface FullscreenSignaturePadProps {
-  onSave: (data: { imageBlob: Blob; points: unknown }) => void
+  onSave: (data: { imageBlob: Blob; points: unknown; signerName: string }) => void
   onCancel: () => void
   disabled?: boolean
 }
@@ -26,6 +27,8 @@ export function FullscreenSignaturePad({
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const padRef = useRef<SignaturePadType | null>(null)
+  const [step, setStep] = useState<"name" | "signature">("name")
+  const [signerName, setSignerName] = useState("")
   const [isEmpty, setIsEmpty] = useState(true)
   const [canUndo, setCanUndo] = useState(false)
   const [loaded, setLoaded] = useState(false)
@@ -150,7 +153,7 @@ export function FullscreenSignaturePad({
 
   const handleSave = useCallback(async () => {
     const pad = padRef.current
-    if (!pad || pad.isEmpty()) return
+    if (!pad || pad.isEmpty() || !signerName.trim()) return
 
     const points = pad.toData()
     const dataUrl = pad.toDataURL("image/png")
@@ -158,9 +161,66 @@ export function FullscreenSignaturePad({
     const response = await fetch(dataUrl)
     const blob = await response.blob()
 
-    onSave({ imageBlob: blob, points })
-  }, [onSave])
+    onSave({ imageBlob: blob, points, signerName: signerName.trim() })
+  }, [onSave, signerName])
 
+  // Step 1: Name input
+  if (step === "name") {
+    return (
+      <div
+        data-slot="fullscreen-signature-pad"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      >
+        <div className="mx-4 w-full max-w-md rounded-lg border bg-background p-6 shadow-lg">
+          <div className="space-y-4">
+            <div className="space-y-2 text-center">
+              <h2 className="text-lg font-semibold">Sign Inspection</h2>
+              <p className="text-sm text-muted-foreground">
+                Please enter your full name, then sign to complete the inspection.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="signer-name" className="text-sm font-medium">
+                Full Name (printed)
+              </label>
+              <Input
+                id="signer-name"
+                type="text"
+                placeholder="Enter your full name"
+                value={signerName}
+                onChange={(e) => setSignerName(e.target.value)}
+                disabled={disabled}
+                autoFocus
+                className="h-12 text-base"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={onCancel}
+                disabled={disabled}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={() => setStep("signature")}
+                disabled={!signerName.trim() || disabled}
+              >
+                Continue to Sign
+                <ArrowRight className="size-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Step 2: Signature capture
   return (
     <div
       data-slot="fullscreen-signature-pad"
@@ -179,11 +239,13 @@ export function FullscreenSignaturePad({
       >
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b px-4 py-3">
-          <Button variant="ghost" size="sm" onClick={onCancel} disabled={disabled}>
+          <Button variant="ghost" size="sm" onClick={() => setStep("name")} disabled={disabled}>
             <X className="size-4" />
-            <span className={cn(shouldRotate && "hidden sm:inline")}>Cancel</span>
+            <span className={cn(shouldRotate && "hidden sm:inline")}>Back</span>
           </Button>
-          <span className="text-sm font-medium">Sign to Complete</span>
+          <div className="text-center">
+            <span className="text-sm font-medium">Sign as: {signerName}</span>
+          </div>
           <Button
             size="sm"
             onClick={handleSave}

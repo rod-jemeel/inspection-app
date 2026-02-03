@@ -73,6 +73,7 @@ interface Signature {
   signed_at: string
   signed_by_profile_id: string
   signature_image_path: string
+  signer_name: string | null
 }
 
 const STATUS_VARIANT: Record<string, string> = {
@@ -300,7 +301,9 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
   const handleClose = useCallback(() => {
     setInstanceId(null)
     setShowSignature(false)
-  }, [setInstanceId])
+    // Refresh the list when modal closes to reflect any status changes
+    router.refresh()
+  }, [setInstanceId, router])
 
   const handleStatusChange = async (newStatus: string) => {
     if (!instance) return
@@ -329,9 +332,9 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
       // Show signature pad if marking as passed and user is assigned
       if (newStatus === "passed" && updated.assigned_to_profile_id === profileId) {
         setShowSignature(true)
-      } else {
-        router.refresh()
       }
+      // Don't call router.refresh() here - let the modal stay responsive
+      // The list will be refreshed when the modal closes
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred")
     } finally {
@@ -339,7 +342,7 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
     }
   }
 
-  const handleSignatureSave = async (data: { imageBlob: Blob; points: unknown }) => {
+  const handleSignatureSave = async (data: { imageBlob: Blob; points: unknown; signerName: string }) => {
     if (!instance) return
     setLoading(true)
     setError(null)
@@ -366,6 +369,7 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
       const formData = new FormData()
       formData.append("signature", data.imageBlob, "signature.png")
       formData.append("points", JSON.stringify(data.points))
+      formData.append("signerName", data.signerName)
       formData.append(
         "deviceMeta",
         JSON.stringify({
@@ -386,8 +390,7 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
       }
 
       setShowSignature(false)
-      handleClose()
-      router.refresh()
+      handleClose() // This already calls router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred")
     } finally {
@@ -419,7 +422,7 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
       setInstance(updated)
       setShowReassign(false)
       setReassignEmail("")
-      router.refresh()
+      // Don't refresh here - let handleClose do it when modal closes
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred")
     } finally {
@@ -730,13 +733,13 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
                       >
                         <div className="mb-3 flex items-center gap-2 text-xs">
                           <PenTool className="size-4 text-primary" />
-                          <span className="font-medium">Signed</span>
+                          <span className="font-medium">{sig.signer_name || "Signed"}</span>
                           <span className="text-muted-foreground">· {formatDate(sig.signed_at)}</span>
                         </div>
                         <div className="flex justify-center rounded border bg-white p-2">
                           <img
                             src={`/api/locations/${locationId}/instances/${instance.id}/sign/${sig.id}/image`}
-                            alt="Inspector signature"
+                            alt={`Signature by ${sig.signer_name || "Inspector"}`}
                             width={300}
                             height={96}
                             className="h-24 w-auto max-w-full object-contain"
