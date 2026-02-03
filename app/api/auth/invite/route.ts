@@ -40,23 +40,24 @@ export async function POST(request: NextRequest) {
       // In production, you'd want to implement a password reset flow
       // For MVP, we'll just return success and let them sign in with their existing credentials
     } else {
-      // Create user via Better Auth internal API
+      // Create user via Better Auth admin API (server-side user creation)
       let result
       try {
-        result = await auth.api.signUpEmail({
+        result = await auth.api.createUser({
           body: {
             email: inspectorEmail,
             password: tempPassword,
             name: inspectorName,
+            role: "user", // Better Auth role, not our app role
           },
         })
-      } catch (signUpError) {
-        console.error("Better Auth signUpEmail error:", signUpError)
-        throw new ApiError("INTERNAL_ERROR", `Failed to create account: ${signUpError instanceof Error ? signUpError.message : "Unknown error"}`)
+      } catch (createUserError) {
+        console.error("Better Auth createUser error:", createUserError)
+        throw new ApiError("INTERNAL_ERROR", `Failed to create account: ${createUserError instanceof Error ? createUserError.message : "Unknown error"}`)
       }
 
       if (!result?.user?.id) {
-        console.error("Better Auth signUpEmail returned no user:", result)
+        console.error("Better Auth createUser returned no user:", result)
         throw new ApiError("INTERNAL_ERROR", "Failed to create inspector account - no user returned")
       }
 
