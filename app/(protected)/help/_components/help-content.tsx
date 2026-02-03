@@ -20,8 +20,14 @@ import {
   UserPlus,
   BarChart3,
   AlertTriangle,
+  X,
+  ZoomIn,
 } from "lucide-react"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 const sections = [
   { id: "getting-started", label: "Getting Started", icon: PlayCircle },
@@ -36,6 +42,60 @@ const sections = [
   { id: "troubleshooting", label: "Troubleshooting", icon: AlertTriangle },
 ]
 
+function ExpandableImage({ src, alt, width, height, className, caption }: {
+  src: string
+  alt: string
+  width: number
+  height: number
+  className?: string
+  caption?: string
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        className="group relative block w-full cursor-zoom-in overflow-hidden rounded-md border transition-shadow hover:shadow-md"
+      >
+        <Image
+          src={src}
+          alt={alt}
+          width={width}
+          height={height}
+          className={cn("w-full", className)}
+        />
+        <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/10 group-hover:opacity-100">
+          <ZoomIn className="size-8 text-white drop-shadow-lg" />
+        </div>
+        {caption && (
+          <p className="bg-muted/30 p-2 text-center text-[10px]">{caption}</p>
+        )}
+      </button>
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-h-[90vh] max-w-[90vw] overflow-auto border-none bg-transparent p-0 shadow-none">
+          <DialogTitle className="sr-only">{alt}</DialogTitle>
+          <button
+            type="button"
+            onClick={() => setIsOpen(false)}
+            className="absolute right-2 top-2 z-10 rounded-full bg-black/50 p-2 text-white transition-colors hover:bg-black/70"
+          >
+            <X className="size-5" />
+          </button>
+          <Image
+            src={src}
+            alt={alt}
+            width={1600}
+            height={1000}
+            className="max-h-[85vh] w-auto rounded-lg object-contain"
+          />
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
 export function HelpContent() {
   const [activeSection, setActiveSection] = useState("getting-started")
 
@@ -45,39 +105,37 @@ export function HelpContent() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
-      {/* Sidebar Navigation */}
-      <aside className="hidden w-64 shrink-0 border-r bg-muted/30 md:block">
+    <div className="flex">
+      {/* Sidebar Navigation - Sticky */}
+      <aside className="sticky top-0 hidden h-fit w-64 shrink-0 border-r bg-muted/30 md:block">
         <div className="flex h-14 items-center gap-2 border-b px-4">
           <BookOpen className="size-4 text-primary" />
           <span className="text-sm font-semibold">Help & User Guide</span>
         </div>
-        <ScrollArea className="h-[calc(100vh-7.5rem)]">
-          <nav className="space-y-1 p-2">
-            {sections.map((section) => {
-              const Icon = section.icon
-              return (
-                <button
-                  key={section.id}
-                  onClick={() => scrollToSection(section.id)}
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs transition-colors",
-                    activeSection === section.id
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <Icon className="size-3.5 shrink-0" />
-                  {section.label}
-                </button>
-              )
-            })}
-          </nav>
-        </ScrollArea>
+        <nav className="space-y-1 p-2">
+          {sections.map((section) => {
+            const Icon = section.icon
+            return (
+              <button
+                key={section.id}
+                onClick={() => scrollToSection(section.id)}
+                className={cn(
+                  "flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs transition-colors",
+                  activeSection === section.id
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Icon className="size-3.5 shrink-0" />
+                {section.label}
+              </button>
+            )
+          })}
+        </nav>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1">
         <div className="mx-auto max-w-3xl px-4 py-6 md:px-8">
           {/* Mobile Section Nav */}
           <div className="mb-6 flex flex-wrap gap-2 md:hidden">
@@ -110,7 +168,7 @@ export function HelpContent() {
               <h2 className="text-lg font-semibold">Getting Started</h2>
             </div>
 
-            <div className="space-y-4 text-xs leading-relaxed text-muted-foreground">
+            <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
               <p>
                 Welcome to the Inspection App! This application helps you manage recurring inspections,
                 track compliance, and maintain digital records with signature verification.
@@ -138,7 +196,7 @@ export function HelpContent() {
                     <span>Manage templates, inspections, team members, and create invite codes</span>
                   </div>
                   <div className="flex items-start gap-2">
-                    <span className="rounded bg-green-500/20 px-1.5 py-0.5 text-[10px] font-medium text-green-600">Nurse</span>
+                    <span className="rounded bg-green-500/20 px-1.5 py-0.5 text-[10px] font-medium text-green-600">Staff</span>
                     <span>View and complete inspections for assigned locations</span>
                   </div>
                   <div className="flex items-start gap-2">
@@ -170,16 +228,13 @@ export function HelpContent() {
               <h2 className="text-lg font-semibold">Authentication</h2>
             </div>
 
-            <div className="space-y-4 text-xs leading-relaxed text-muted-foreground">
-              <div className="overflow-hidden rounded-md border">
-                <Image
-                  src="/help/login.png"
-                  alt="Login page"
-                  width={800}
-                  height={500}
-                  className="w-full"
-                />
-              </div>
+            <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
+              <ExpandableImage
+                src="/help/login.png"
+                alt="Login page"
+                width={800}
+                height={500}
+              />
 
               <div className="rounded-md border bg-muted/30 p-4">
                 <h3 className="mb-2 font-medium text-foreground">Staff Login (Email & Password)</h3>
@@ -237,21 +292,18 @@ export function HelpContent() {
               <h2 className="text-lg font-semibold">Template Management</h2>
             </div>
 
-            <div className="space-y-4 text-xs leading-relaxed text-muted-foreground">
+            <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
               <p>
                 Templates define recurring inspection tasks. Each template generates inspection instances
                 automatically based on its frequency setting.
               </p>
 
-              <div className="overflow-hidden rounded-md border">
-                <Image
-                  src="/help/templates.png"
-                  alt="Templates page"
-                  width={800}
-                  height={500}
-                  className="w-full"
-                />
-              </div>
+              <ExpandableImage
+                src="/help/templates.png"
+                alt="Templates page"
+                width={800}
+                height={500}
+              />
 
               <div className="rounded-md border bg-muted/30 p-4">
                 <h3 className="mb-2 font-medium text-foreground">Creating a Template</h3>
@@ -322,28 +374,22 @@ export function HelpContent() {
               <h2 className="text-lg font-semibold">Completing Inspections</h2>
             </div>
 
-            <div className="space-y-4 text-xs leading-relaxed text-muted-foreground">
+            <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="overflow-hidden rounded-md border">
-                  <Image
-                    src="/help/inspections.png"
-                    alt="Inspections list"
-                    width={400}
-                    height={300}
-                    className="w-full"
-                  />
-                  <p className="bg-muted/30 p-2 text-center text-[10px]">Inspections List</p>
-                </div>
-                <div className="overflow-hidden rounded-md border">
-                  <Image
-                    src="/help/inspection-modal.png"
-                    alt="Inspection modal"
-                    width={400}
-                    height={300}
-                    className="w-full"
-                  />
-                  <p className="bg-muted/30 p-2 text-center text-[10px]">Inspection Details Modal</p>
-                </div>
+                <ExpandableImage
+                  src="/help/inspections.png"
+                  alt="Inspections list"
+                  width={400}
+                  height={300}
+                  caption="Inspections List"
+                />
+                <ExpandableImage
+                  src="/help/inspection-modal.png"
+                  alt="Inspection modal"
+                  width={400}
+                  height={300}
+                  caption="Inspection Details Modal"
+                />
               </div>
 
               <div className="rounded-md border bg-muted/30 p-4">
@@ -411,7 +457,7 @@ export function HelpContent() {
               <h2 className="text-lg font-semibold">Signing Inspections</h2>
             </div>
 
-            <div className="space-y-4 text-xs leading-relaxed text-muted-foreground">
+            <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
               <p>
                 Every passed inspection requires a digital signature. This provides accountability
                 and creates a tamper-proof record.
@@ -460,16 +506,13 @@ export function HelpContent() {
               <h2 className="text-lg font-semibold">Team & Invites</h2>
             </div>
 
-            <div className="space-y-4 text-xs leading-relaxed text-muted-foreground">
-              <div className="overflow-hidden rounded-md border">
-                <Image
-                  src="/help/invites.png"
-                  alt="Invites page"
-                  width={800}
-                  height={500}
-                  className="w-full"
-                />
-              </div>
+            <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
+              <ExpandableImage
+                src="/help/invites.png"
+                alt="Invites page"
+                width={800}
+                height={500}
+              />
 
               <div className="rounded-md border bg-muted/30 p-4">
                 <h3 className="mb-2 font-medium text-foreground">Viewing Team Members</h3>
@@ -525,16 +568,13 @@ export function HelpContent() {
               <h2 className="text-lg font-semibold">Dashboard & Reports</h2>
             </div>
 
-            <div className="space-y-4 text-xs leading-relaxed text-muted-foreground">
-              <div className="overflow-hidden rounded-md border">
-                <Image
-                  src="/help/dashboard.png"
-                  alt="Dashboard page"
-                  width={800}
-                  height={500}
-                  className="w-full"
-                />
-              </div>
+            <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
+              <ExpandableImage
+                src="/help/dashboard.png"
+                alt="Dashboard page"
+                width={800}
+                height={500}
+              />
 
               <div className="rounded-md border bg-muted/30 p-4">
                 <h3 className="mb-2 font-medium text-foreground">KPI Cards</h3>
@@ -594,16 +634,13 @@ export function HelpContent() {
               <h2 className="text-lg font-semibold">Settings & Notifications</h2>
             </div>
 
-            <div className="space-y-4 text-xs leading-relaxed text-muted-foreground">
-              <div className="overflow-hidden rounded-md border">
-                <Image
-                  src="/help/settings.png"
-                  alt="Settings page"
-                  width={800}
-                  height={500}
-                  className="w-full"
-                />
-              </div>
+            <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
+              <ExpandableImage
+                src="/help/settings.png"
+                alt="Settings page"
+                width={800}
+                height={500}
+              />
 
               <div className="rounded-md border bg-muted/30 p-4">
                 <h3 className="mb-2 font-medium text-foreground">Location Settings</h3>
@@ -658,7 +695,7 @@ export function HelpContent() {
               <h2 className="text-lg font-semibold">Mobile & PWA</h2>
             </div>
 
-            <div className="space-y-4 text-xs leading-relaxed text-muted-foreground">
+            <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
               <p>
                 The Inspection App is a Progressive Web App (PWA), meaning it works like a native app
                 on your phone without needing to download from an app store.
@@ -719,7 +756,7 @@ export function HelpContent() {
               <h2 className="text-lg font-semibold">Troubleshooting</h2>
             </div>
 
-            <div className="space-y-4 text-xs leading-relaxed text-muted-foreground">
+            <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
               <div className="rounded-md border bg-muted/30 p-4">
                 <h3 className="mb-2 font-medium text-foreground">"Invalid invite code"</h3>
                 <ul className="list-inside list-disc space-y-1">
@@ -770,7 +807,7 @@ export function HelpContent() {
                 <h3 className="mb-2 font-medium text-foreground">Templates page shows error</h3>
                 <ul className="list-inside list-disc space-y-1">
                   <li>Make sure you have Admin or Owner role</li>
-                  <li>Nurses and Inspectors cannot access templates</li>
+                  <li>Staff and Inspectors cannot access templates</li>
                   <li>Try refreshing the page</li>
                 </ul>
               </div>
