@@ -65,6 +65,9 @@ export function FullscreenSignaturePad({
   const shouldRotate = isMobile && !isLandscape
 
   useEffect(() => {
+    // Only initialize when on signature step (canvas is rendered)
+    if (step !== "signature") return
+
     let mounted = true
 
     async function initPad() {
@@ -130,7 +133,7 @@ export function FullscreenSignaturePad({
     return () => {
       mounted = false
     }
-  }, [shouldRotate])
+  }, [step, shouldRotate])
 
   const handleClear = useCallback(() => {
     padRef.current?.clear()
