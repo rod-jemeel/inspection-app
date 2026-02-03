@@ -97,6 +97,11 @@ interface UsersContentProps {
   canEdit: boolean
 }
 
+interface ResetPasswordResult {
+  tempPassword: string
+  fullName: string
+}
+
 const ROLE_CONFIG: Record<string, { label: string; className: string; description: string }> = {
   owner: {
     label: "Owner",
@@ -151,6 +156,7 @@ export function UsersContent({
   const [inviteOpen, setInviteOpen] = useState(false)
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null)
   const [removingMember, setRemovingMember] = useState<TeamMember | null>(null)
+  const [resettingMember, setResettingMember] = useState<TeamMember | null>(null)
   const [newRole, setNewRole] = useState<string>("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -161,6 +167,7 @@ export function UsersContent({
     password: string
     fullName: string
   } | null>(null)
+  const [resetPasswordResult, setResetPasswordResult] = useState<ResetPasswordResult | null>(null)
   const [generatedCode, setGeneratedCode] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
@@ -255,6 +262,35 @@ export function UsersContent({
     }
   }
 
+  const handleResetPassword = async () => {
+    if (!resettingMember) return
+    setLoading(true)
+    setError(null)
+
+    try {
+      const res = await fetch(`/api/users/${resettingMember.user_id}/reset-password`, {
+        method: "POST",
+      })
+
+      if (!res.ok) {
+        const err = await res.json()
+        setError(err.error ?? "Failed to reset password")
+        return
+      }
+
+      const data = await res.json()
+      setResetPasswordResult({
+        tempPassword: data.tempPassword,
+        fullName: resettingMember.full_name,
+      })
+      setResettingMember(null)
+    } catch {
+      setError("Network error. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleRevokeInvite = async () => {
     if (!revokingInvite) return
     setLoading(true)
@@ -317,6 +353,41 @@ export function UsersContent({
               {copied ? "Copied" : "Copy"}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setGeneratedCredentials(null)}>
+              <X className="size-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Password Banner */}
+      {resetPasswordResult && (
+        <div className="flex items-center gap-3 rounded-md border-2 border-amber-500 bg-amber-500/5 p-4">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-amber-500/10">
+            <Key className="size-5 text-amber-600" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-medium text-muted-foreground">
+              Password Reset: {resetPasswordResult.fullName}
+            </div>
+            <div className="mt-1">
+              <span className="text-[11px] text-muted-foreground">New Password: </span>
+              <code className="text-sm font-mono font-semibold">{resetPasswordResult.tempPassword}</code>
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Share this password. They'll be prompted to change it on next login.
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => copyToClipboard(resetPasswordResult.tempPassword)}
+              className="gap-1.5"
+            >
+              {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+              {copied ? "Copied" : "Copy"}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setResetPasswordResult(null)}>
               <X className="size-3.5" />
             </Button>
           </div>
@@ -508,6 +579,10 @@ export function UsersContent({
                                     <Edit2 className="mr-2 size-3.5" />
                                     Change Role
                                   </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => setResettingMember(member)} className="text-xs">
+                                    <Key className="mr-2 size-3.5" />
+                                    Reset Password
+                                  </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem
                                     onClick={() => setRemovingMember(member)}
@@ -698,26 +773,14 @@ export function UsersContent({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin" className="text-xs">
-                    <div>
-                      <div className="font-medium">Admin</div>
-                      <div className="text-muted-foreground">{ROLE_CONFIG.admin.description}</div>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="nurse" className="text-xs">
-                    <div>
-                      <div className="font-medium">Staff</div>
-                      <div className="text-muted-foreground">{ROLE_CONFIG.nurse.description}</div>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="inspector" className="text-xs">
-                    <div>
-                      <div className="font-medium">Inspector</div>
-                      <div className="text-muted-foreground">{ROLE_CONFIG.inspector.description}</div>
-                    </div>
-                  </SelectItem>
+                  <SelectItem value="admin" className="text-xs">Admin</SelectItem>
+                  <SelectItem value="nurse" className="text-xs">Staff</SelectItem>
+                  <SelectItem value="inspector" className="text-xs">Inspector</SelectItem>
                 </SelectContent>
               </Select>
+              <FieldDescription>
+                {newRole && ROLE_CONFIG[newRole]?.description}
+              </FieldDescription>
             </Field>
             {error && <FieldError>{error}</FieldError>}
           </div>
@@ -771,6 +834,28 @@ export function UsersContent({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {loading ? "Revoking..." : "Revoke"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reset Password Confirmation */}
+      <AlertDialog open={!!resettingMember} onOpenChange={() => setResettingMember(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset Password</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will generate a new temporary password for {resettingMember?.full_name}.
+              They will be required to change it on their next login.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {error && (
+            <div className="text-xs text-destructive">{error}</div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResetPassword} disabled={loading}>
+              {loading ? "Resetting..." : "Reset Password"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
