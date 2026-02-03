@@ -41,16 +41,23 @@ export async function POST(request: NextRequest) {
       // For MVP, we'll just return success and let them sign in with their existing credentials
     } else {
       // Create user via Better Auth internal API
-      const result = await auth.api.signUpEmail({
-        body: {
-          email: inspectorEmail,
-          password: tempPassword,
-          name: inspectorName,
-        },
-      })
+      let result
+      try {
+        result = await auth.api.signUpEmail({
+          body: {
+            email: inspectorEmail,
+            password: tempPassword,
+            name: inspectorName,
+          },
+        })
+      } catch (signUpError) {
+        console.error("Better Auth signUpEmail error:", signUpError)
+        throw new ApiError("INTERNAL_ERROR", `Failed to create account: ${signUpError instanceof Error ? signUpError.message : "Unknown error"}`)
+      }
 
       if (!result?.user?.id) {
-        throw new ApiError("INTERNAL_ERROR", "Failed to create inspector account")
+        console.error("Better Auth signUpEmail returned no user:", result)
+        throw new ApiError("INTERNAL_ERROR", "Failed to create inspector account - no user returned")
       }
 
       userId = result.user.id
@@ -75,7 +82,8 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (profileError || !profile) {
-        throw new ApiError("INTERNAL_ERROR", "Failed to create profile")
+        console.error("Profile creation error:", profileError)
+        throw new ApiError("INTERNAL_ERROR", `Failed to create profile: ${profileError?.message || "Unknown error"}`)
       }
 
       // Link to location
@@ -87,7 +95,8 @@ export async function POST(request: NextRequest) {
         })
 
       if (locationError) {
-        throw new ApiError("INTERNAL_ERROR", "Failed to link profile to location")
+        console.error("Location link error:", locationError)
+        throw new ApiError("INTERNAL_ERROR", `Failed to link to location: ${locationError.message}`)
       }
     }
 
