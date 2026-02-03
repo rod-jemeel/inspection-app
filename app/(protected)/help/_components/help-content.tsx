@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import { cn } from "@/lib/utils"
 import {
   BookOpen,
@@ -170,6 +171,16 @@ export function HelpContent() {
             </div>
 
             <div className="space-y-4 text-xs leading-relaxed text-muted-foreground">
+              <div className="overflow-hidden rounded-md border">
+                <Image
+                  src="/help/login.png"
+                  alt="Login page"
+                  width={800}
+                  height={500}
+                  className="w-full"
+                />
+              </div>
+
               <div className="rounded-md border bg-muted/30 p-4">
                 <h3 className="mb-2 font-medium text-foreground">Staff Login (Email & Password)</h3>
                 <ol className="list-inside list-decimal space-y-1">
@@ -231,6 +242,16 @@ export function HelpContent() {
                 Templates define recurring inspection tasks. Each template generates inspection instances
                 automatically based on its frequency setting.
               </p>
+
+              <div className="overflow-hidden rounded-md border">
+                <Image
+                  src="/help/templates.png"
+                  alt="Templates page"
+                  width={800}
+                  height={500}
+                  className="w-full"
+                />
+              </div>
 
               <div className="rounded-md border bg-muted/30 p-4">
                 <h3 className="mb-2 font-medium text-foreground">Creating a Template</h3>
@@ -302,6 +323,29 @@ export function HelpContent() {
             </div>
 
             <div className="space-y-4 text-xs leading-relaxed text-muted-foreground">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="overflow-hidden rounded-md border">
+                  <Image
+                    src="/help/inspections.png"
+                    alt="Inspections list"
+                    width={400}
+                    height={300}
+                    className="w-full"
+                  />
+                  <p className="bg-muted/30 p-2 text-center text-[10px]">Inspections List</p>
+                </div>
+                <div className="overflow-hidden rounded-md border">
+                  <Image
+                    src="/help/inspection-modal.png"
+                    alt="Inspection modal"
+                    width={400}
+                    height={300}
+                    className="w-full"
+                  />
+                  <p className="bg-muted/30 p-2 text-center text-[10px]">Inspection Details Modal</p>
+                </div>
+              </div>
+
               <div className="rounded-md border bg-muted/30 p-4">
                 <h3 className="mb-2 font-medium text-foreground">Inspection Status Flow</h3>
                 <div className="flex flex-wrap items-center gap-2 text-[10px]">
@@ -417,6 +461,16 @@ export function HelpContent() {
             </div>
 
             <div className="space-y-4 text-xs leading-relaxed text-muted-foreground">
+              <div className="overflow-hidden rounded-md border">
+                <Image
+                  src="/help/invites.png"
+                  alt="Invites page"
+                  width={800}
+                  height={500}
+                  className="w-full"
+                />
+              </div>
+
               <div className="rounded-md border bg-muted/30 p-4">
                 <h3 className="mb-2 font-medium text-foreground">Viewing Team Members</h3>
                 <ol className="list-inside list-decimal space-y-1">
@@ -472,6 +526,16 @@ export function HelpContent() {
             </div>
 
             <div className="space-y-4 text-xs leading-relaxed text-muted-foreground">
+              <div className="overflow-hidden rounded-md border">
+                <Image
+                  src="/help/dashboard.png"
+                  alt="Dashboard page"
+                  width={800}
+                  height={500}
+                  className="w-full"
+                />
+              </div>
+
               <div className="rounded-md border bg-muted/30 p-4">
                 <h3 className="mb-2 font-medium text-foreground">KPI Cards</h3>
                 <p className="mb-2">The dashboard shows key metrics at a glance:</p>
@@ -531,6 +595,16 @@ export function HelpContent() {
             </div>
 
             <div className="space-y-4 text-xs leading-relaxed text-muted-foreground">
+              <div className="overflow-hidden rounded-md border">
+                <Image
+                  src="/help/settings.png"
+                  alt="Settings page"
+                  width={800}
+                  height={500}
+                  className="w-full"
+                />
+              </div>
+
               <div className="rounded-md border bg-muted/30 p-4">
                 <h3 className="mb-2 font-medium text-foreground">Location Settings</h3>
                 <ul className="list-inside list-disc space-y-1">
