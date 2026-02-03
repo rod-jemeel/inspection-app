@@ -185,48 +185,110 @@ export async function updateInstance(locationId: string, instanceId: string, inp
 
 /**
  * Calculate the next due date based on frequency
- * - Weekly: Next Monday from today
- * - Monthly: 1st of next month
- * - Yearly: Jan 1st of next year
- * - Every 3 years: Jan 1st, 3 years from now
+ * - Weekly: This Monday if not passed, otherwise next Monday
+ * - Monthly: 1st of this month if not passed, otherwise 1st of next month
+ * - Yearly: Jan 1st of this year if not passed, otherwise next year
+ * - Every 3 years: Jan 1st, 3 years from last due or from now
  */
-export function calculateNextDueDate(frequency: "weekly" | "monthly" | "yearly" | "every_3_years"): Date {
-  const now = new Date()
+export function calculateNextDueDate(
+  frequency: "weekly" | "monthly" | "yearly" | "every_3_years",
+  fromDate?: Date
+): Date {
+  const now = fromDate ?? new Date()
   const result = new Date(now)
+  result.setHours(0, 0, 0, 0)
 
   switch (frequency) {
     case "weekly": {
-      // Next Monday
-      const dayOfWeek = result.getDay()
-      const daysUntilMonday = dayOfWeek === 0 ? 1 : (8 - dayOfWeek) // 0 = Sunday
-      result.setDate(result.getDate() + daysUntilMonday)
-      result.setHours(0, 0, 0, 0)
+      // This Monday if today is Monday, otherwise next Monday
+      const dayOfWeek = result.getDay() // 0 = Sunday, 1 = Monday
+      if (dayOfWeek === 1) {
+        // Today is Monday - use today
+        break
+      } else if (dayOfWeek === 0) {
+        // Sunday - tomorrow is Monday
+        result.setDate(result.getDate() + 1)
+      } else {
+        // Tuesday-Saturday - next Monday
+        const daysUntilMonday = 8 - dayOfWeek
+        result.setDate(result.getDate() + daysUntilMonday)
+      }
       break
     }
     case "monthly": {
-      // 1st of next month
+      // 1st of this month if today is the 1st, otherwise 1st of next month
+      if (result.getDate() === 1) {
+        // Today is the 1st - use today
+        break
+      }
       result.setMonth(result.getMonth() + 1)
       result.setDate(1)
-      result.setHours(0, 0, 0, 0)
       break
     }
     case "yearly": {
-      // Jan 1st of next year
+      // Jan 1st of this year if today is Jan 1st, otherwise next year
+      if (result.getMonth() === 0 && result.getDate() === 1) {
+        // Today is Jan 1st - use today
+        break
+      }
       result.setFullYear(result.getFullYear() + 1)
       result.setMonth(0)
       result.setDate(1)
-      result.setHours(0, 0, 0, 0)
       break
     }
     case "every_3_years": {
-      // Jan 1st, 3 years from now
+      // Jan 1st, 3 years from now (or from last completed)
       result.setFullYear(result.getFullYear() + 3)
       result.setMonth(0)
       result.setDate(1)
-      result.setHours(0, 0, 0, 0)
       break
     }
   }
 
   return result
+}
+
+/**
+ * Check if an instance should receive a reminder based on frequency
+ * Returns the reminder type or null if no reminder needed
+ */
+export function shouldSendReminder(
+  dueAt: Date,
+  frequency: "weekly" | "monthly" | "yearly" | "every_3_years"
+): "due_today" | "upcoming" | "monthly_warning" | null {
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+
+  const due = new Date(dueAt)
+  due.setHours(0, 0, 0, 0)
+
+  const daysUntilDue = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+
+  switch (frequency) {
+    case "weekly":
+      // Remind on the due day (Monday)
+      if (daysUntilDue === 0) return "due_today"
+      break
+
+    case "monthly":
+      // Remind 1 week before due
+      if (daysUntilDue === 7) return "upcoming"
+      if (daysUntilDue === 0) return "due_today"
+      break
+
+    case "yearly":
+    case "every_3_years": {
+      // Remind 6 months before, then every month until due
+      const monthsUntilDue = Math.ceil(daysUntilDue / 30)
+      if (monthsUntilDue === 6) return "upcoming" // 6 months warning
+      if (monthsUntilDue <= 5 && monthsUntilDue >= 1) {
+        // Check if it's the 1st of the month (monthly reminder)
+        if (now.getDate() === 1) return "monthly_warning"
+      }
+      if (daysUntilDue === 0) return "due_today"
+      break
+    }
+  }
+
+  return null
 }
