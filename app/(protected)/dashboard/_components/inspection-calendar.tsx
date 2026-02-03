@@ -534,7 +534,7 @@ export function InspectionCalendar({ events, locationId, locationName }: Inspect
               {/* Day names row */}
               <div className="grid grid-cols-7 gap-2">
                 {Array.from({ length: 7 }).map((_, i) => (
-                  <Skeleton key={`day-${i}`} className="h-4 bg-neutral-200 dark:bg-neutral-700" />
+                  <Skeleton key={`day-${i}`} className="h-4" />
                 ))}
               </div>
               {/* Calendar grid - 6 rows */}
@@ -543,7 +543,7 @@ export function InspectionCalendar({ events, locationId, locationName }: Inspect
                   {Array.from({ length: 7 }).map((_, colIndex) => (
                     <Skeleton
                       key={`cell-${rowIndex}-${colIndex}`}
-                      className="aspect-square h-auto min-h-[40px] bg-neutral-200 dark:bg-neutral-700 sm:min-h-[60px]"
+                      className="aspect-square h-auto min-h-[40px] sm:min-h-[60px]"
                     />
                   ))}
                 </div>
