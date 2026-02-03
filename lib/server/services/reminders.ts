@@ -2,9 +2,17 @@ import "server-only"
 import { supabase } from "@/lib/server/db"
 import { ApiError } from "@/lib/server/errors"
 
+export type NotificationType =
+  | "reminder"
+  | "overdue"
+  | "escalation"
+  | "due_today"
+  | "upcoming"
+  | "monthly_warning"
+
 export interface NotificationRecord {
   id: string
-  type: "reminder" | "overdue" | "escalation"
+  type: NotificationType
   to_email: string
   subject: string
   payload: Record<string, unknown>
@@ -15,7 +23,7 @@ export interface NotificationRecord {
 }
 
 export async function queueReminder(input: {
-  type: "reminder" | "overdue" | "escalation"
+  type: NotificationType
   to_email: string
   subject: string
   payload: Record<string, unknown>
