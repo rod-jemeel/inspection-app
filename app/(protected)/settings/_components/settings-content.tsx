@@ -3,6 +3,8 @@
 import { LocationCard } from "./location-card"
 import { NotificationCard } from "./notification-card"
 import { DangerZone } from "./danger-zone"
+import { ReminderSettingsCard } from "./reminder-settings-card"
+import type { ReminderSettings } from "@/lib/validations/reminder-settings"
 
 interface Location {
   id: string
@@ -18,9 +20,10 @@ interface SettingsContentProps {
   location: Location
   canEdit: boolean
   isOwner: boolean
+  reminderSettings: ReminderSettings | null
 }
 
-export function SettingsContent({ location, canEdit, isOwner }: SettingsContentProps) {
+export function SettingsContent({ location, canEdit, isOwner, reminderSettings }: SettingsContentProps) {
   return (
     <div className="space-y-6">
       {/* Bento Grid */}
@@ -30,6 +33,11 @@ export function SettingsContent({ location, canEdit, isOwner }: SettingsContentP
 
         {/* Notification Card */}
         <NotificationCard />
+
+        {/* Reminder Settings - Owner only, spans full width */}
+        {isOwner && reminderSettings && (
+          <ReminderSettingsCard initialSettings={reminderSettings} />
+        )}
 
         {/* Danger Zone - Owner only, spans full width */}
         {isOwner && <DangerZone locationId={location.id} isActive={location.active} />}

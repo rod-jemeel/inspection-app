@@ -2,6 +2,7 @@ import { Suspense } from "react"
 import type { Metadata } from "next"
 import { requireLocationAccess } from "@/lib/server/auth-helpers"
 import { getLocation } from "@/lib/server/services/locations"
+import { getReminderSettings } from "@/lib/server/services/reminder-settings"
 import { SettingsContent } from "./_components/settings-content"
 
 export const metadata: Metadata = {
@@ -15,11 +16,15 @@ async function SettingsData({ loc }: { loc: string }) {
 
   const location = await getLocation(loc)
 
+  // Fetch reminder settings for owners
+  const reminderSettings = isOwner ? await getReminderSettings() : null
+
   return (
     <SettingsContent
       location={location}
       canEdit={canEdit}
       isOwner={isOwner}
+      reminderSettings={reminderSettings}
     />
   )
 }
