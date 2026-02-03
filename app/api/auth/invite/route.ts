@@ -48,7 +48,6 @@ export async function POST(request: NextRequest) {
             email: inspectorEmail,
             password: tempPassword,
             name: inspectorName,
-            role: "user", // Better Auth role, not our app role
           },
         })
       } catch (createUserError) {
