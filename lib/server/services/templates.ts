@@ -38,8 +38,8 @@ async function fetchTemplates(locationId: string, active?: boolean) {
       id, location_id, task, description, frequency,
       default_assignee_profile_id, default_assignee_email, default_due_rule,
       active, sort_order, created_by, updated_by, created_at, updated_at,
-      created_by_profile:profiles!inspection_templates_created_by_fkey(full_name),
-      updated_by_profile:profiles!inspection_templates_updated_by_fkey(full_name)
+      created_by_profile:profiles!inspection_templates_created_by_profile_fkey(full_name),
+      updated_by_profile:profiles!inspection_templates_updated_by_profile_fkey(full_name)
     `)
     .eq("location_id", locationId)
     .order("sort_order", { ascending: true })
@@ -90,8 +90,8 @@ export async function getTemplate(locationId: string, templateId: string) {
       id, location_id, task, description, frequency,
       default_assignee_profile_id, default_assignee_email, default_due_rule,
       active, sort_order, created_by, updated_by, created_at, updated_at,
-      created_by_profile:profiles!inspection_templates_created_by_fkey(full_name),
-      updated_by_profile:profiles!inspection_templates_updated_by_fkey(full_name)
+      created_by_profile:profiles!inspection_templates_created_by_profile_fkey(full_name),
+      updated_by_profile:profiles!inspection_templates_updated_by_profile_fkey(full_name)
     `)
     .eq("id", templateId)
     .eq("location_id", locationId)
@@ -225,8 +225,8 @@ export async function updateTemplate(locationId: string, templateId: string, use
       id, location_id, task, description, frequency,
       default_assignee_profile_id, default_assignee_email, default_due_rule,
       active, sort_order, created_by, updated_by, created_at, updated_at,
-      created_by_profile:profiles!inspection_templates_created_by_fkey(full_name),
-      updated_by_profile:profiles!inspection_templates_updated_by_fkey(full_name)
+      created_by_profile:profiles!inspection_templates_created_by_profile_fkey(full_name),
+      updated_by_profile:profiles!inspection_templates_updated_by_profile_fkey(full_name)
     `)
     .single()
 
