@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
+import Lenis from "lenis"
 import { cn } from "@/lib/utils"
 import {
   BookOpen,
@@ -98,10 +99,33 @@ function ExpandableImage({ src, alt, width, height, className, caption }: {
 
 export function HelpContent() {
   const [activeSection, setActiveSection] = useState("getting-started")
+  const lenisRef = useRef<Lenis | null>(null)
+
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smoothWheel: true,
+    })
+    lenisRef.current = lenis
+
+    function raf(time: number) {
+      lenis.raf(time)
+      requestAnimationFrame(raf)
+    }
+    requestAnimationFrame(raf)
+
+    return () => {
+      lenis.destroy()
+    }
+  }, [])
 
   const scrollToSection = (id: string) => {
     setActiveSection(id)
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" })
+    const element = document.getElementById(id)
+    if (element && lenisRef.current) {
+      lenisRef.current.scrollTo(element, { offset: -24 })
+    }
   }
 
   return (
@@ -119,7 +143,7 @@ export function HelpContent() {
                   "flex w-full items-center gap-2.5 rounded-lg bg-background px-3 py-2.5 text-left text-xs shadow-md transition-all",
                   activeSection === section.id
                     ? "shadow-lg ring-2 ring-primary/50 font-medium text-primary"
-                    : "text-muted-foreground hover:shadow-lg hover:text-foreground"
+                    : "text-foreground/70 hover:shadow-lg hover:text-foreground"
                 )}
               >
                 <Icon className="size-4 shrink-0" />
@@ -145,7 +169,7 @@ export function HelpContent() {
                     "flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] transition-colors",
                     activeSection === section.id
                       ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-background text-muted-foreground"
+                      : "border-border bg-background text-foreground/70"
                   )}
                 >
                   <Icon className="size-3" />
@@ -164,7 +188,7 @@ export function HelpContent() {
               <h2 className="text-lg font-semibold">Getting Started</h2>
             </div>
 
-            <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
+            <div className="space-y-4 text-sm leading-relaxed text-foreground/80">
               <p>
                 Welcome to the Inspection App! This application helps you manage recurring inspections,
                 track compliance, and maintain digital records with signature verification.
@@ -224,7 +248,7 @@ export function HelpContent() {
               <h2 className="text-lg font-semibold">Authentication</h2>
             </div>
 
-            <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
+            <div className="space-y-4 text-sm leading-relaxed text-foreground/80">
               <ExpandableImage
                 src="/help/login.png"
                 alt="Login page"
@@ -288,7 +312,7 @@ export function HelpContent() {
               <h2 className="text-lg font-semibold">Template Management</h2>
             </div>
 
-            <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
+            <div className="space-y-4 text-sm leading-relaxed text-foreground/80">
               <p>
                 Templates define recurring inspection tasks. Each template generates inspection instances
                 automatically based on its frequency setting.
@@ -370,7 +394,7 @@ export function HelpContent() {
               <h2 className="text-lg font-semibold">Completing Inspections</h2>
             </div>
 
-            <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
+            <div className="space-y-4 text-sm leading-relaxed text-foreground/80">
               <div className="grid gap-4 sm:grid-cols-2">
                 <ExpandableImage
                   src="/help/inspections.png"
@@ -453,7 +477,7 @@ export function HelpContent() {
               <h2 className="text-lg font-semibold">Signing Inspections</h2>
             </div>
 
-            <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
+            <div className="space-y-4 text-sm leading-relaxed text-foreground/80">
               <p>
                 Every passed inspection requires a digital signature. This provides accountability
                 and creates a tamper-proof record.
@@ -502,7 +526,7 @@ export function HelpContent() {
               <h2 className="text-lg font-semibold">Team & Invites</h2>
             </div>
 
-            <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
+            <div className="space-y-4 text-sm leading-relaxed text-foreground/80">
               <ExpandableImage
                 src="/help/invites.png"
                 alt="Invites page"
@@ -564,7 +588,7 @@ export function HelpContent() {
               <h2 className="text-lg font-semibold">Dashboard & Reports</h2>
             </div>
 
-            <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
+            <div className="space-y-4 text-sm leading-relaxed text-foreground/80">
               <ExpandableImage
                 src="/help/dashboard.png"
                 alt="Dashboard page"
@@ -630,7 +654,7 @@ export function HelpContent() {
               <h2 className="text-lg font-semibold">Settings & Notifications</h2>
             </div>
 
-            <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
+            <div className="space-y-4 text-sm leading-relaxed text-foreground/80">
               <ExpandableImage
                 src="/help/settings.png"
                 alt="Settings page"
@@ -691,7 +715,7 @@ export function HelpContent() {
               <h2 className="text-lg font-semibold">Mobile & PWA</h2>
             </div>
 
-            <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
+            <div className="space-y-4 text-sm leading-relaxed text-foreground/80">
               <p>
                 The Inspection App is a Progressive Web App (PWA), meaning it works like a native app
                 on your phone without needing to download from an app store.
@@ -752,7 +776,7 @@ export function HelpContent() {
               <h2 className="text-lg font-semibold">Troubleshooting</h2>
             </div>
 
-            <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
+            <div className="space-y-4 text-sm leading-relaxed text-foreground/80">
               <div className="rounded-md border bg-muted/30 p-4">
                 <h3 className="mb-2 font-medium text-foreground">"Invalid invite code"</h3>
                 <ul className="list-inside list-disc space-y-1">
@@ -819,7 +843,7 @@ export function HelpContent() {
           </section>
 
           {/* Footer */}
-          <footer className="border-t pt-6 text-center text-[10px] text-muted-foreground">
+          <footer className="border-t pt-6 text-center text-[10px] text-foreground/60">
             <p>Inspection App User Guide</p>
             <p className="mt-1">Last updated: February 2026</p>
           </footer>
