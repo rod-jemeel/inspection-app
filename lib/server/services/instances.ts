@@ -182,3 +182,51 @@ export async function updateInstance(locationId: string, instanceId: string, inp
 
   return data as Instance
 }
+
+/**
+ * Calculate the next due date based on frequency
+ * - Weekly: Next Monday from today
+ * - Monthly: 1st of next month
+ * - Yearly: Jan 1st of next year
+ * - Every 3 years: Jan 1st, 3 years from now
+ */
+export function calculateNextDueDate(frequency: "weekly" | "monthly" | "yearly" | "every_3_years"): Date {
+  const now = new Date()
+  const result = new Date(now)
+
+  switch (frequency) {
+    case "weekly": {
+      // Next Monday
+      const dayOfWeek = result.getDay()
+      const daysUntilMonday = dayOfWeek === 0 ? 1 : (8 - dayOfWeek) // 0 = Sunday
+      result.setDate(result.getDate() + daysUntilMonday)
+      result.setHours(0, 0, 0, 0)
+      break
+    }
+    case "monthly": {
+      // 1st of next month
+      result.setMonth(result.getMonth() + 1)
+      result.setDate(1)
+      result.setHours(0, 0, 0, 0)
+      break
+    }
+    case "yearly": {
+      // Jan 1st of next year
+      result.setFullYear(result.getFullYear() + 1)
+      result.setMonth(0)
+      result.setDate(1)
+      result.setHours(0, 0, 0, 0)
+      break
+    }
+    case "every_3_years": {
+      // Jan 1st, 3 years from now
+      result.setFullYear(result.getFullYear() + 3)
+      result.setMonth(0)
+      result.setDate(1)
+      result.setHours(0, 0, 0, 0)
+      break
+    }
+  }
+
+  return result
+}

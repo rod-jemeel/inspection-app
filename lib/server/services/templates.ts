@@ -3,6 +3,7 @@ import { unstable_cache, revalidateTag } from "next/cache"
 import { supabase } from "@/lib/server/db"
 import { ApiError } from "@/lib/server/errors"
 import type { CreateTemplateInput, UpdateTemplateInput } from "@/lib/validations/template"
+import { calculateNextDueDate, createInstance } from "./instances"
 
 // Helper to revalidate templates cache
 function revalidateTemplatesCache(locationId: string) {
@@ -154,7 +155,7 @@ export async function createTemplate(locationId: string, userId: string, input: 
   revalidateTemplatesCache(locationId)
 
   const row = data as any
-  return {
+  const template = {
     id: row.id,
     location_id: row.location_id,
     task: row.task,
@@ -172,6 +173,24 @@ export async function createTemplate(locationId: string, userId: string, input: 
     created_by_name: null, // Will be fetched on next list query
     updated_by_name: null,
   } as Template
+
+  // Generate the first inspection instance automatically
+  if (template.active) {
+    try {
+      const dueDate = calculateNextDueDate(template.frequency)
+      await createInstance(locationId, userId, {
+        template_id: template.id,
+        due_at: dueDate.toISOString(),
+        assigned_to_profile_id: template.default_assignee_profile_id ?? undefined,
+        assigned_to_email: template.default_assignee_email ?? undefined,
+      })
+    } catch (instanceError) {
+      console.error("Failed to create initial instance for template:", instanceError)
+      // Don't throw - template was created successfully, instance creation can be retried by cron
+    }
+  }
+
+  return template
 }
 
 export async function updateTemplate(locationId: string, templateId: string, userId: string, input: UpdateTemplateInput) {
