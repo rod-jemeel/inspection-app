@@ -31,6 +31,17 @@ export async function updateReminderSettings({
   userId: string
   input: UpdateReminderSettingsInput
 }): Promise<ReminderSettings> {
+  // First get the singleton row id
+  const { data: current, error: fetchError } = await supabase
+    .from("reminder_settings")
+    .select("id")
+    .limit(1)
+    .single()
+
+  if (fetchError || !current) {
+    throw new ApiError("INTERNAL_ERROR", "Reminder settings not found")
+  }
+
   const updateData: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
     updated_by: userId,
@@ -49,6 +60,7 @@ export async function updateReminderSettings({
   const { data, error } = await supabase
     .from("reminder_settings")
     .update(updateData)
+    .eq("id", current.id)
     .select()
     .single()
 
