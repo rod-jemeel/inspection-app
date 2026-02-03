@@ -6,6 +6,7 @@ import {
   ClipboardCheck,
   Users,
   Settings,
+  HelpCircle,
 } from "lucide-react"
 
 import { LocationSwitcher } from "@/components/location-switcher"
@@ -54,6 +55,8 @@ export function AppSidebar({
       ]
     : [{ title: "Settings", url: "/settings", icon: Settings }]
 
+  const helpItems = [{ title: "Help", url: "/help", icon: HelpCircle }]
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -67,6 +70,7 @@ export function AppSidebar({
       <SidebarContent>
         <NavMain items={mainItems} locationId={currentLocationId} label="Main" />
         <NavMain items={adminItems} locationId={currentLocationId} label={isAdmin ? "Admin" : "Account"} />
+        <NavMain items={helpItems} locationId={currentLocationId} label="Support" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} locationId={currentLocationId} onSignOut={onSignOut} />

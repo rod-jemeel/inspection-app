@@ -39,6 +39,7 @@ const pageTitles: Record<string, string> = {
   "/invites": "Invites",
   "/settings": "Settings",
   "/change-password": "Change Password",
+  "/help": "Help & User Guide",
 }
 
 export function AppShell({ user, locations, children, mustChangePassword }: AppShellProps) {
