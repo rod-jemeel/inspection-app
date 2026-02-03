@@ -1,13 +1,37 @@
 "use client"
 
-import { Bell, Mail, BellOff } from "lucide-react"
+import { useState } from "react"
+import { Bell, Mail, BellOff, Send } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
 import { usePushNotifications } from "@/hooks/use-push-notifications"
 
 export function NotificationCard() {
   const { isSupported, isSubscribed, isLoading, permission, error, subscribe, unsubscribe } =
     usePushNotifications()
+  const [isSendingTest, setIsSendingTest] = useState(false)
+  const [testResult, setTestResult] = useState<string | null>(null)
+
+  async function sendTestNotification() {
+    setIsSendingTest(true)
+    setTestResult(null)
+    try {
+      const response = await fetch("/api/push/test", { method: "POST" })
+      const data = await response.json()
+      if (response.ok && data.sent > 0) {
+        setTestResult("Test notification sent!")
+      } else if (data.sent === 0) {
+        setTestResult("No subscriptions found - enable push first")
+      } else {
+        setTestResult(data.error?.message || "Failed to send")
+      }
+    } catch {
+      setTestResult("Failed to send test notification")
+    } finally {
+      setIsSendingTest(false)
+    }
+  }
 
   return (
     <div className="rounded-md border bg-card p-5 shadow-sm">
@@ -73,6 +97,35 @@ export function NotificationCard() {
         )}
 
         {error && <p className="text-xs text-destructive">{error}</p>}
+
+        {/* Test Push Notification */}
+        {isSupported && isSubscribed && (
+          <div className="flex items-center justify-between gap-4 border-t pt-4">
+            <div className="flex items-start gap-3">
+              <Send className="mt-0.5 size-4 shrink-0" />
+              <div className="space-y-0.5">
+                <p className="text-xs font-medium">Test Notification</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Send a test push to verify notifications work
+                </p>
+                {testResult && (
+                  <p className={`text-[11px] ${testResult.includes("sent") ? "text-green-600" : "text-muted-foreground"}`}>
+                    {testResult}
+                  </p>
+                )}
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={sendTestNotification}
+              disabled={isSendingTest}
+              className="h-7 text-xs"
+            >
+              {isSendingTest ? "Sending..." : "Send Test"}
+            </Button>
+          </div>
+        )}
 
         {/* Email Notifications - placeholder for future */}
         <div className="flex items-center justify-between gap-4 border-t pt-4">
