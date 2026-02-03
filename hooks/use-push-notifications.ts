@@ -113,10 +113,24 @@ export function usePushNotifications() {
 
       return subscription
     } catch (err) {
+      console.error("Push subscription error:", err)
+      let errorMessage = "Failed to subscribe"
+      if (err instanceof Error) {
+        // Provide more specific error messages
+        if (err.name === "NotAllowedError") {
+          errorMessage = "Notification permission denied"
+        } else if (err.name === "AbortError") {
+          errorMessage = "Registration was aborted"
+        } else if (err.message.includes("push service")) {
+          errorMessage = "Push service unavailable - try again later"
+        } else {
+          errorMessage = err.message
+        }
+      }
       setState((prev) => ({
         ...prev,
         isLoading: false,
-        error: err instanceof Error ? err.message : "Failed to subscribe",
+        error: errorMessage,
       }))
       return null
     }
