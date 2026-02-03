@@ -106,13 +106,9 @@ export function HelpContent() {
 
   return (
     <div className="flex">
-      {/* Sidebar Navigation - Sticky */}
-      <aside className="sticky top-0 hidden h-fit w-64 shrink-0 border-r bg-muted/30 md:block">
-        <div className="flex h-14 items-center gap-2 border-b px-4">
-          <BookOpen className="size-4 text-primary" />
-          <span className="text-sm font-semibold">Help & User Guide</span>
-        </div>
-        <nav className="space-y-1 p-2">
+      {/* Sidebar Navigation - Floating Buttons */}
+      <aside className="sticky top-4 hidden h-fit w-56 shrink-0 p-4 md:block">
+        <nav className="flex flex-col gap-2">
           {sections.map((section) => {
             const Icon = section.icon
             return (
@@ -120,13 +116,13 @@ export function HelpContent() {
                 key={section.id}
                 onClick={() => scrollToSection(section.id)}
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs transition-colors",
+                  "flex w-full items-center gap-2.5 rounded-lg bg-background px-3 py-2.5 text-left text-xs shadow-md transition-all",
                   activeSection === section.id
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    ? "shadow-lg ring-2 ring-primary/50 font-medium text-primary"
+                    : "text-muted-foreground hover:shadow-lg hover:text-foreground"
                 )}
               >
-                <Icon className="size-3.5 shrink-0" />
+                <Icon className="size-4 shrink-0" />
                 {section.label}
               </button>
             )
