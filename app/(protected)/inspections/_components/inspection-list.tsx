@@ -9,6 +9,13 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 // Date formatter using Intl for i18n
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
@@ -89,10 +96,14 @@ export function InspectionList({
   instances,
   locationId,
   activeStatus,
+  binders,
+  activeBinder,
 }: {
   instances: Instance[]
   locationId: string
   activeStatus?: string
+  binders?: { id: string; name: string }[]
+  activeBinder?: string
 }) {
   const router = useRouter()
   const [, setInstanceId] = useQueryState("instance", parseAsString)
@@ -347,6 +358,32 @@ export function InspectionList({
             className="h-8 pl-8 text-xs"
           />
         </div>
+
+        {/* Binder filter */}
+        {binders && binders.length > 0 && (
+          <Select
+            value={activeBinder || "__all__"}
+            onValueChange={(v) => {
+              const params = new URLSearchParams(window.location.search)
+              if (v === "__all__") {
+                params.delete("binder")
+              } else {
+                params.set("binder", v)
+              }
+              router.push(`/inspections?${params.toString()}`)
+            }}
+          >
+            <SelectTrigger className="h-8 w-40 text-xs">
+              <SelectValue placeholder="All binders" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__" className="text-xs">All Binders</SelectItem>
+              {binders.map((b) => (
+                <SelectItem key={b.id} value={b.id} className="text-xs">{b.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
         {/* Status filter buttons */}
         <div className="grid flex-1 grid-cols-3 gap-1.5 sm:flex sm:flex-none sm:flex-wrap">
