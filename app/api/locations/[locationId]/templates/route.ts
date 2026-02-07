@@ -15,8 +15,9 @@ export async function GET(
     const url = new URL(request.url)
     const activeParam = url.searchParams.get("active")
     const active = activeParam === "true" ? true : activeParam === "false" ? false : undefined
+    const binderId = url.searchParams.get("binder_id") || undefined
 
-    const templates = await listTemplates(locationId, { active })
+    const templates = await listTemplates(locationId, { active, binderId })
     return Response.json({ data: templates })
   } catch (error) {
     return handleError(error)

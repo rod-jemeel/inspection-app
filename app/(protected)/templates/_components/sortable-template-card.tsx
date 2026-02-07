@@ -25,6 +25,8 @@ interface Template {
   updated_by_name?: string | null
   created_at: string
   updated_at: string
+  binder_id: string | null
+  form_template_id: string | null
 }
 
 interface SortableTemplateCardProps {

@@ -1,7 +1,7 @@
 "use client"
 
 import { forwardRef } from "react"
-import { GripVertical, Trash2, Calendar, User } from "lucide-react"
+import { GripVertical, Trash2, Calendar } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -27,6 +27,8 @@ interface Template {
   updated_by_name?: string | null
   created_at: string
   updated_at: string
+  binder_id: string | null
+  form_template_id: string | null
 }
 
 const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
@@ -164,16 +166,6 @@ export const TemplateCard = forwardRef<HTMLDivElement, TemplateCardProps>(
               >
                 <Calendar className="mr-1 size-3" />
                 {formatDueDate(template.frequency, template.default_due_rule)}
-              </Badge>
-            )}
-            {/* Assignee badge */}
-            {template.default_assignee_email && (
-              <Badge
-                variant="outline"
-                className="bg-muted/50 text-[10px] font-medium"
-              >
-                <User className="mr-1 size-3" />
-                {template.default_assignee_email}
               </Badge>
             )}
           </div>
