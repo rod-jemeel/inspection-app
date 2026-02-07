@@ -24,6 +24,10 @@ export async function sendNotificationEmail(
       case "reminder":
       case "overdue":
       case "escalation":
+      case "due_today":
+      case "upcoming":
+      case "monthly_warning":
+      case "assignment":
         emailComponent = ReminderEmail({
           task: (payload.task as string) || "Inspection",
           dueAt: (payload.due_at as string) || new Date().toISOString(),

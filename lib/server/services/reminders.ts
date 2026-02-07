@@ -9,6 +9,7 @@ export type NotificationType =
   | "due_today"
   | "upcoming"
   | "monthly_warning"
+  | "assignment"
 
 export interface NotificationRecord {
   id: string

@@ -230,11 +230,49 @@ export async function POST(request: NextRequest) {
       return acc
     }, {} as Record<ReminderType, number>)
 
+    // 3. Send daily digest for unassigned overdue inspections to owner
+    let escalationSent = false
+    const unassignedOverdue = instancesWithReminder.filter(
+      ({ instance, reminderType }) =>
+        !instance.assigned_to_email &&
+        !instance.assigned_to_profile_id &&
+        reminderType === "overdue"
+    )
+
+    const ownerEmail = process.env.OWNER_ESCALATION_EMAIL
+    if (unassignedOverdue.length > 0 && ownerEmail) {
+      try {
+        // Group by location for better readability
+        const byLocation = unassignedOverdue.reduce((acc, { instance, task, locationName }) => {
+          const loc = locationName || "Unknown Location"
+          if (!acc[loc]) acc[loc] = []
+          acc[loc].push({ id: instance.id, task, due_at: instance.due_at })
+          return acc
+        }, {} as Record<string, Array<{ id: string; task: string; due_at: string }>>)
+
+        await queueReminder({
+          type: "escalation",
+          to_email: ownerEmail,
+          subject: `Action Required: ${unassignedOverdue.length} unassigned overdue inspection${unassignedOverdue.length > 1 ? "s" : ""}`,
+          payload: {
+            count: unassignedOverdue.length,
+            by_location: byLocation,
+            task: `${unassignedOverdue.length} unassigned overdue inspections`,
+            due_at: nowISO,
+          },
+        })
+        escalationSent = true
+      } catch (err) {
+        console.error("Failed to queue escalation email:", err)
+      }
+    }
+
     return Response.json({
       queued,
       processed: { sent, failed },
       push: { sent: pushSent, failed: pushFailed },
       reminders: reminderCounts,
+      escalation: { sent: escalationSent, unassignedCount: unassignedOverdue.length },
       timestamp: nowISO,
     })
   } catch (error) {
