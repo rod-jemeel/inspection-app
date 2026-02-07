@@ -31,6 +31,7 @@ export interface Instance {
   signature_count?: number
   latest_signature_at?: string | null
   event_count?: number
+  assignee_name?: string | null
 }
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
@@ -42,6 +43,18 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 }
 
 async function fetchInstances(locationId: string, filters: InstanceFilters) {
+  // If binder_id filter is set, we need to find template IDs in that binder first
+  let templateIdsInBinder: string[] | null = null
+  if (filters.binder_id) {
+    const { data: tplRows } = await supabase
+      .from("inspection_templates")
+      .select("id")
+      .eq("location_id", locationId)
+      .eq("binder_id", filters.binder_id)
+    templateIdsInBinder = (tplRows ?? []).map((r: any) => r.id)
+    if (templateIdsInBinder.length === 0) return []
+  }
+
   // Try to use the optimized view first, fallback to base table with JOIN
   let query = supabase
     .from("inspection_instances_detailed")
@@ -55,6 +68,7 @@ async function fetchInstances(locationId: string, filters: InstanceFilters) {
   if (filters.to) query = query.lte("due_at", filters.to)
   if (filters.assignee) query = query.eq("assigned_to_profile_id", filters.assignee)
   if (filters.cursor) query = query.gt("due_at", filters.cursor)
+  if (templateIdsInBinder) query = query.in("template_id", templateIdsInBinder)
 
   const { data, error } = await query
 
@@ -63,7 +77,7 @@ async function fetchInstances(locationId: string, filters: InstanceFilters) {
     // relation does not exist
     let fallbackQuery = supabase
       .from("inspection_instances")
-      .select("*, inspection_templates(task, description, frequency)")
+      .select("*, inspection_templates(task, description, frequency), assignee_profile:profiles!inspection_instances_assigned_to_profile_id_fkey(full_name)")
       .eq("location_id", locationId)
       .order("due_at", { ascending: true })
       .limit(filters.limit)
@@ -73,6 +87,7 @@ async function fetchInstances(locationId: string, filters: InstanceFilters) {
     if (filters.to) fallbackQuery = fallbackQuery.lte("due_at", filters.to)
     if (filters.assignee) fallbackQuery = fallbackQuery.eq("assigned_to_profile_id", filters.assignee)
     if (filters.cursor) fallbackQuery = fallbackQuery.gt("due_at", filters.cursor)
+    if (templateIdsInBinder) fallbackQuery = fallbackQuery.in("template_id", templateIdsInBinder)
 
     const { data: fallbackData, error: fallbackError } = await fallbackQuery
     if (fallbackError) throw new ApiError("INTERNAL_ERROR", fallbackError.message)
@@ -82,12 +97,36 @@ async function fetchInstances(locationId: string, filters: InstanceFilters) {
       template_task: row.inspection_templates?.task ?? null,
       template_description: row.inspection_templates?.description ?? null,
       template_frequency: row.inspection_templates?.frequency ?? null,
+      assignee_name: row.assignee_profile?.full_name ?? null,
       inspection_templates: undefined,
+      assignee_profile: undefined,
     })) as Instance[]
   }
 
   if (error) throw new ApiError("INTERNAL_ERROR", error.message)
-  return (data ?? []) as Instance[]
+
+  // For view data, we need to fetch assignee names separately if any instances have assigned_to_profile_id
+  const instances = (data ?? []) as Instance[]
+
+  // Get unique profile IDs that need names
+  const profileIds = [...new Set(instances.map(i => i.assigned_to_profile_id).filter(Boolean))] as string[]
+
+  if (profileIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", profileIds)
+
+    const profileMap = new Map((profiles ?? []).map(p => [p.id, p.full_name]))
+
+    // Add assignee names to instances
+    return instances.map(instance => ({
+      ...instance,
+      assignee_name: instance.assigned_to_profile_id ? profileMap.get(instance.assigned_to_profile_id) ?? null : null,
+    }))
+  }
+
+  return instances
 }
 
 // Cached version for server components - revalidates on instance mutations

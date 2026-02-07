@@ -35,6 +35,7 @@ export const instanceFilterSchema = z.object({
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
   assignee: z.string().uuid().optional(),
+  binder_id: z.string().uuid().optional(),
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 })

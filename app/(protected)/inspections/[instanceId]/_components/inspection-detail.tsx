@@ -16,6 +16,7 @@ import {
   Bell,
   MessageSquare,
   UserPlus,
+  FileText,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -356,6 +357,30 @@ export function InspectionDetail({
           )}
         </CardContent>
       </Card>
+
+      {/* Linked Form */}
+      {template?.form_template_id && (
+        <Card>
+          <CardContent className="flex items-center justify-between py-4">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium">Inspection Form</p>
+              <p className="text-xs text-muted-foreground">
+                Fill out the linked form for this inspection
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => router.push(
+                `/binders/${template.binder_id}/forms/${template.form_template_id}?loc=${locationId}&instanceId=${instance.id}`
+              )}
+              disabled={isTerminal}
+            >
+              <FileText className="size-3.5" />
+              {isTerminal ? "View Form" : "Fill Form"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Signature Section */}
       {(canSign || showSignature || signatures.length > 0 || (instance.status === "passed" && !isAssignedInspector)) && (
