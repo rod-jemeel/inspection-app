@@ -25,12 +25,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
+import type { Role } from "@/lib/permissions"
 
 interface NavUserProps {
   user: {
     name: string
     email: string | null
-    role: "owner" | "admin" | "nurse" | "inspector"
+    role: Role
   }
   locationId: string | null
   onSignOut: () => void

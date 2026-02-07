@@ -2,6 +2,7 @@ import "server-only"
 import { supabase } from "@/lib/server/db"
 import { ApiError } from "@/lib/server/errors"
 import type { CreateInviteInput } from "@/lib/validations/invite"
+import type { Role } from "@/lib/permissions"
 
 export interface InviteCode {
   id: string
@@ -9,7 +10,7 @@ export interface InviteCode {
   expires_at: string
   max_uses: number
   uses: number
-  role_grant: "owner" | "admin" | "nurse" | "inspector"
+  role_grant: Role
   location_id: string
   assigned_email: string | null
   created_by: string

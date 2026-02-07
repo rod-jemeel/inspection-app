@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
+import type { Role } from "@/lib/permissions"
 
 interface InviteCode {
   id: string
@@ -23,7 +24,7 @@ interface InviteCode {
   expires_at: string
   max_uses: number
   uses: number
-  role_grant: "owner" | "admin" | "nurse" | "inspector"
+  role_grant: Role
   location_id: string
   assigned_email: string | null
   created_by: string

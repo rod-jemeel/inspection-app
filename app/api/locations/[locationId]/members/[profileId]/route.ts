@@ -1,6 +1,6 @@
 import { requireLocationAccess } from "@/lib/server/auth-helpers"
-import { updateMemberRole, removeMemberFromLocation } from "@/lib/server/services/locations"
-import { updateMemberRoleSchema } from "@/lib/validations/location"
+import { updateMemberRole, removeMemberFromLocation, updateMemberPermissions } from "@/lib/server/services/locations"
+import { updateMemberSchema } from "@/lib/validations/location"
 import { ApiError } from "@/lib/server/errors"
 
 export async function PUT(
@@ -11,18 +11,23 @@ export async function PUT(
     const { locationId, profileId } = await params
     const { profile } = await requireLocationAccess(locationId, ["admin", "owner"])
 
-    // Can't change your own role
     if (profile.id === profileId) {
       return Response.json(
-        { error: { code: "FORBIDDEN", message: "Cannot change your own role" } },
+        { error: { code: "FORBIDDEN", message: "Cannot change your own settings" } },
         { status: 403 }
       )
     }
 
     const body = await request.json()
-    const input = updateMemberRoleSchema.parse(body)
+    const input = updateMemberSchema.parse(body)
 
-    await updateMemberRole(locationId, profileId, input.role)
+    if (input.role) {
+      await updateMemberRole(locationId, profileId, input.role)
+    }
+    if (input.permissions) {
+      await updateMemberPermissions(locationId, profileId, input.permissions)
+    }
+
     return Response.json({ success: true })
   } catch (error) {
     if (error instanceof ApiError) {
