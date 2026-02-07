@@ -9,8 +9,10 @@ import {
   HelpCircle,
 } from "lucide-react"
 
+import type { Role } from "@/lib/permissions"
 import { LocationSwitcher } from "@/components/location-switcher"
 import { NavMain } from "@/components/nav-main"
+import { NavBinders } from "@/components/nav-binders"
 import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
@@ -24,12 +26,13 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   user: {
     name: string
     email: string | null
-    role: "owner" | "admin" | "nurse" | "inspector"
+    role: Role
   }
   locations: { id: string; name: string }[]
   currentLocationId: string | null
   onLocationChange: (id: string) => void
   onSignOut: () => void
+  binders?: { id: string; name: string; color: string | null }[]
 }
 
 export function AppSidebar({
@@ -38,6 +41,7 @@ export function AppSidebar({
   currentLocationId,
   onLocationChange,
   onSignOut,
+  binders = [],
   ...props
 }: AppSidebarProps) {
   const isAdmin = user.role === "admin" || user.role === "owner"
@@ -69,6 +73,7 @@ export function AppSidebar({
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={mainItems} locationId={currentLocationId} label="Main" />
+        <NavBinders binders={binders} locationId={currentLocationId} />
         <NavMain items={adminItems} locationId={currentLocationId} label={isAdmin ? "Admin" : "Account"} />
         <NavMain items={helpItems} locationId={currentLocationId} label="Support" />
       </SidebarContent>

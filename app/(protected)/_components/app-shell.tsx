@@ -20,20 +20,23 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { signOut } from "@/lib/auth-client"
+import type { Role } from "@/lib/permissions"
 
 interface AppShellProps {
   user: {
     name: string
     email: string | null
-    role: "owner" | "admin" | "nurse" | "inspector"
+    role: Role
   }
   locations: { id: string; name: string }[]
+  binders?: { id: string; name: string; color: string | null }[]
   children: React.ReactNode
   mustChangePassword?: boolean
 }
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
+  "/binders": "Binders",
   "/templates": "Templates",
   "/inspections": "Inspections",
   "/invites": "Invites",
@@ -42,7 +45,7 @@ const pageTitles: Record<string, string> = {
   "/help": "Help & User Guide",
 }
 
-export function AppShell({ user, locations, children, mustChangePassword }: AppShellProps) {
+export function AppShell({ user, locations, binders, children, mustChangePassword }: AppShellProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [locationId, setLocationId] = useQueryState("loc", parseAsString.withDefault(""))
@@ -80,6 +83,7 @@ export function AppShell({ user, locations, children, mustChangePassword }: AppS
         currentLocationId={locationId}
         onLocationChange={handleLocationChange}
         onSignOut={handleSignOut}
+        binders={binders}
       />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">

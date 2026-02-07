@@ -2,6 +2,7 @@ import { Suspense } from "react"
 import { redirect } from "next/navigation"
 import { getSession, getProfile } from "@/lib/server/auth-helpers"
 import { supabase } from "@/lib/server/db"
+import { listBinders } from "@/lib/server/services/binders"
 import { AppShell } from "./_components/app-shell"
 
 async function AuthenticatedShell({ children }: { children: React.ReactNode }) {
@@ -21,10 +22,22 @@ async function AuthenticatedShell({ children }: { children: React.ReactNode }) {
     name: pl.locations.name as string,
   }))
 
+  // Fetch binders for sidebar navigation
+  let binders: { id: string; name: string; color: string | null }[] = []
+  if (locations.length > 0) {
+    try {
+      const allBinders = await listBinders(locations[0].id)
+      binders = allBinders.map((b: any) => ({ id: b.id, name: b.name, color: b.color }))
+    } catch {
+      // Ignore - binders are optional for sidebar
+    }
+  }
+
   return (
     <AppShell
       user={{ name: profile.full_name, email: profile.email, role: profile.role }}
       locations={locations}
+      binders={binders}
       mustChangePassword={profile.must_change_password}
     >
       {children}
