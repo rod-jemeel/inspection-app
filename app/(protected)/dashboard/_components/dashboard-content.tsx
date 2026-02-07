@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic"
 import Link from "next/link"
 import { AlertTriangle, CheckCircle, Clock, CalendarDays, XCircle, TrendingUp, ChevronRight, Send, BarChart3, User, Download, FileText } from "lucide-react"
+import type { Role } from "@/lib/permissions"
 import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
@@ -104,7 +105,7 @@ interface DashboardContentProps {
   recentInspections: RecentInspection[]
   locationId: string
   locationName?: string | null
-  userRole: "owner" | "admin" | "nurse" | "inspector"
+  userRole: Role
   userName: string
 }
 

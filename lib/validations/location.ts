@@ -25,3 +25,16 @@ export const updateMemberRoleSchema = z.object({
 })
 
 export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>
+
+export const updateMemberSchema = z.object({
+  role: z.enum(["admin", "nurse", "inspector"]).optional(),
+  permissions: z.object({
+    can_manage_binders: z.boolean().optional(),
+    can_manage_forms: z.boolean().optional(),
+    can_view_all_responses: z.boolean().optional(),
+    can_export_reports: z.boolean().optional(),
+    can_configure_integrations: z.boolean().optional(),
+  }).optional(),
+})
+
+export type UpdateMemberInput = z.infer<typeof updateMemberSchema>

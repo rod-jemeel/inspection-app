@@ -2,6 +2,7 @@ import "server-only"
 import { supabase } from "@/lib/server/db"
 import { ApiError } from "@/lib/server/errors"
 import type { UpdateLocationInput } from "@/lib/validations/location"
+import type { Role } from "@/lib/permissions"
 
 export interface Location {
   id: string
@@ -19,8 +20,13 @@ export interface TeamMember {
   full_name: string
   email: string | null
   username: string | null
-  role: "owner" | "admin" | "nurse" | "inspector"
+  role: Role
   created_at: string
+  can_manage_binders: boolean
+  can_manage_forms: boolean
+  can_view_all_responses: boolean
+  can_export_reports: boolean
+  can_configure_integrations: boolean
 }
 
 export async function getLocation(locationId: string): Promise<Location> {
@@ -63,7 +69,12 @@ export async function getTeamMembers(locationId: string): Promise<TeamMember[]> 
         email,
         username,
         role,
-        created_at
+        created_at,
+        can_manage_binders,
+        can_manage_forms,
+        can_view_all_responses,
+        can_export_reports,
+        can_configure_integrations
       )
     `)
     .eq("location_id", locationId)
@@ -78,6 +89,11 @@ export async function getTeamMembers(locationId: string): Promise<TeamMember[]> 
     username: row.profiles.username,
     role: row.profiles.role,
     created_at: row.profiles.created_at,
+    can_manage_binders: row.profiles.can_manage_binders ?? false,
+    can_manage_forms: row.profiles.can_manage_forms ?? false,
+    can_view_all_responses: row.profiles.can_view_all_responses ?? false,
+    can_export_reports: row.profiles.can_export_reports ?? false,
+    can_configure_integrations: row.profiles.can_configure_integrations ?? false,
   }))
 }
 
@@ -137,6 +153,35 @@ export async function removeMemberFromLocation(
     .delete()
     .eq("location_id", locationId)
     .eq("profile_id", profileId)
+
+  if (error) throw new ApiError("INTERNAL_ERROR", error.message)
+}
+
+export async function updateMemberPermissions(
+  locationId: string,
+  profileId: string,
+  permissions: {
+    can_manage_binders?: boolean
+    can_manage_forms?: boolean
+    can_view_all_responses?: boolean
+    can_export_reports?: boolean
+    can_configure_integrations?: boolean
+  }
+): Promise<void> {
+  // Verify the member is in this location
+  const { data: link } = await supabase
+    .from("profile_locations")
+    .select("profile_id")
+    .eq("location_id", locationId)
+    .eq("profile_id", profileId)
+    .single()
+
+  if (!link) throw new ApiError("NOT_FOUND", "Member not found in this location")
+
+  const { error } = await supabase
+    .from("profiles")
+    .update(permissions)
+    .eq("id", profileId)
 
   if (error) throw new ApiError("INTERNAL_ERROR", error.message)
 }

@@ -39,8 +39,8 @@ export const auth = betterAuth({
     },
   },
   session: {
-    expiresIn: 60 * 60 * 24 * 7, // 7 days
-    updateAge: 60 * 60 * 24, // 1 day
+    expiresIn: 60 * 60 * 24 * 90, // 90 days (3 months)
+    updateAge: 60 * 60 * 24, // Refresh token on daily activity (sliding expiration)
   },
   trustedOrigins: [APP_URL],
   plugins: [
