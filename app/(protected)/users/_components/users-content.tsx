@@ -16,6 +16,7 @@ import {
   Trash2,
   Clock,
   Mail,
+  Settings,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -64,6 +65,8 @@ import {
 import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field"
 import { AddMemberDialog } from "@/app/(protected)/settings/_components/add-member-dialog"
 import { InviteDialog } from "@/app/(protected)/settings/_components/invite-dialog"
+import { MemberDetailDialog } from "./member-detail-dialog"
+import type { Role } from "@/lib/permissions"
 
 interface TeamMember {
   id: string
@@ -71,8 +74,13 @@ interface TeamMember {
   full_name: string
   email: string | null
   username: string | null
-  role: "owner" | "admin" | "nurse" | "inspector"
+  role: Role
   created_at: string
+  can_manage_binders: boolean
+  can_manage_forms: boolean
+  can_view_all_responses: boolean
+  can_export_reports: boolean
+  can_configure_integrations: boolean
 }
 
 interface InviteCode {
@@ -81,7 +89,7 @@ interface InviteCode {
   expires_at: string
   max_uses: number
   uses: number
-  role_grant: "owner" | "admin" | "nurse" | "inspector"
+  role_grant: Role
   location_id: string
   assigned_email: string | null
   created_by: string
@@ -148,12 +156,13 @@ export function UsersContent({
   const router = useRouter()
   const [mainTab, setMainTab] = useState<"members" | "invites">("members")
   const [search, setSearch] = useState("")
-  const [roleFilter, setRoleFilter] = useState<"all" | "owner" | "admin" | "nurse" | "inspector">("all")
+  const [roleFilter, setRoleFilter] = useState<"all" | Role>("all")
 
   // Dialogs
   const [addMemberOpen, setAddMemberOpen] = useState(false)
   const [revokingInvite, setRevokingInvite] = useState<InviteCode | null>(null)
   const [inviteOpen, setInviteOpen] = useState(false)
+  const [managingMember, setManagingMember] = useState<TeamMember | null>(null)
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null)
   const [removingMember, setRemovingMember] = useState<TeamMember | null>(null)
   const [resettingMember, setResettingMember] = useState<TeamMember | null>(null)
@@ -186,7 +195,7 @@ export function UsersContent({
         return true
       })
       .sort((a, b) => {
-        const roleOrder = { owner: 0, admin: 1, nurse: 2, inspector: 3 }
+        const roleOrder: Record<string, number> = { owner: 0, admin: 1, nurse: 2, inspector: 3 }
         const aOrder = roleOrder[a.role] ?? 4
         const bOrder = roleOrder[b.role] ?? 4
         if (aOrder !== bOrder) return aOrder - bOrder
@@ -575,6 +584,10 @@ export function UsersContent({
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-40">
+                                  <DropdownMenuItem onClick={() => setManagingMember(member)} className="text-xs">
+                                    <Settings className="mr-2 size-3.5" />
+                                    Manage Permissions
+                                  </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => handleEditMember(member)} className="text-xs">
                                     <Edit2 className="mr-2 size-3.5" />
                                     Change Role
@@ -756,6 +769,15 @@ export function UsersContent({
         open={inviteOpen}
         onOpenChange={setInviteOpen}
         onSuccess={setGeneratedCode}
+      />
+
+      <MemberDetailDialog
+        member={managingMember}
+        locationId={locationId}
+        open={!!managingMember}
+        onOpenChange={(open) => { if (!open) setManagingMember(null) }}
+        onSuccess={() => { setManagingMember(null); router.refresh() }}
+        canEdit={canEdit}
       />
 
       {/* Edit Role Dialog */}
