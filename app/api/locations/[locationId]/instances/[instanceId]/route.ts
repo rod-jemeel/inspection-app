@@ -3,6 +3,8 @@ import { requireLocationAccess } from "@/lib/server/auth-helpers"
 import { handleError, validationError } from "@/lib/server/errors"
 import { getInstance, updateInstance } from "@/lib/server/services/instances"
 import { appendEvent } from "@/lib/server/services/events"
+import { queueReminder } from "@/lib/server/services/reminders"
+import { sendPushToProfile } from "@/lib/server/services/push-sender"
 import { updateInstanceSchema } from "@/lib/validations/instance"
 import { after } from "next/server"
 
@@ -46,7 +48,53 @@ export async function PUT(
       )
     }
 
+    // Get current instance to check if assignee changed
+    const currentInstance = await getInstance(locationId, instanceId)
     const instance = await updateInstance(locationId, instanceId, parsed.data)
+
+    // Send notification on reassignment
+    if (isReassignment) {
+      const newProfileId = parsed.data.assigned_to_profile_id
+      const newEmail = parsed.data.assigned_to_email
+      const wasReassigned =
+        newProfileId !== currentInstance.assigned_to_profile_id ||
+        newEmail !== currentInstance.assigned_to_email
+
+      if (wasReassigned && (newProfileId || newEmail)) {
+        after(async () => {
+          // Send push notification to new assignee
+          if (newProfileId) {
+            await sendPushToProfile(newProfileId, {
+              title: "New Assignment",
+              body: `You've been assigned: ${instance.template_task}`,
+              url: `/inspections/${instance.id}`,
+              tag: `assignment-${instance.id}`,
+            }).catch((err) => console.error("Push notification failed:", err))
+          }
+
+          // Queue email to new assignee
+          if (newEmail) {
+            await queueReminder({
+              type: "assignment",
+              to_email: newEmail,
+              subject: `New Assignment: ${instance.template_task}`,
+              payload: {
+                instance_id: instance.id,
+                task: instance.template_task,
+                due_at: instance.due_at,
+                location_name: undefined, // Could fetch location name if needed
+              },
+            }).catch((err) => console.error("Email queue failed:", err))
+          }
+
+          // Log reassignment event
+          await appendEvent(instance.id, "reassigned", profile.id, {
+            assigned_to_profile_id: newProfileId,
+            assigned_to_email: newEmail,
+          })
+        })
+      }
+    }
 
     if (parsed.data.status) {
       after(async () => {

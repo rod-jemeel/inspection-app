@@ -6,7 +6,68 @@ interface ReminderEmailProps {
   dueAt: string
   locationName?: string
   inspectionUrl: string
-  type: "reminder" | "overdue" | "escalation"
+  type: "reminder" | "overdue" | "escalation" | "due_today" | "upcoming" | "monthly_warning" | "assignment"
+}
+
+function getEmailContent(type: ReminderEmailProps["type"]) {
+  switch (type) {
+    case "assignment":
+      return {
+        title: "New Assignment",
+        message: "You have been assigned a new inspection:",
+        isOverdue: false,
+        urgency: "",
+        buttonText: "View Assignment",
+      }
+    case "overdue":
+      return {
+        title: "Overdue Inspection",
+        message: "The following inspection is overdue and requires immediate attention:",
+        isOverdue: true,
+        urgency: "",
+        buttonText: "Complete Inspection",
+      }
+    case "escalation":
+      return {
+        title: "Overdue Inspection",
+        message: "The following inspection is overdue and requires immediate attention:",
+        isOverdue: true,
+        urgency: " - URGENT",
+        buttonText: "Complete Inspection",
+      }
+    case "due_today":
+      return {
+        title: "Inspection Due Today",
+        message: "The following inspection is due today:",
+        isOverdue: false,
+        urgency: "",
+        buttonText: "Complete Inspection",
+      }
+    case "upcoming":
+      return {
+        title: "Upcoming Inspection",
+        message: "You have an upcoming inspection that needs to be completed:",
+        isOverdue: false,
+        urgency: "",
+        buttonText: "View Inspection",
+      }
+    case "monthly_warning":
+      return {
+        title: "Monthly Reminder",
+        message: "This is your monthly reminder for an upcoming inspection:",
+        isOverdue: false,
+        urgency: "",
+        buttonText: "View Inspection",
+      }
+    default:
+      return {
+        title: "Inspection Reminder",
+        message: "You have an upcoming inspection that needs to be completed:",
+        isOverdue: false,
+        urgency: "",
+        buttonText: "Complete Inspection",
+      }
+  }
 }
 
 export function ReminderEmail({
@@ -16,9 +77,7 @@ export function ReminderEmail({
   inspectionUrl,
   type,
 }: ReminderEmailProps) {
-  const isOverdue = type === "overdue" || type === "escalation"
-  const title = isOverdue ? "Overdue Inspection" : "Inspection Reminder"
-  const urgency = type === "escalation" ? " - URGENT" : ""
+  const { title, message, isOverdue, urgency, buttonText } = getEmailContent(type)
 
   return (
     <EmailLayout preview={`${title}: ${task}${urgency}`}>
@@ -28,11 +87,7 @@ export function ReminderEmail({
           {urgency}
         </Text>
 
-        <Text style={paragraph}>
-          {isOverdue
-            ? `The following inspection is overdue and requires immediate attention:`
-            : `You have an upcoming inspection that needs to be completed:`}
-        </Text>
+        <Text style={paragraph}>{message}</Text>
 
         <Section style={detailsBox}>
           <Text style={detailLabel}>Task</Text>
@@ -59,7 +114,7 @@ export function ReminderEmail({
         </Section>
 
         <Button style={button} href={inspectionUrl}>
-          Complete Inspection
+          {buttonText}
         </Button>
       </Section>
     </EmailLayout>

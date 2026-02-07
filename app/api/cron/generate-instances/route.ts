@@ -11,10 +11,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // 1. Fetch all active templates
+    // 1. Fetch all active templates with binder_id
     const { data: templates, error: templatesError } = await supabase
       .from("inspection_templates")
-      .select("id, location_id, frequency, default_assignee_profile_id, default_assignee_email")
+      .select("id, location_id, frequency, default_assignee_profile_id, binder_id")
       .eq("active", true)
 
     if (templatesError) {
@@ -33,7 +33,28 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // 2. For each template, check if there's already a pending/in_progress instance
+    // 2. Pre-fetch binder assignments for all binders that templates reference
+    const binderIds = [...new Set(templates.map(t => t.binder_id).filter(Boolean))]
+    const assignmentMap = new Map<string, string>() // binder_id -> first assigned profile_id
+
+    if (binderIds.length > 0) {
+      const { data: assignments } = await supabase
+        .from("binder_assignments")
+        .select("binder_id, profile_id")
+        .in("binder_id", binderIds)
+        .order("assigned_at", { ascending: true })
+
+      if (assignments) {
+        // For each binder, pick the first assigned user (round-robin could be added later)
+        for (const a of assignments) {
+          if (!assignmentMap.has(a.binder_id)) {
+            assignmentMap.set(a.binder_id, a.profile_id)
+          }
+        }
+      }
+    }
+
+    // 3. For each template, check if there's already a pending/in_progress instance
     const results = await Promise.allSettled(
       templates.map(async (template) => {
         // Check if there's already a pending or in_progress instance for this template
@@ -57,14 +78,19 @@ export async function POST(request: NextRequest) {
         // Generate the next instance
         const dueDate = calculateNextDueDate(template.frequency)
 
+        // Determine assignee: template default > binder assignment > null
+        const assigneeProfileId =
+          template.default_assignee_profile_id ||
+          (template.binder_id ? assignmentMap.get(template.binder_id) : null) ||
+          null
+
         const { error: insertError } = await supabase
           .from("inspection_instances")
           .insert({
             template_id: template.id,
             location_id: template.location_id,
             due_at: dueDate.toISOString(),
-            assigned_to_profile_id: template.default_assignee_profile_id,
-            assigned_to_email: template.default_assignee_email,
+            assigned_to_profile_id: assigneeProfileId,
             status: "pending",
             created_by: "system", // System-generated instance
           })
@@ -78,7 +104,7 @@ export async function POST(request: NextRequest) {
       })
     )
 
-    // 3. Aggregate results
+    // 4. Aggregate results
     let generated = 0
     let skipped = 0
     let errors = 0
