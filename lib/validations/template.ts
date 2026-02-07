@@ -7,6 +7,8 @@ export const createTemplateSchema = z.object({
   default_assignee_profile_id: z.string().uuid().optional(),
   default_assignee_email: z.string().email().optional(),
   default_due_rule: z.record(z.string(), z.unknown()).optional(),
+  binder_id: z.string().uuid().optional(),
+  form_template_id: z.string().uuid().optional(),
 })
 
 export type CreateTemplateInput = z.infer<typeof createTemplateSchema>
@@ -19,6 +21,8 @@ export const updateTemplateSchema = z.object({
   default_assignee_email: z.string().email().nullable().optional(),
   default_due_rule: z.record(z.string(), z.unknown()).nullable().optional(),
   active: z.boolean().optional(),
+  binder_id: z.string().uuid().nullable().optional(),
+  form_template_id: z.string().uuid().nullable().optional(),
 })
 
 export type UpdateTemplateInput = z.infer<typeof updateTemplateSchema>

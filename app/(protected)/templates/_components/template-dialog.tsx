@@ -50,6 +50,8 @@ interface Template {
   updated_by_name?: string | null
   created_at: string
   updated_at: string
+  binder_id: string | null
+  form_template_id: string | null
 }
 
 const DAYS_OF_WEEK = [
@@ -83,6 +85,9 @@ interface TemplateDialogProps {
   locationId: string
   template?: Template | null
   onSuccess?: (template: Template) => void
+  binderId?: string | null
+  formTemplates?: { id: string; name: string; binder_id: string; binder_name: string }[]
+  binders?: { id: string; name: string }[]
 }
 
 export function TemplateDialog({
@@ -91,6 +96,9 @@ export function TemplateDialog({
   locationId,
   template,
   onSuccess,
+  binderId,
+  formTemplates,
+  binders,
 }: TemplateDialogProps) {
   const router = useRouter()
   const isEditing = !!template
@@ -107,8 +115,14 @@ export function TemplateDialog({
   const [dayOfMonth, setDayOfMonth] = useState<number>(1)
   const [month, setMonth] = useState<number>(1)
 
-  // Assignee field
-  const [assigneeEmail, setAssigneeEmail] = useState("")
+  // Tiered form selection: binder first, then form
+  const [selectedBinderId, setSelectedBinderId] = useState<string>("")
+  const [formTemplateId, setFormTemplateId] = useState<string>("")
+
+  // Filter forms by selected binder
+  const filteredForms = formTemplates?.filter(
+    (ft) => selectedBinderId && ft.binder_id === selectedBinderId
+  ) ?? []
 
   useEffect(() => {
     if (open) {
@@ -117,7 +131,10 @@ export function TemplateDialog({
         setDescription(template.description ?? "")
         setFrequency(template.frequency)
         setActive(template.active)
-        setAssigneeEmail(template.default_assignee_email ?? "")
+        setFormTemplateId(template.form_template_id ?? "")
+        // Auto-set binder from the form template's binder_id
+        const linkedForm = formTemplates?.find(ft => ft.id === template.form_template_id)
+        setSelectedBinderId(linkedForm?.binder_id ?? template.binder_id ?? "")
         // Set due rule values
         const rule = template.default_due_rule
         setDayOfWeek(rule?.dayOfWeek ?? 1)
@@ -128,14 +145,15 @@ export function TemplateDialog({
         setDescription("")
         setFrequency("weekly")
         setActive(true)
-        setAssigneeEmail("")
+        setSelectedBinderId(binderId ?? "")
+        setFormTemplateId("")
         setDayOfWeek(1)
         setDayOfMonth(1)
         setMonth(1)
       }
       setError(null)
     }
-  }, [open, template])
+  }, [open, template, binderId, formTemplates])
 
   // Build due rule based on frequency
   const buildDueRule = (): DueRule | undefined => {
@@ -165,15 +183,17 @@ export function TemplateDialog({
             description: description || undefined,
             frequency,
             default_due_rule,
-            default_assignee_email: assigneeEmail || null,
-            active
+            active,
+            form_template_id: formTemplateId || null,
+            binder_id: selectedBinderId || null,
           }
         : {
             task,
             description: description || undefined,
             frequency,
             default_due_rule,
-            default_assignee_email: assigneeEmail || undefined
+            form_template_id: formTemplateId || null,
+            binder_id: selectedBinderId || null,
           }
 
       const url = isEditing
@@ -382,20 +402,67 @@ export function TemplateDialog({
             </div>
           )}
 
-          <Field>
-            <FieldLabel>Default Assignee Email</FieldLabel>
-            <Input
-              type="email"
-              value={assigneeEmail}
-              onChange={(e) => setAssigneeEmail(e.target.value)}
-              placeholder="inspector@example.com"
-              disabled={loading}
-              autoComplete="off"
-            />
-            <FieldDescription>
-              Email of the inspector to assign by default. They will receive an invite if not already registered.
-            </FieldDescription>
-          </Field>
+          {binders && binders.length > 0 && (
+            <>
+              <Field>
+                <FieldLabel>Binder</FieldLabel>
+                <Select
+                  value={selectedBinderId || "__none__"}
+                  onValueChange={(v) => {
+                    const newBinderId = v === "__none__" ? "" : v
+                    setSelectedBinderId(newBinderId)
+                    setFormTemplateId("") // Reset form when binder changes
+                  }}
+                  disabled={loading}
+                >
+                  <SelectTrigger className="h-8 text-xs w-full">
+                    <SelectValue placeholder="Select a binder (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" className="text-xs text-muted-foreground">
+                      None
+                    </SelectItem>
+                    {binders.map((b) => (
+                      <SelectItem key={b.id} value={b.id} className="text-xs">
+                        {b.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldDescription>
+                  Associate this template with a binder
+                </FieldDescription>
+              </Field>
+
+              {selectedBinderId && filteredForms.length > 0 && (
+                <Field>
+                  <FieldLabel>Linked Form</FieldLabel>
+                  <Select
+                    value={formTemplateId || "__none__"}
+                    onValueChange={(v) => setFormTemplateId(v === "__none__" ? "" : v)}
+                    disabled={loading}
+                  >
+                    <SelectTrigger className="h-8 text-xs w-full">
+                      <SelectValue placeholder="Select a form (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__" className="text-xs text-muted-foreground">
+                        None
+                      </SelectItem>
+                      {filteredForms.map((ft) => (
+                        <SelectItem key={ft.id} value={ft.id} className="text-xs">
+                          {ft.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldDescription>
+                    Link a form to fill out during inspection
+                  </FieldDescription>
+                </Field>
+              )}
+            </>
+          )}
 
           {isEditing && (
             <Field>

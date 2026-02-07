@@ -1,10 +1,17 @@
 "use client"
 
 import { useState, useCallback, useMemo } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Plus, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,6 +46,8 @@ interface Template {
   updated_by_name?: string | null
   created_at: string
   updated_at: string
+  binder_id: string | null
+  form_template_id: string | null
 }
 
 const FREQUENCY_ORDER = ["weekly", "monthly", "yearly", "every_3_years"] as const
@@ -60,12 +69,19 @@ export function TemplateList({
   templates: initialTemplates,
   locationId,
   canManage,
+  formTemplates,
+  binders,
+  activeBinder,
 }: {
   templates: Template[]
   locationId: string
   canManage: boolean
+  formTemplates?: { id: string; name: string; binder_id: string; binder_name: string }[]
+  binders?: { id: string; name: string }[]
+  activeBinder?: string
 }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [templates, setTemplates] = useState(initialTemplates)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null)
@@ -205,6 +221,30 @@ export function TemplateList({
             className="h-8 pl-8 text-xs"
           />
         </div>
+        {binders && binders.length > 0 && (
+          <Select
+            value={activeBinder || "__all__"}
+            onValueChange={(v) => {
+              const params = new URLSearchParams(searchParams)
+              if (v === "__all__") {
+                params.delete("binder")
+              } else {
+                params.set("binder", v)
+              }
+              router.push(`/templates?${params.toString()}`)
+            }}
+          >
+            <SelectTrigger className="h-8 w-40 text-xs">
+              <SelectValue placeholder="All binders" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__" className="text-xs">All Binders</SelectItem>
+              {binders.map((b) => (
+                <SelectItem key={b.id} value={b.id} className="text-xs">{b.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <input
             type="checkbox"
@@ -259,6 +299,8 @@ export function TemplateList({
         locationId={locationId}
         template={editingTemplate}
         onSuccess={handleDialogSuccess}
+        formTemplates={formTemplates}
+        binders={binders}
       />
 
       {/* Delete Confirmation Dialog */}

@@ -26,11 +26,14 @@ export interface Template {
   updated_by: string | null
   created_at: string
   updated_at: string
+  binder_id: string | null
+  form_template_id: string | null
   created_by_name?: string | null
   updated_by_name?: string | null
+  assignee_name?: string | null
 }
 
-async function fetchTemplates(locationId: string, active?: boolean) {
+async function fetchTemplates(locationId: string, active?: boolean, binderId?: string) {
   // Use JOINs to get user names in a single query
   let query = supabase
     .from("inspection_templates")
@@ -38,8 +41,10 @@ async function fetchTemplates(locationId: string, active?: boolean) {
       id, location_id, task, description, frequency,
       default_assignee_profile_id, default_assignee_email, default_due_rule,
       active, sort_order, created_by, updated_by, created_at, updated_at,
+      binder_id, form_template_id,
       created_by_profile:profiles!inspection_templates_created_by_profile_fkey(full_name),
-      updated_by_profile:profiles!inspection_templates_updated_by_profile_fkey(full_name)
+      updated_by_profile:profiles!inspection_templates_updated_by_profile_fkey(full_name),
+      assignee_profile:profiles!inspection_templates_default_assignee_profile_id_fkey(full_name)
     `)
     .eq("location_id", locationId)
     .order("sort_order", { ascending: true })
@@ -47,6 +52,10 @@ async function fetchTemplates(locationId: string, active?: boolean) {
 
   if (active !== undefined) {
     query = query.eq("active", active)
+  }
+
+  if (binderId !== undefined) {
+    query = query.eq("binder_id", binderId)
   }
 
   const { data, error } = await query
@@ -68,16 +77,19 @@ async function fetchTemplates(locationId: string, active?: boolean) {
     updated_by: row.updated_by,
     created_at: row.created_at,
     updated_at: row.updated_at,
+    binder_id: row.binder_id,
+    form_template_id: row.form_template_id,
     created_by_name: row.created_by_profile?.full_name ?? null,
     updated_by_name: row.updated_by_profile?.full_name ?? null,
+    assignee_name: row.assignee_profile?.full_name ?? null,
   })) as Template[]
 }
 
 // Cached version for server components
-export async function listTemplates(locationId: string, opts?: { active?: boolean }) {
+export async function listTemplates(locationId: string, opts?: { active?: boolean; binderId?: string }) {
   const getCachedTemplates = unstable_cache(
-    () => fetchTemplates(locationId, opts?.active),
-    ["templates", locationId, String(opts?.active)],
+    () => fetchTemplates(locationId, opts?.active, opts?.binderId),
+    ["templates", locationId, String(opts?.active), String(opts?.binderId)],
     { revalidate: 60, tags: ["templates", `templates-${locationId}`] }
   )
   return getCachedTemplates()
@@ -90,6 +102,7 @@ export async function getTemplate(locationId: string, templateId: string) {
       id, location_id, task, description, frequency,
       default_assignee_profile_id, default_assignee_email, default_due_rule,
       active, sort_order, created_by, updated_by, created_at, updated_at,
+      binder_id, form_template_id,
       created_by_profile:profiles!inspection_templates_created_by_profile_fkey(full_name),
       updated_by_profile:profiles!inspection_templates_updated_by_profile_fkey(full_name)
     `)
@@ -115,6 +128,8 @@ export async function getTemplate(locationId: string, templateId: string) {
     updated_by: row.updated_by,
     created_at: row.created_at,
     updated_at: row.updated_at,
+    binder_id: row.binder_id,
+    form_template_id: row.form_template_id,
     created_by_name: row.created_by_profile?.full_name ?? null,
     updated_by_name: row.updated_by_profile?.full_name ?? null,
   } as Template
@@ -146,7 +161,8 @@ export async function createTemplate(locationId: string, userId: string, input: 
     .select(`
       id, location_id, task, description, frequency,
       default_assignee_profile_id, default_assignee_email, default_due_rule,
-      active, sort_order, created_by, updated_by, created_at, updated_at
+      active, sort_order, created_by, updated_by, created_at, updated_at,
+      binder_id, form_template_id
     `)
     .single()
 
@@ -170,6 +186,8 @@ export async function createTemplate(locationId: string, userId: string, input: 
     updated_by: row.updated_by,
     created_at: row.created_at,
     updated_at: row.updated_at,
+    binder_id: row.binder_id,
+    form_template_id: row.form_template_id,
     created_by_name: null, // Will be fetched on next list query
     updated_by_name: null,
   } as Template
@@ -225,6 +243,7 @@ export async function updateTemplate(locationId: string, templateId: string, use
       id, location_id, task, description, frequency,
       default_assignee_profile_id, default_assignee_email, default_due_rule,
       active, sort_order, created_by, updated_by, created_at, updated_at,
+      binder_id, form_template_id,
       created_by_profile:profiles!inspection_templates_created_by_profile_fkey(full_name),
       updated_by_profile:profiles!inspection_templates_updated_by_profile_fkey(full_name)
     `)
@@ -266,6 +285,8 @@ export async function updateTemplate(locationId: string, templateId: string, use
     updated_by: row.updated_by,
     created_at: row.created_at,
     updated_at: row.updated_at,
+    binder_id: row.binder_id,
+    form_template_id: row.form_template_id,
     created_by_name: row.created_by_profile?.full_name ?? null,
     updated_by_name: row.updated_by_profile?.full_name ?? null,
   } as Template
