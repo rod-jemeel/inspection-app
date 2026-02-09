@@ -1,0 +1,79 @@
+{
+  "name": "Assignment Notification",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "assignment-changed",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "assignment-changed"
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\nconst incomingSignature = $input.first().json.headers['x-n8n-signature'];\nconst body = JSON.stringify($input.first().json.body);\nconst secret = $env.N8N_WEBHOOK_SECRET || '';\n\nconst expectedSignature = crypto.createHmac('sha256', secret)\n  .update(body)\n  .digest('hex');\n\nif (incomingSignature !== expectedSignature) {\n  throw new Error('Invalid HMAC signature');\n}\n\nreturn [{\n  json: {\n    verified: true,\n    payload: $input.first().json.body\n  }\n}];"
+      },
+      "name": "Verify Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $json.payload;\n\nreturn [{\n  json: {\n    event: payload.event,\n    instance_id: payload.instance_id,\n    template_task: payload.template_task,\n    new_assignee_profile_id: payload.new_assignee_profile_id,\n    new_assignee_email: payload.new_assignee_email,\n    old_assignee_profile_id: payload.old_assignee_profile_id,\n    location_id: payload.location_id,\n    timestamp: payload.timestamp,\n    status: 'processed'\n  }\n}];"
+      },
+      "name": "Process Assignment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            { "name": "status", "value": "success" },
+            { "name": "message", "value": "Assignment notification processed" },
+            { "name": "instance_id", "value": "={{$json.instance_id}}" }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Log Assignment",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, message: 'Assignment notification received' } }}",
+        "options": {}
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Verify Signature", "type": "main", "index": 0 }]]
+    },
+    "Verify Signature": {
+      "main": [[{ "node": "Process Assignment", "type": "main", "index": 0 }]]
+    },
+    "Process Assignment": {
+      "main": [[{ "node": "Log Assignment", "type": "main", "index": 0 }]]
+    },
+    "Log Assignment": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}
