@@ -5,6 +5,7 @@ import { getInstance, updateInstance } from "@/lib/server/services/instances"
 import { appendEvent } from "@/lib/server/services/events"
 import { queueReminder } from "@/lib/server/services/reminders"
 import { sendPushToProfile } from "@/lib/server/services/push-sender"
+import { notifyAssignmentChanged, notifyInspectionCompleted } from "@/lib/server/n8n/webhook-sender"
 import { updateInstanceSchema } from "@/lib/validations/instance"
 import { after } from "next/server"
 
@@ -92,6 +93,18 @@ export async function PUT(
             assigned_to_profile_id: newProfileId,
             assigned_to_email: newEmail,
           })
+
+          // Notify n8n of assignment change
+          await notifyAssignmentChanged({
+            event: "assignment_changed",
+            timestamp: new Date().toISOString(),
+            instance_id: instance.id,
+            template_task: instance.template_task ?? "Inspection",
+            new_assignee_profile_id: newProfileId || null,
+            new_assignee_email: newEmail || null,
+            old_assignee_profile_id: currentInstance.assigned_to_profile_id || null,
+            location_id: locationId,
+          })
         })
       }
     }
@@ -101,6 +114,19 @@ export async function PUT(
         await appendEvent(instance.id, parsed.data.status!, profile.id, {
           remarks: parsed.data.remarks,
         })
+
+        // Notify n8n of inspection completion
+        if (["passed", "failed"].includes(parsed.data.status!)) {
+          await notifyInspectionCompleted({
+            event: "inspection_completed",
+            timestamp: new Date().toISOString(),
+            instance_id: instance.id,
+            template_task: instance.template_task ?? "Inspection",
+            status: parsed.data.status!,
+            completed_by_profile_id: profile.id,
+            location_id: locationId,
+          })
+        }
       })
     }
 
