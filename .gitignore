@@ -40,3 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .omc/
+
+# internal docs (contains proprietary forms)
+/DETAILED_DOCS/
+
+# old individual plan files (consolidated into PLANS.md)
+/PLANS/
