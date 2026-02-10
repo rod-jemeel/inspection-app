@@ -31,6 +31,8 @@ interface FormTemplate {
   frequency: string | null
   sort_order: number
   active: boolean
+  google_sheet_id: string | null
+  google_sheet_tab: string | null
 }
 
 interface FormTemplateDialogProps {
@@ -66,6 +68,8 @@ export function FormTemplateDialog({
   const [description, setDescription] = useState(template?.description || "")
   const [instructions, setInstructions] = useState(template?.instructions || "")
   const [frequency, setFrequency] = useState(template?.frequency || "")
+  const [googleSheetId, setGoogleSheetId] = useState(template?.google_sheet_id || "")
+  const [googleSheetTab, setGoogleSheetTab] = useState(template?.google_sheet_tab || "")
   const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -101,6 +105,14 @@ export function FormTemplateDialog({
         body.frequency = frequency
       }
 
+      if (googleSheetId.trim()) {
+        body.google_sheet_id = googleSheetId.trim()
+      }
+
+      if (googleSheetTab.trim()) {
+        body.google_sheet_tab = googleSheetTab.trim()
+      }
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -129,6 +141,8 @@ export function FormTemplateDialog({
         setDescription("")
         setInstructions("")
         setFrequency("")
+        setGoogleSheetId("")
+        setGoogleSheetTab("")
       }
     } catch (error) {
       toast.error(
@@ -148,6 +162,8 @@ export function FormTemplateDialog({
         setDescription("")
         setInstructions("")
         setFrequency("")
+        setGoogleSheetId("")
+        setGoogleSheetTab("")
       }
     }
   }
@@ -224,6 +240,37 @@ export function FormTemplateDialog({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="googleSheetId" className="text-xs">
+              Google Sheet ID
+            </Label>
+            <Input
+              id="googleSheetId"
+              value={googleSheetId}
+              onChange={(e) => setGoogleSheetId(e.target.value)}
+              placeholder="From URL: docs.google.com/spreadsheets/d/{ID}/..."
+              className="h-8 text-xs font-mono"
+              disabled={isLoading}
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Paste the spreadsheet ID from the Google Sheets URL to enable sync
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="googleSheetTab" className="text-xs">
+              Sheet Tab Name
+            </Label>
+            <Input
+              id="googleSheetTab"
+              value={googleSheetTab}
+              onChange={(e) => setGoogleSheetTab(e.target.value)}
+              placeholder="e.g., Sheet1 (defaults to first tab)"
+              className="h-8 text-xs"
+              disabled={isLoading}
+            />
           </div>
 
           <DialogFooter>

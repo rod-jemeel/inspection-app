@@ -23,6 +23,8 @@ export const createFormTemplateSchema = z.object({
   regulatory_reference: z.string().max(500).optional(),
   retention_years: z.number().int().min(1).max(99).optional(),
   sort_order: z.number().int().min(0).default(0),
+  google_sheet_id: z.string().max(200).optional(),
+  google_sheet_tab: z.string().max(200).optional(),
 })
 
 export type CreateFormTemplateInput = z.infer<typeof createFormTemplateSchema>
@@ -37,6 +39,8 @@ export const updateFormTemplateSchema = z.object({
   retention_years: z.number().int().min(1).max(99).nullable().optional(),
   sort_order: z.number().int().min(0).optional(),
   active: z.boolean().optional(),
+  google_sheet_id: z.string().max(200).nullable().optional(),
+  google_sheet_tab: z.string().max(200).nullable().optional(),
 })
 
 export type UpdateFormTemplateInput = z.infer<typeof updateFormTemplateSchema>
