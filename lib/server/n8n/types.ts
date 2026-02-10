@@ -25,6 +25,26 @@ export interface InspectionCompletedPayload extends WebhookPayload {
   location_id: string
 }
 
+export interface FormResponseSubmittedPayload extends WebhookPayload {
+  event: "form_response_submitted"
+  response_id: string
+  form_template_id: string
+  form_template_name: string
+  binder_name: string | null
+  location_id: string
+  submitted_by_profile_id: string
+  submitted_by_name: string | null
+  status: string
+  overall_pass: boolean | null
+  google_sheet_id: string | null
+  google_sheet_tab: string | null
+  field_responses: Array<{
+    label: string
+    field_type: string
+    value: string | number | boolean | null
+  }>
+}
+
 export interface N8nCallbackPayload {
   event: string
   success: boolean

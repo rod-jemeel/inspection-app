@@ -11,5 +11,6 @@ export const n8nConfig = {
   webhooks: {
     assignmentChanged: "/webhook/assignment-changed",
     inspectionCompleted: "/webhook/inspection-completed",
+    formResponseSubmitted: "/webhook/form-response-submitted",
   },
 }
