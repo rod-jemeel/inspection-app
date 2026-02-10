@@ -1,9 +1,12 @@
-import { NextRequest } from "next/server"
+import { NextRequest, after } from "next/server"
 import { requireLocationAccess } from "@/lib/server/auth-helpers"
 import { handleError, validationError } from "@/lib/server/errors"
 import { submitFormResponseSchema, filterResponsesSchema } from "@/lib/validations/form-response"
 import { submitFormResponse, listFormResponses } from "@/lib/server/services/form-responses"
 import { getFormTemplate } from "@/lib/server/services/form-templates"
+import { getBinder } from "@/lib/server/services/binders"
+import { notifyFormResponseSubmitted } from "@/lib/server/n8n/webhook-sender"
+import { supabase } from "@/lib/server/db"
 
 export async function GET(
   request: NextRequest,
@@ -41,14 +44,66 @@ export async function POST(
     const { locationId, formId } = await params
     const { profile } = await requireLocationAccess(locationId)
 
-    // Verify form template exists
-    await getFormTemplate(locationId, formId)
+    // Verify form template exists and get sheet config
+    const template = await getFormTemplate(locationId, formId)
 
     const body = await request.json()
     const parsed = submitFormResponseSchema.safeParse({ ...body, form_template_id: formId })
     if (!parsed.success) return validationError(parsed.error.issues).toResponse()
 
     const response = await submitFormResponse(locationId, profile.id, parsed.data)
+
+    // Fire-and-forget: sync to Google Sheets via n8n
+    if (template.google_sheet_id) {
+      after(async () => {
+        // Fetch field labels for the response
+        const { data: fieldData } = await supabase
+          .from("form_fields")
+          .select("id, label, field_type")
+          .eq("form_template_id", formId)
+          .order("sort_order", { ascending: true })
+
+        const fieldMap = new Map(
+          (fieldData ?? []).map((f: { id: string; label: string; field_type: string }) => [f.id, f])
+        )
+
+        // Get binder name
+        let binderName: string | null = null
+        try {
+          const binder = await getBinder(locationId, template.binder_id)
+          binderName = binder.name
+        } catch { /* ignore */ }
+
+        // Build flat field responses for the sheet
+        const fieldResponses = response.field_responses.map((fr) => {
+          const field = fieldMap.get(fr.form_field_id)
+          const value = fr.value_text ?? fr.value_number ?? fr.value_boolean ?? fr.value_date ?? fr.value_datetime ?? null
+          return {
+            label: field?.label ?? "Unknown",
+            field_type: field?.field_type ?? "text",
+            value,
+          }
+        })
+
+        await notifyFormResponseSubmitted({
+          event: "form_response_submitted",
+          timestamp: new Date().toISOString(),
+          response_id: response.id,
+          form_template_id: formId,
+          form_template_name: template.name,
+          binder_name: binderName,
+          location_id: locationId,
+          submitted_by_profile_id: profile.id,
+          submitted_by_name: profile.full_name ?? null,
+          status: response.status,
+          overall_pass: response.overall_pass,
+          google_sheet_id: template.google_sheet_id,
+          google_sheet_tab: template.google_sheet_tab,
+          field_responses: fieldResponses,
+        }).catch((err) => console.error("Google Sheets sync webhook failed:", err))
+      })
+    }
+
     return Response.json(response, { status: 201 })
   } catch (error) {
     return handleError(error)
