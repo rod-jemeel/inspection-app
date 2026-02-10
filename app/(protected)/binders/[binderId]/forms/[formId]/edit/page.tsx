@@ -3,58 +3,60 @@ import type { Metadata } from "next"
 import { requireLocationAccess } from "@/lib/server/auth-helpers"
 import { getFormTemplate } from "@/lib/server/services/form-templates"
 import { listFormFields } from "@/lib/server/services/form-fields"
-import { getBinder, canUserEditBinder } from "@/lib/server/services/binders"
-import { FormRenderer } from "./_components/form-renderer"
+import { getBinder } from "@/lib/server/services/binders"
+import { canUserEditBinder } from "@/lib/server/services/binders"
+import { redirect } from "next/navigation"
+import { FormBuilder } from "./_components/form-builder"
 
 export const metadata: Metadata = {
-  title: "Fill Form - Inspection Tracker",
+  title: "Edit Form - Inspection Tracker",
 }
 
-async function FormData({
+async function FormBuilderData({
   loc,
   binderId,
   formId,
-  instanceId,
 }: {
   loc: string
   binderId: string
   formId: string
-  instanceId?: string
 }) {
   const { profile } = await requireLocationAccess(loc)
-  const binder = await getBinder(loc, binderId)
-  const template = await getFormTemplate(loc, formId)
-  const fields = await listFormFields(formId, { active: true })
-  const canEdit = await canUserEditBinder(profile.id, binderId, profile.role)
+  const [binder, template, fields, canEdit] = await Promise.all([
+    getBinder(loc, binderId),
+    getFormTemplate(loc, formId),
+    listFormFields(formId),
+    canUserEditBinder(profile.id, binderId, profile.role),
+  ])
+
+  if (!canEdit) {
+    redirect(`/binders/${binderId}?loc=${loc}`)
+  }
 
   return (
-    <FormRenderer
+    <FormBuilder
       binder={binder}
       template={template}
       fields={fields}
       locationId={loc}
-      profileId={profile.id}
-      profileName={profile.full_name}
-      inspectionInstanceId={instanceId}
-      canEdit={canEdit}
     />
   )
 }
 
-export default async function FormPage({
+export default async function EditFormPage({
   params,
   searchParams,
 }: {
   params: Promise<{ binderId: string; formId: string }>
-  searchParams: Promise<{ loc?: string; instanceId?: string }>
+  searchParams: Promise<{ loc?: string }>
 }) {
   const { binderId, formId } = await params
-  const { loc, instanceId } = await searchParams
+  const { loc } = await searchParams
 
   if (!loc) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-        <p className="text-xs">Select a location to fill this form</p>
+        <p className="text-xs">Select a location to edit this form</p>
       </div>
     )
   }
@@ -67,7 +69,7 @@ export default async function FormPage({
         </div>
       }
     >
-      <FormData loc={loc} binderId={binderId} formId={formId} instanceId={instanceId} />
+      <FormBuilderData loc={loc} binderId={binderId} formId={formId} />
     </Suspense>
   )
 }
