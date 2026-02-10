@@ -41,6 +41,7 @@ interface FieldInputProps {
   value: unknown
   onChange: (value: unknown) => void
   error?: string
+  disabled?: boolean
 }
 
 function getValidationProp(
@@ -56,7 +57,22 @@ function getUnit(rules: Record<string, unknown> | null): string {
   return String(rules.unit)
 }
 
-export function FieldInput({ field, value, onChange, error }: FieldInputProps) {
+export function FieldInput({ field, value, onChange, error, disabled }: FieldInputProps) {
+  const hasError = !!error
+  const rules = field.validation_rules
+
+  if (disabled) {
+    return (
+      <div className="pointer-events-none opacity-60" aria-disabled="true">
+        <FieldInputInner field={field} value={value} onChange={onChange} error={error} />
+      </div>
+    )
+  }
+
+  return <FieldInputInner field={field} value={value} onChange={onChange} error={error} />
+}
+
+function FieldInputInner({ field, value, onChange, error }: Omit<FieldInputProps, "disabled">) {
   const hasError = !!error
   const rules = field.validation_rules
 
