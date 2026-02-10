@@ -318,8 +318,8 @@ export function InspectionCalendar({ events, locationId, locationName }: Inspect
         }
 
         const isMobile = window.innerWidth < 640
-        // On mobile, show max 5 dots; desktop shows 3 event titles
-        const nEventsPerDay = isMobile ? 5 : 3
+        // On mobile, show max 5 dots; desktop shows 2 event titles + "+N more" button
+        const nEventsPerDay = isMobile ? 5 : 2
 
         // Get the date for initial view using Temporal
         const viewDateStr = viewDate.toISOString().split("T")[0]
@@ -917,9 +917,11 @@ export function InspectionCalendar({ events, locationId, locationName }: Inspect
           display: none !important;
         }
 
-        /* Day cells */
+        /* Day cells - contain overflow */
         .inspection-calendar .sx__month-grid-day {
           min-height: 44px;
+          overflow: hidden;
+          position: relative;
         }
 
         /* MOBILE: Show all events as small dots */
@@ -987,7 +989,12 @@ export function InspectionCalendar({ events, locationId, locationName }: Inspect
         /* DESKTOP: Show full event titles */
         @media (min-width: 640px) {
           .inspection-calendar .sx__month-grid-day {
-            min-height: 80px;
+            min-height: 90px;
+            overflow: hidden;
+          }
+          .inspection-calendar .sx__month-grid-day__events {
+            overflow: hidden;
+            max-height: 62px;
           }
           .inspection-calendar .sx__month-grid-day__header {
             font-size: 12px;
@@ -1000,11 +1007,15 @@ export function InspectionCalendar({ events, locationId, locationName }: Inspect
           }
           .inspection-calendar .sx__event {
             font-size: 10px;
-            padding: 2px 6px;
+            padding: 1px 5px;
             border-radius: 3px;
             box-shadow: 0 1px 2px rgba(0,0,0,0.1);
             transition: box-shadow 0.15s, transform 0.15s;
-            line-height: 1.3;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
           }
           .inspection-calendar .sx__event:hover {
             box-shadow: 0 2px 4px rgba(0,0,0,0.15);
@@ -1032,8 +1043,12 @@ export function InspectionCalendar({ events, locationId, locationName }: Inspect
             color: oklch(0.4 0.15 27);
           }
           .inspection-calendar .sx__month-grid-more-button {
-            font-size: 10px;
-            padding: 2px 6px;
+            font-size: 9px;
+            padding: 1px 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
           }
         }
 
