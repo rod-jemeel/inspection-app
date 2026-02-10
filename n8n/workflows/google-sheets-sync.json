@@ -1,0 +1,151 @@
+{
+  "name": "Google Sheets Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "form-response-submitted",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "form-response-submitted"
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\nconst incomingSignature = $input.first().json.headers['x-n8n-signature'];\nconst body = JSON.stringify($input.first().json.body);\nconst secret = $env.N8N_WEBHOOK_SECRET || '';\n\nconst expectedSignature = crypto.createHmac('sha256', secret)\n  .update(body)\n  .digest('hex');\n\nif (incomingSignature !== expectedSignature) {\n  throw new Error('Invalid HMAC signature');\n}\n\nreturn [{\n  json: {\n    verified: true,\n    payload: $input.first().json.body\n  }\n}];"
+      },
+      "name": "Verify Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $json.payload;\n\n// Skip if no Google Sheet configured\nif (!payload.google_sheet_id) {\n  return [{ json: { skip: true, reason: 'No Google Sheet ID configured' } }];\n}\n\n// Build header row from field labels\nconst headers = [\n  'Timestamp',\n  'Submitted By',\n  'Status',\n  'Overall Pass',\n  ...payload.field_responses.map(f => f.label)\n];\n\n// Build data row from field values\nconst values = [\n  payload.timestamp,\n  payload.submitted_by_name || payload.submitted_by_profile_id,\n  payload.status,\n  payload.overall_pass === null ? '' : payload.overall_pass ? 'PASS' : 'FAIL',\n  ...payload.field_responses.map(f => {\n    if (f.value === null || f.value === undefined) return '';\n    if (typeof f.value === 'boolean') return f.value ? 'Yes' : 'No';\n    return String(f.value);\n  })\n];\n\nreturn [{\n  json: {\n    skip: false,\n    google_sheet_id: payload.google_sheet_id,\n    google_sheet_tab: payload.google_sheet_tab || 'Sheet1',\n    headers: headers,\n    values: values,\n    response_id: payload.response_id,\n    form_template_name: payload.form_template_name,\n    binder_name: payload.binder_name\n  }\n}];"
+      },
+      "name": "Prepare Sheet Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{$json.skip}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Has Sheet ID?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{$json.google_sheet_id}}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{$json.google_sheet_tab}}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {
+          "useAppend": true
+        }
+      },
+      "name": "Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1250, 400],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CONFIGURE_ME",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Convert headers + values into a key-value object for Google Sheets append\nconst headers = $('Prepare Sheet Data').first().json.headers;\nconst values = $('Prepare Sheet Data').first().json.values;\n\nconst row = {};\nfor (let i = 0; i < headers.length; i++) {\n  row[headers[i]] = values[i] || '';\n}\n\nreturn [{ json: row }];"
+      },
+      "name": "Build Row Object",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, message: 'Skipped - no Google Sheet configured' } }}",
+        "options": {}
+      },
+      "name": "Respond Skipped",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1500, 100]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, message: 'Row appended to Google Sheet', response_id: $('Prepare Sheet Data').first().json.response_id } }}",
+        "options": {}
+      },
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1750, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Verify Signature", "type": "main", "index": 0 }]]
+    },
+    "Verify Signature": {
+      "main": [[{ "node": "Prepare Sheet Data", "type": "main", "index": 0 }]]
+    },
+    "Prepare Sheet Data": {
+      "main": [[{ "node": "Has Sheet ID?", "type": "main", "index": 0 }]]
+    },
+    "Has Sheet ID?": {
+      "main": [
+        [{ "node": "Respond Skipped", "type": "main", "index": 0 }],
+        [{ "node": "Build Row Object", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Row Object": {
+      "main": [[{ "node": "Google Sheets", "type": "main", "index": 0 }]]
+    },
+    "Google Sheets": {
+      "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}
