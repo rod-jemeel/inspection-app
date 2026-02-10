@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Search, FileText, Settings, ClipboardList, ClipboardCheck, Calendar, User, Pencil, Trash2, Users2 } from "lucide-react"
+import { Plus, Search, FileText, Settings, ClipboardList, ClipboardCheck, Calendar, User, Pencil, Trash2, Users2, ListChecks } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -46,6 +46,8 @@ interface FormTemplate {
   frequency: string | null
   sort_order: number
   active: boolean
+  google_sheet_id: string | null
+  google_sheet_tab: string | null
 }
 
 interface Binder {
@@ -525,18 +527,31 @@ export function BinderDetail({
                   {template.name}
                 </h3>
                 {canEdit && (
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    className="opacity-0 transition-opacity group-hover:opacity-100"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setEditingTemplate(template)
-                      setDialogOpen(true)
-                    }}
-                  >
-                    <Settings className="size-3" />
-                  </Button>
+                  <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      title="Edit fields"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        router.push(`/binders/${binder.id}/forms/${template.id}/edit?loc=${locationId}`)
+                      }}
+                    >
+                      <ListChecks className="size-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      title="Form settings"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setEditingTemplate(template)
+                        setDialogOpen(true)
+                      }}
+                    >
+                      <Settings className="size-3" />
+                    </Button>
+                  </div>
                 )}
               </div>
 
