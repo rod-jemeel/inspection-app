@@ -6,14 +6,14 @@ export type ResponseStatus = z.infer<typeof responseStatusEnum>
 
 export const fieldResponseSchema = z.object({
   form_field_id: z.string().uuid(),
-  value_text: z.string().optional(),
-  value_number: z.number().optional(),
-  value_boolean: z.boolean().optional(),
-  value_date: z.string().date().optional(),
-  value_datetime: z.string().datetime().optional(),
-  value_json: z.record(z.string(), z.unknown()).optional(),
-  attachment_url: z.string().optional(),
-  pass: z.boolean().optional(),
+  value_text: z.string().nullable().optional(),
+  value_number: z.number().nullable().optional(),
+  value_boolean: z.boolean().nullable().optional(),
+  value_date: z.string().date().nullable().optional(),
+  value_datetime: z.string().datetime().nullable().optional(),
+  value_json: z.record(z.string(), z.unknown()).nullable().optional(),
+  attachment_url: z.string().nullable().optional(),
+  pass: z.boolean().nullable().optional(),
 })
 
 export type FieldResponseInput = z.infer<typeof fieldResponseSchema>
