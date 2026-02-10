@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { ChevronLeft, Send, CheckCircle, AlertCircle, Loader2, PenLine, Camera } from "lucide-react"
+import { ChevronLeft, Send, CheckCircle, AlertCircle, Loader2, PenLine, Camera, Eye, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
@@ -53,6 +53,7 @@ interface FormRendererProps {
   profileId: string
   profileName: string
   inspectionInstanceId?: string | null
+  canEdit?: boolean
 }
 
 type FieldValues = Record<string, unknown>
@@ -207,8 +208,11 @@ export function FormRenderer({
   profileId,
   profileName,
   inspectionInstanceId,
+  canEdit,
 }: FormRendererProps) {
   const router = useRouter()
+  const isPreviewMode = !inspectionInstanceId
+
   const sortedFields = useMemo(
     () => [...fields].sort((a, b) => a.sort_order - b.sort_order),
     [fields]
@@ -292,9 +296,11 @@ export function FormRenderer({
 
       if (!res.ok) {
         const data = await res.json().catch(() => null)
-        throw new Error(
-          data?.error?.message || data?.message || `Submission failed (${res.status})`
-        )
+        const serverMsg = data?.error?.message || data?.message || ""
+        if (res.status === 400 && serverMsg) {
+          throw new Error(`Please check your entries and try again. (${serverMsg})`)
+        }
+        throw new Error(serverMsg || `Submission failed (${res.status})`)
       }
 
       setSubmitted(true)
@@ -409,7 +415,7 @@ export function FormRenderer({
               <span>
                 {sortedFields.length} {sortedFields.length === 1 ? "field" : "fields"}
               </span>
-              {requiredCount > 0 && (
+              {!isPreviewMode && requiredCount > 0 && (
                 <>
                   <span className="text-border">|</span>
                   <span>
@@ -419,6 +425,27 @@ export function FormRenderer({
               )}
               <span className="ml-auto truncate">{profileName}</span>
             </div>
+
+            {/* Preview mode banner */}
+            {isPreviewMode && (
+              <div className="flex items-center gap-2 rounded-md bg-muted/60 px-3 py-2">
+                <Eye className="size-3.5 shrink-0 text-muted-foreground" />
+                <p className="flex-1 text-[11px] text-muted-foreground">
+                  Preview only. To fill this form, start from an inspection instance.
+                </p>
+                {canEdit && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 gap-1 text-[11px] shrink-0"
+                    onClick={() => router.push(`/binders/${binder.id}/forms/${template.id}/edit?loc=${locationId}`)}
+                  >
+                    <Pencil className="size-3" />
+                    Edit Fields
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -460,6 +487,7 @@ export function FormRenderer({
                 value={values[field.id]}
                 onChange={(v) => handleFieldChange(field.id, v)}
                 error={errors[field.id]}
+                disabled={isPreviewMode}
               />
 
               {/* Error */}
@@ -478,8 +506,9 @@ export function FormRenderer({
         ))}
 
         {/* ---------------------------------------------------------------- */}
-        {/* Remarks card                                                     */}
+        {/* Remarks card (fill mode only)                                    */}
         {/* ---------------------------------------------------------------- */}
+        {!isPreviewMode && (
         <div className="rounded-md border bg-card px-5 py-4 shadow-sm">
           <div className="space-y-2.5">
             <label className="text-xs font-medium leading-snug">
@@ -493,10 +522,12 @@ export function FormRenderer({
             />
           </div>
         </div>
+        )}
 
         {/* ---------------------------------------------------------------- */}
-        {/* Completion: Name + Signature/Selfie                              */}
+        {/* Completion: Name + Signature/Selfie (fill mode only)             */}
         {/* ---------------------------------------------------------------- */}
+        {!isPreviewMode && (
         <div className="rounded-md border bg-card px-5 py-4 shadow-sm">
           <div className="space-y-4">
             <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -559,11 +590,12 @@ export function FormRenderer({
             </div>
           </div>
         </div>
+        )}
 
         {/* ---------------------------------------------------------------- */}
         {/* Submit error banner                                              */}
         {/* ---------------------------------------------------------------- */}
-        {submitError && (
+        {!isPreviewMode && submitError && (
           <div className="flex items-start gap-2.5 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3">
             <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
             <div className="space-y-0.5">
@@ -574,7 +606,7 @@ export function FormRenderer({
         )}
 
         {/* ---------------------------------------------------------------- */}
-        {/* Submit button                                                    */}
+        {/* Footer buttons                                                   */}
         {/* ---------------------------------------------------------------- */}
         <div className="flex items-center justify-between gap-3 pt-2">
           <Button
@@ -584,9 +616,10 @@ export function FormRenderer({
             disabled={submitting}
           >
             <ChevronLeft className="size-3.5" />
-            Cancel
+            {isPreviewMode ? "Back to binder" : "Cancel"}
           </Button>
 
+          {!isPreviewMode && (
           <Button
             size="sm"
             onClick={handleSubmit}
@@ -605,6 +638,7 @@ export function FormRenderer({
               </>
             )}
           </Button>
+          )}
         </div>
       </div>
     </div>
