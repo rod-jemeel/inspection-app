@@ -35,9 +35,8 @@ interface Template {
   id: string
   task: string
   description: string | null
-  frequency: "weekly" | "monthly" | "yearly" | "every_3_years"
+  frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years"
   default_due_rule: DueRule | null
-  default_assignee_email: string | null
   active: boolean
   sort_order: number
   created_by: string | null
@@ -50,17 +49,21 @@ interface Template {
   form_template_id: string | null
 }
 
-const FREQUENCY_ORDER = ["weekly", "monthly", "yearly", "every_3_years"] as const
+const FREQUENCY_ORDER = ["daily", "weekly", "monthly", "quarterly", "yearly", "every_3_years"] as const
 
 function groupByFrequency(templates: Template[]) {
   const groups: Record<string, Template[]> = {
+    daily: [],
     weekly: [],
     monthly: [],
+    quarterly: [],
     yearly: [],
     every_3_years: [],
   }
   for (const t of templates) {
-    groups[t.frequency].push(t)
+    if (groups[t.frequency]) {
+      groups[t.frequency].push(t)
+    }
   }
   return groups
 }
@@ -107,7 +110,7 @@ export function TemplateList({
     })
   }, [templates, search, showInactive])
 
-  const grouped = groupByFrequency(filteredTemplates)
+  const grouped = useMemo(() => groupByFrequency(filteredTemplates), [filteredTemplates])
 
   const handleEdit = useCallback((template: Template) => {
     setEditingTemplate(template)

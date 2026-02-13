@@ -39,9 +39,8 @@ interface Template {
   id: string
   task: string
   description: string | null
-  frequency: "weekly" | "monthly" | "yearly" | "every_3_years"
+  frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years"
   default_due_rule: DueRule | null
-  default_assignee_email: string | null
   active: boolean
   sort_order: number
   created_by: string | null
@@ -158,9 +157,12 @@ export function TemplateDialog({
   // Build due rule based on frequency
   const buildDueRule = (): DueRule | undefined => {
     switch (frequency) {
+      case "daily":
+        return undefined // No due rule needed for daily
       case "weekly":
         return { dayOfWeek }
       case "monthly":
+      case "quarterly":
         return { dayOfMonth }
       case "yearly":
       case "every_3_years":
@@ -304,8 +306,10 @@ export function TemplateDialog({
                 <SelectValue placeholder="Select frequency" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="daily" className="text-xs">Daily</SelectItem>
                 <SelectItem value="weekly" className="text-xs">Weekly</SelectItem>
                 <SelectItem value="monthly" className="text-xs">Monthly</SelectItem>
+                <SelectItem value="quarterly" className="text-xs">Quarterly</SelectItem>
                 <SelectItem value="yearly" className="text-xs">Yearly</SelectItem>
                 <SelectItem value="every_3_years" className="text-xs">Every 3 Years</SelectItem>
               </SelectContent>
@@ -336,7 +340,7 @@ export function TemplateDialog({
             </Field>
           )}
 
-          {frequency === "monthly" && (
+          {(frequency === "monthly" || frequency === "quarterly") && (
             <Field>
               <FieldLabel>Due Day of Month</FieldLabel>
               <Select
