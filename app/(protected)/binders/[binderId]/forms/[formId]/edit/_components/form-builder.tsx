@@ -54,6 +54,7 @@ interface FormBuilderProps {
   template: FormTemplate
   fields: FormField[]
   locationId: string
+  responseCount?: number
 }
 
 const fieldTypeConfig: Record<string, { label: string; icon: string; color: string }> = {
@@ -275,7 +276,7 @@ function FieldEditor({
   )
 }
 
-export function FormBuilder({ binder, template, fields: initialFields, locationId }: FormBuilderProps) {
+export function FormBuilder({ binder, template, fields: initialFields, locationId, responseCount = 0 }: FormBuilderProps) {
   const router = useRouter()
   const [fields, setFields] = useState(() => initialFields.filter(f => f.active).sort((a, b) => a.sort_order - b.sort_order))
   const [expandedFieldId, setExpandedFieldId] = useState<string | null>(null)
@@ -502,6 +503,12 @@ export function FormBuilder({ binder, template, fields: initialFields, locationI
             <AlertDialogDescription>
               Are you sure you want to delete this field? This action cannot be undone.
             </AlertDialogDescription>
+            {responseCount > 0 && (
+              <p className="text-sm font-medium text-destructive">
+                This form has {responseCount} existing {responseCount === 1 ? "response" : "responses"}.
+                Deleting this field will permanently remove all saved data for it across every submission.
+              </p>
+            )}
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
