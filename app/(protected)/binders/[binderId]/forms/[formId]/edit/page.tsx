@@ -5,6 +5,7 @@ import { getFormTemplate } from "@/lib/server/services/form-templates"
 import { listFormFields } from "@/lib/server/services/form-fields"
 import { getBinder } from "@/lib/server/services/binders"
 import { canUserEditBinder } from "@/lib/server/services/binders"
+import { supabase } from "@/lib/server/db"
 import { redirect } from "next/navigation"
 import { FormBuilder } from "./_components/form-builder"
 
@@ -22,11 +23,16 @@ async function FormBuilderData({
   formId: string
 }) {
   const { profile } = await requireLocationAccess(loc)
-  const [binder, template, fields, canEdit] = await Promise.all([
+  const [binder, template, fields, canEdit, responseCountResult] = await Promise.all([
     getBinder(loc, binderId),
     getFormTemplate(loc, formId),
     listFormFields(formId),
     canUserEditBinder(profile.id, binderId, profile.role),
+    supabase
+      .from("form_responses")
+      .select("id", { count: "exact", head: true })
+      .eq("form_template_id", formId)
+      .eq("location_id", loc),
   ])
 
   if (!canEdit) {
@@ -39,6 +45,7 @@ async function FormBuilderData({
       template={template}
       fields={fields}
       locationId={loc}
+      responseCount={responseCountResult.count ?? 0}
     />
   )
 }
@@ -65,7 +72,7 @@ export default async function EditFormPage({
     <Suspense
       fallback={
         <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-muted border-t-primary" />
+          <div className="mx-auto h-6 w-6 animate-spin rounded-none border-2 border-muted border-t-primary" />
         </div>
       }
     >
