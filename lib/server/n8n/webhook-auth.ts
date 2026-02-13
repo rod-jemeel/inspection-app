@@ -28,13 +28,16 @@ export function verifyWebhook(
 }
 
 export function createSignedHeaders(body: object): HeadersInit {
-  const bodyString = JSON.stringify(body)
-  const signature = signWebhook(bodyString, n8nConfig.webhookSecret)
-
-  return {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    "X-N8N-Signature": signature,
   }
+
+  if (n8nConfig.webhookSecret) {
+    const bodyString = JSON.stringify(body)
+    headers["X-Webhook-Signature"] = signWebhook(bodyString, n8nConfig.webhookSecret)
+  }
+
+  return headers
 }
 
 export async function verifyN8nRequest(

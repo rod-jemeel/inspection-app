@@ -97,13 +97,13 @@ export async function POST(request: NextRequest) {
       instance: typeof allInstances[0]
       task: string
       locationName?: string
-      frequency: "weekly" | "monthly" | "yearly" | "every_3_years"
+      frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years"
       reminderType: ReminderType
     }> = []
 
     for (const instance of allInstances ?? []) {
       const task = ((instance as any).inspection_templates as any)?.task ?? "Inspection"
-      const frequency = ((instance as any).inspection_templates as any)?.frequency as "weekly" | "monthly" | "yearly" | "every_3_years" | null
+      const frequency = ((instance as any).inspection_templates as any)?.frequency as "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years" | null
       const locationName = ((instance as any).locations as any)?.name ?? undefined
 
       if (!frequency) continue

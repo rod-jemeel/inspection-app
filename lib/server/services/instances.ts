@@ -14,7 +14,7 @@ export interface Instance {
   template_id: string
   template_task?: string
   template_description?: string | null
-  template_frequency?: "weekly" | "monthly" | "yearly" | "every_3_years" | null
+  template_frequency?: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years" | null
   location_id: string
   due_at: string
   assigned_to_profile_id: string | null
@@ -229,57 +229,94 @@ export async function updateInstance(locationId: string, instanceId: string, inp
  * - Yearly: Jan 1st of this year if not passed, otherwise next year
  * - Every 3 years: Jan 1st, 3 years from last due or from now
  */
+export interface DueRule {
+  dayOfWeek?: number  // 0 = Sunday, 1 = Monday, ..., 5 = Friday, 6 = Saturday
+  dayOfMonth?: number // 1-31
+  month?: number      // 1-12
+}
+
 export function calculateNextDueDate(
-  frequency: "weekly" | "monthly" | "yearly" | "every_3_years",
-  fromDate?: Date
+  frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years",
+  fromDate?: Date,
+  dueRule?: DueRule | null
 ): Date {
   const now = fromDate ?? new Date()
   const result = new Date(now)
   result.setHours(0, 0, 0, 0)
 
   switch (frequency) {
+    case "daily": {
+      // Tomorrow (next day from now)
+      result.setDate(result.getDate() + 1)
+      break
+    }
     case "weekly": {
-      // This Monday if today is Monday, otherwise next Monday
-      const dayOfWeek = result.getDay() // 0 = Sunday, 1 = Monday
-      if (dayOfWeek === 1) {
-        // Today is Monday - use today
+      // Use due rule's dayOfWeek if set, otherwise default to Monday (1)
+      const targetDay = dueRule?.dayOfWeek ?? 1
+      const currentDay = result.getDay()
+      if (currentDay === targetDay) {
+        // Today is the target day - use today
         break
-      } else if (dayOfWeek === 0) {
-        // Sunday - tomorrow is Monday
-        result.setDate(result.getDate() + 1)
-      } else {
-        // Tuesday-Saturday - next Monday
-        const daysUntilMonday = 8 - dayOfWeek
-        result.setDate(result.getDate() + daysUntilMonday)
       }
+      // Calculate days until target day
+      const daysUntil = (targetDay - currentDay + 7) % 7 || 7
+      result.setDate(result.getDate() + daysUntil)
       break
     }
     case "monthly": {
-      // 1st of this month if today is the 1st, otherwise 1st of next month
-      if (result.getDate() === 1) {
-        // Today is the 1st - use today
+      // Use due rule's dayOfMonth if set, otherwise default to 1st
+      const targetDayOfMonth = dueRule?.dayOfMonth ?? 1
+      if (result.getDate() === targetDayOfMonth) {
         break
       }
-      result.setMonth(result.getMonth() + 1)
-      result.setDate(1)
+      if (result.getDate() < targetDayOfMonth) {
+        result.setDate(targetDayOfMonth)
+      } else {
+        result.setMonth(result.getMonth() + 1)
+        result.setDate(targetDayOfMonth)
+      }
+      break
+    }
+    case "quarterly": {
+      // 1st of next quarter (Jan, Apr, Jul, Oct), or due rule dayOfMonth
+      const targetDay = dueRule?.dayOfMonth ?? 1
+      const currentMonth = result.getMonth()
+      const nextQuarterMonth = Math.floor(currentMonth / 3) * 3 + 3
+      if (nextQuarterMonth > 11) {
+        result.setFullYear(result.getFullYear() + 1)
+        result.setMonth(0)
+      } else {
+        result.setMonth(nextQuarterMonth)
+      }
+      result.setDate(targetDay)
       break
     }
     case "yearly": {
-      // Jan 1st of this year if today is Jan 1st, otherwise next year
-      if (result.getMonth() === 0 && result.getDate() === 1) {
-        // Today is Jan 1st - use today
+      // Use due rule's month and dayOfMonth, default to Jan 1
+      const targetMonth = (dueRule?.month ?? 1) - 1 // Convert 1-indexed to 0-indexed
+      const targetDay = dueRule?.dayOfMonth ?? 1
+      if (result.getMonth() === targetMonth && result.getDate() === targetDay) {
         break
       }
-      result.setFullYear(result.getFullYear() + 1)
-      result.setMonth(0)
-      result.setDate(1)
+      // If we haven't passed the target date this year, use this year
+      const targetThisYear = new Date(result.getFullYear(), targetMonth, targetDay)
+      if (targetThisYear > result) {
+        result.setMonth(targetMonth)
+        result.setDate(targetDay)
+      } else {
+        result.setFullYear(result.getFullYear() + 1)
+        result.setMonth(targetMonth)
+        result.setDate(targetDay)
+      }
       break
     }
     case "every_3_years": {
-      // Jan 1st, 3 years from now (or from last completed)
+      // Same as yearly but +3 years
+      const targetMonth = (dueRule?.month ?? 1) - 1
+      const targetDay = dueRule?.dayOfMonth ?? 1
       result.setFullYear(result.getFullYear() + 3)
-      result.setMonth(0)
-      result.setDate(1)
+      result.setMonth(targetMonth)
+      result.setDate(targetDay)
       break
     }
   }
@@ -323,7 +360,7 @@ const DEFAULT_REMINDER_CONFIG: ReminderConfig = {
  */
 export function shouldSendReminder(
   dueAt: Date,
-  frequency: "weekly" | "monthly" | "yearly" | "every_3_years",
+  frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years",
   config: ReminderConfig = DEFAULT_REMINDER_CONFIG
 ): "due_today" | "upcoming" | "monthly_warning" | null {
   const now = new Date()
@@ -335,6 +372,11 @@ export function shouldSendReminder(
   const daysUntilDue = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 
   switch (frequency) {
+    case "daily":
+      // Daily inspections - always remind on due day
+      if (daysUntilDue === 0) return "due_today"
+      break
+
     case "weekly":
       // Weekly inspections are due on Monday - remind on due day if enabled
       if (daysUntilDue === 0 && config.weekly_due_day) return "due_today"
@@ -344,6 +386,12 @@ export function shouldSendReminder(
       // Remind X days before due (configurable)
       if (daysUntilDue === config.monthly_days_before) return "upcoming"
       // Remind on due day if enabled
+      if (daysUntilDue === 0 && config.monthly_due_day) return "due_today"
+      break
+
+    case "quarterly":
+      // Same as monthly - remind X days before and on due day
+      if (daysUntilDue === config.monthly_days_before) return "upcoming"
       if (daysUntilDue === 0 && config.monthly_due_day) return "due_today"
       break
 
