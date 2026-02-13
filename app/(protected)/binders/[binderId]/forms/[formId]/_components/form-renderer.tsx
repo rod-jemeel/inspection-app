@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { FieldInput, type FormField } from "./field-input"
+import { FullscreenSignaturePad } from "@/components/fullscreen-signature-pad"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -45,6 +46,27 @@ interface FormTemplate {
   created_by_profile_id: string | null
 }
 
+interface ExistingFieldResponse {
+  form_field_id: string
+  value_text: string | null
+  value_number: number | null
+  value_boolean: boolean | null
+  value_date: string | null
+  value_datetime: string | null
+  value_json: Record<string, unknown> | null
+  attachment_url: string | null
+  pass: boolean | null
+}
+
+interface ExistingResponse {
+  id: string
+  status: "draft" | "complete" | "flagged"
+  remarks: string | null
+  completion_signature: string | null
+  completion_selfie: string | null
+  field_responses: ExistingFieldResponse[]
+}
+
 interface FormRendererProps {
   binder: Binder
   template: FormTemplate
@@ -53,7 +75,9 @@ interface FormRendererProps {
   profileId: string
   profileName: string
   inspectionInstanceId?: string | null
+  instanceDueDate?: string | null
   canEdit?: boolean
+  existingResponse?: ExistingResponse
 }
 
 type FieldValues = Record<string, unknown>
@@ -138,7 +162,7 @@ function validateField(field: FormField, value: unknown): string | null {
   return null
 }
 
-function getInitialValues(fields: FormField[], profileName?: string): FieldValues {
+function getInitialValues(fields: FormField[], profileName?: string, instanceDueDate?: string | null): FieldValues {
   const values: FieldValues = {}
   const namePatterns = [
     /inspector.*name/i, /name.*inspector/i,
@@ -152,6 +176,24 @@ function getInitialValues(fields: FormField[], profileName?: string): FieldValue
     /team.*leader/i, /recording.*rn/i, /medication.*rn/i,
     /officer/i, /observer.*name/i,
   ]
+
+  // Patterns for date fields that should auto-fill with instance date
+  const datePatterns = [
+    /date/i, /inspection.*date/i, /date.*inspection/i,
+  ]
+
+  // Patterns for time/datetime fields that should auto-fill with current time
+  const timePatterns = [
+    /time/i, /inspection.*time/i, /time.*inspection/i,
+  ]
+
+  // Pre-compute auto-fill values
+  const dueDateStr = instanceDueDate
+    ? new Date(instanceDueDate).toISOString().split("T")[0] // yyyy-MM-dd
+    : null
+  // Use local time for time auto-fill (not UTC)
+  const now = new Date()
+  const nowTimeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
 
   for (const field of fields) {
     if (field.default_value !== null && field.default_value !== undefined) {
@@ -180,6 +222,20 @@ function getInitialValues(fields: FormField[], profileName?: string): FieldValue
       namePatterns.some((p) => p.test(field.label))
     ) {
       values[field.id] = profileName
+    } else if (
+      instanceDueDate &&
+      field.field_type === "date" &&
+      datePatterns.some((p) => p.test(field.label))
+    ) {
+      // Auto-fill date fields with the instance due date
+      values[field.id] = dueDateStr
+    } else if (
+      instanceDueDate &&
+      field.field_type === "datetime" &&
+      timePatterns.some((p) => p.test(field.label))
+    ) {
+      // Auto-fill datetime "time" fields with instance date + current time
+      values[field.id] = `${dueDateStr}T${nowTimeStr}`
     } else {
       switch (field.field_type) {
         case "multi_select":
@@ -191,6 +247,46 @@ function getInitialValues(fields: FormField[], profileName?: string): FieldValue
         default:
           values[field.id] = null
       }
+    }
+  }
+  return values
+}
+
+function getValuesFromResponse(fields: FormField[], response: ExistingResponse): FieldValues {
+  const values: FieldValues = {}
+  const responseMap = new Map(response.field_responses.map((fr) => [fr.form_field_id, fr]))
+
+  for (const field of fields) {
+    const fr = responseMap.get(field.id)
+    if (!fr) {
+      values[field.id] = field.field_type === "multi_select" ? [] : null
+      continue
+    }
+
+    switch (field.field_type) {
+      case "boolean":
+        values[field.id] = fr.value_boolean
+        break
+      case "number":
+      case "temperature":
+      case "pressure":
+        values[field.id] = fr.value_number
+        break
+      case "date":
+        values[field.id] = fr.value_date
+        break
+      case "datetime":
+        values[field.id] = fr.value_datetime
+        break
+      case "multi_select":
+        values[field.id] = fr.value_json ? (fr.value_json as { selected?: string[] }).selected ?? [] : []
+        break
+      case "signature":
+      case "photo":
+        values[field.id] = fr.attachment_url
+        break
+      default:
+        values[field.id] = fr.value_text
     }
   }
   return values
@@ -208,23 +304,32 @@ export function FormRenderer({
   profileId,
   profileName,
   inspectionInstanceId,
+  instanceDueDate,
   canEdit,
+  existingResponse,
 }: FormRendererProps) {
   const router = useRouter()
-  const isPreviewMode = !inspectionInstanceId
+  const isEditMode = !!existingResponse
+  const isPreviewMode = !inspectionInstanceId && !isEditMode
 
   const sortedFields = useMemo(
     () => [...fields].sort((a, b) => a.sort_order - b.sort_order),
     [fields]
   )
 
-  const [values, setValues] = useState<FieldValues>(() => getInitialValues(sortedFields, profileName))
+  const [values, setValues] = useState<FieldValues>(() =>
+    existingResponse
+      ? getValuesFromResponse(sortedFields, existingResponse)
+      : getInitialValues(sortedFields, profileName, instanceDueDate)
+  )
   const [errors, setErrors] = useState<FieldErrors>({})
-  const [remarks, setRemarks] = useState("")
+  const [remarks, setRemarks] = useState(existingResponse?.remarks ?? "")
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const [selfiePreview, setSelfiePreview] = useState<string | null>(null)
+  const [selfiePreview, setSelfiePreview] = useState<string | null>(existingResponse?.completion_selfie ?? null)
+  const [signaturePreview, setSignaturePreview] = useState<string | null>(existingResponse?.completion_signature ?? null)
+  const [showSignaturePad, setShowSignaturePad] = useState(false)
 
   const selfieInputRef = useRef<HTMLInputElement>(null)
 
@@ -250,6 +355,18 @@ export function FormRenderer({
     reader.readAsDataURL(file)
   }, [])
 
+  const handleSignatureSave = useCallback(
+    async (data: { imageBlob: Blob; points: unknown; signerName: string }) => {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setSignaturePreview(reader.result as string)
+        setShowSignaturePad(false)
+      }
+      reader.readAsDataURL(data.imageBlob)
+    },
+    []
+  )
+
   const handleSubmit = useCallback(async () => {
     // Validate all fields
     const newErrors: FieldErrors = {}
@@ -269,6 +386,12 @@ export function FormRenderer({
       return
     }
 
+    // Require completion signature or selfie
+    if (!signaturePreview && !selfiePreview) {
+      setSubmitError("Please provide a signature or selfie to complete the form")
+      return
+    }
+
     setSubmitting(true)
     setSubmitError(null)
 
@@ -277,22 +400,51 @@ export function FormRenderer({
         buildFieldResponse(field, values[field.id])
       )
 
-      const body = {
-        form_template_id: template.id,
-        status: "complete" as const,
-        remarks: remarks.trim() || undefined,
-        field_responses: fieldResponses,
-        inspection_instance_id: inspectionInstanceId || undefined,
-      }
+      let res: Response
 
-      const res = await fetch(
-        `/api/locations/${locationId}/forms/${template.id}/responses`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
+      if (isEditMode && existingResponse) {
+        // PATCH existing response — only send signature/selfie if changed
+        // (new base64 data URL means re-signed; existing /api/files/ URL means unchanged)
+        const sigChanged = signaturePreview?.startsWith("data:") ? signaturePreview : undefined
+        const selfieChanged = selfiePreview?.startsWith("data:") ? selfiePreview : undefined
+
+        const body = {
+          status: "complete" as const,
+          remarks: remarks.trim() || undefined,
+          field_responses: fieldResponses,
+          ...(sigChanged !== undefined && { completion_signature: sigChanged }),
+          ...(selfieChanged !== undefined && { completion_selfie: selfieChanged }),
         }
-      )
+
+        res = await fetch(
+          `/api/locations/${locationId}/responses/${existingResponse.id}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          }
+        )
+      } else {
+        // POST new response
+        const body = {
+          form_template_id: template.id,
+          status: "complete" as const,
+          remarks: remarks.trim() || undefined,
+          field_responses: fieldResponses,
+          inspection_instance_id: inspectionInstanceId || undefined,
+          completion_signature: signaturePreview,
+          completion_selfie: selfiePreview,
+        }
+
+        res = await fetch(
+          `/api/locations/${locationId}/forms/${template.id}/responses`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          }
+        )
+      }
 
       if (!res.ok) {
         const data = await res.json().catch(() => null)
@@ -309,7 +461,7 @@ export function FormRenderer({
     } finally {
       setSubmitting(false)
     }
-  }, [sortedFields, values, remarks, template.id, locationId])
+  }, [sortedFields, values, remarks, template.id, locationId, signaturePreview, selfiePreview, isEditMode, existingResponse, inspectionInstanceId])
 
   const handleBackToBinder = useCallback(() => {
     router.push(`/binders/${binder.id}?loc=${locationId}`)
@@ -328,11 +480,13 @@ export function FormRenderer({
               <CheckCircle className="size-6" style={{ color: binderColor }} />
             </div>
             <div className="space-y-1">
-              <h2 className="text-sm font-medium">Response submitted</h2>
+              <h2 className="text-sm font-medium">
+                {isEditMode ? "Response updated" : "Response submitted"}
+              </h2>
               <p className="text-xs text-muted-foreground">
                 Your response to{" "}
                 <span className="font-medium text-foreground">{template.name}</span>{" "}
-                has been recorded.
+                has been {isEditMode ? "updated" : "recorded"}.
               </p>
             </div>
             <div className="flex gap-2 pt-2">
@@ -344,7 +498,7 @@ export function FormRenderer({
                 size="sm"
                 onClick={() => {
                   setSubmitted(false)
-                  setValues(getInitialValues(sortedFields, profileName))
+                  setValues(getInitialValues(sortedFields, profileName, instanceDueDate))
                   setRemarks("")
                   setErrors({})
                   setSubmitError(null)
@@ -525,7 +679,7 @@ export function FormRenderer({
         )}
 
         {/* ---------------------------------------------------------------- */}
-        {/* Completion: Name + Signature/Selfie (fill mode only)             */}
+        {/* Completion: Signature/Selfie (fill mode only)                    */}
         {/* ---------------------------------------------------------------- */}
         {!isPreviewMode && (
         <div className="rounded-md border bg-card px-5 py-4 shadow-sm">
@@ -533,14 +687,6 @@ export function FormRenderer({
             <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Completion
             </h3>
-
-            {/* Pre-filled name (read-only) */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium">Your Name</label>
-              <div className="flex h-8 items-center rounded-md border bg-muted/30 px-3 text-xs">
-                {profileName}
-              </div>
-            </div>
 
             {/* Signature & Selfie */}
             <div className="space-y-1.5">
@@ -552,10 +698,22 @@ export function FormRenderer({
                 {/* Signature option */}
                 <button
                   type="button"
-                  className="flex flex-col items-center gap-1.5 rounded-md border border-dashed border-input px-3 py-4 text-xs text-muted-foreground transition-colors hover:bg-muted/50"
+                  onClick={() => setShowSignaturePad(true)}
+                  className={cn(
+                    "flex flex-col items-center gap-1.5 rounded-md border border-dashed border-input px-3 py-4 text-xs text-muted-foreground transition-colors hover:bg-muted/50",
+                    signaturePreview && "border-solid border-primary/50"
+                  )}
                 >
-                  <PenLine className="size-5" />
-                  <span>Tap to sign</span>
+                  {signaturePreview ? (
+                    <img
+                      src={signaturePreview}
+                      alt="Signature"
+                      className="h-8 w-20 object-contain"
+                    />
+                  ) : (
+                    <PenLine className="size-5" />
+                  )}
+                  <span>{signaturePreview ? "Re-sign" : "Tap to sign"}</span>
                 </button>
 
                 {/* Selfie option */}
@@ -629,18 +787,28 @@ export function FormRenderer({
             {submitting ? (
               <>
                 <Loader2 className="size-3.5 animate-spin" />
-                Submitting...
+                {isEditMode ? "Updating..." : "Submitting..."}
               </>
             ) : (
               <>
                 <Send className="size-3.5" />
-                Submit
+                {isEditMode ? "Update" : "Submit"}
               </>
             )}
           </Button>
           )}
         </div>
       </div>
+
+      {/* Fullscreen signature pad overlay */}
+      {showSignaturePad && (
+        <FullscreenSignaturePad
+          title="Sign Form"
+          description="Enter your name and sign to confirm your form submission."
+          onSave={handleSignatureSave}
+          onCancel={() => setShowSignaturePad(false)}
+        />
+      )}
     </div>
   )
 }
