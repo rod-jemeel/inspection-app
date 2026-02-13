@@ -59,6 +59,9 @@ function getUnit(rules: Record<string, unknown> | null): string {
 }
 
 export function FieldInput({ field, value, onChange, error, disabled }: FieldInputProps) {
+  // section_header fields have no input
+  if (field.field_type === "section_header") return null
+
   const hasError = !!error
   const rules = field.validation_rules
 

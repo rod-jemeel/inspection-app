@@ -86,6 +86,7 @@ const fieldTypeConfig: Record<string, { label: string; icon: string; color: stri
   pressure: { label: "Pressure", icon: "P", color: "bg-teal-100 text-teal-700" },
   signature: { label: "Signature", icon: "✍", color: "bg-gray-100 text-gray-700" },
   photo: { label: "Photo", icon: "📷", color: "bg-gray-100 text-gray-700" },
+  section_header: { label: "Section", icon: "§", color: "bg-indigo-100 text-indigo-700" },
 }
 
 function FieldEditor({
@@ -323,13 +324,16 @@ function SortableFieldCard({
     transition,
   }
 
+  const isSectionHeader = field.field_type === "section_header"
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
         "rounded-lg border bg-card shadow-sm",
-        isDragging && "z-50 opacity-50 shadow-lg"
+        isDragging && "z-50 opacity-50 shadow-lg",
+        isSectionHeader && "border-indigo-200 bg-indigo-50/50"
       )}
     >
       <div className="flex items-center gap-3 p-4">
@@ -341,12 +345,19 @@ function SortableFieldCard({
         >
           <GripVertical className="h-4 w-4" />
         </button>
-        <span className="text-xs font-medium text-muted-foreground">{index + 1}</span>
+        {!isSectionHeader && (
+          <span className="text-xs font-medium text-muted-foreground">{index + 1}</span>
+        )}
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">{field.label}</span>
-            {field.required && <span className="text-xs text-red-500">*</span>}
+            <span className={cn("text-sm font-medium", isSectionHeader && "text-indigo-700")}>
+              {isSectionHeader ? `--- ${field.label} ---` : field.label}
+            </span>
+            {!isSectionHeader && field.required && <span className="text-xs text-red-500">*</span>}
           </div>
+          {isSectionHeader && field.help_text && (
+            <p className="mt-0.5 text-[11px] text-muted-foreground">{field.help_text}</p>
+          )}
         </div>
         <Badge variant="secondary" className={cn("text-xs", fieldTypeConfig[field.field_type]?.color)}>
           {fieldTypeConfig[field.field_type]?.icon} {fieldTypeConfig[field.field_type]?.label}

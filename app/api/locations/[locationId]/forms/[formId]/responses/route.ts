@@ -86,17 +86,22 @@ export async function POST(
           binderName = binder.name
         } catch { /* ignore */ }
 
-        // Build flat field responses for the sheet
-        const fieldResponses = response.field_responses.map((fr) => {
-          const field = fieldMap.get(fr.form_field_id)
-          const value = fr.value_text ?? fr.value_number ?? fr.value_boolean ?? fr.value_date ?? fr.value_datetime ?? null
-          return {
-            label: field?.label ?? "Unknown",
-            field_type: field?.field_type ?? "text",
-            sheet_header: field?.sheet_header ?? null,
-            value,
-          }
-        })
+        // Build flat field responses for the sheet (skip section_header fields)
+        const fieldResponses = response.field_responses
+          .filter((fr) => {
+            const field = fieldMap.get(fr.form_field_id)
+            return field?.field_type !== "section_header"
+          })
+          .map((fr) => {
+            const field = fieldMap.get(fr.form_field_id)
+            const value = fr.value_text ?? fr.value_number ?? fr.value_boolean ?? fr.value_date ?? fr.value_datetime ?? null
+            return {
+              label: field?.label ?? "Unknown",
+              field_type: field?.field_type ?? "text",
+              sheet_header: field?.sheet_header ?? null,
+              value,
+            }
+          })
 
         // Generate short redirect URLs for the webhook
         const signatureUrl = response.completion_signature

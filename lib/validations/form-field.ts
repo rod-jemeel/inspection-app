@@ -13,6 +13,7 @@ export const fieldTypeEnum = z.enum([
   "photo",
   "temperature",
   "pressure",
+  "section_header",
 ])
 
 export type FieldType = z.infer<typeof fieldTypeEnum>
