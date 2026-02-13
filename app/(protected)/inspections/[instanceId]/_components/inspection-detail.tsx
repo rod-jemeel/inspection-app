@@ -25,6 +25,8 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { SignaturePad } from "@/components/signature-pad"
+import { StatusBadge } from "@/components/status-badge"
+import { FrequencyBadge } from "@/components/frequency-badge"
 import type { Instance } from "@/lib/server/services/instances"
 import type { Template } from "@/lib/server/services/templates"
 import type { InspectionEvent } from "@/lib/server/services/events"
@@ -37,21 +39,6 @@ interface InspectionDetailProps {
   signatures: Signature[]
   locationId: string
   profileId: string
-}
-
-const STATUS_VARIANT: Record<string, string> = {
-  pending: "outline",
-  in_progress: "secondary",
-  failed: "destructive",
-  passed: "default",
-  void: "ghost",
-}
-
-const FREQ_CONFIG: Record<string, { label: string; className: string }> = {
-  weekly: { label: "Weekly", className: "bg-blue-100 text-blue-700 border-blue-200" },
-  monthly: { label: "Monthly", className: "bg-green-100 text-green-700 border-green-200" },
-  yearly: { label: "Yearly", className: "bg-amber-100 text-amber-700 border-amber-200" },
-  every_3_years: { label: "Every 3 Years", className: "bg-purple-100 text-purple-700 border-purple-200" },
 }
 
 const EVENT_ICONS = {
@@ -213,22 +200,9 @@ export function InspectionDetail({
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {template?.frequency && (
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "text-[10px]",
-                    FREQ_CONFIG[template.frequency]?.className
-                  )}
-                >
-                  {FREQ_CONFIG[template.frequency]?.label ?? "Unknown"}
-                </Badge>
+                <FrequencyBadge frequency={template.frequency} />
               )}
-              <Badge
-                variant={(STATUS_VARIANT[instance.status] ?? "outline") as any}
-                className="capitalize"
-              >
-                {instance.status.replace("_", " ")}
-              </Badge>
+              <StatusBadge status={instance.status} />
             </div>
           </div>
         </CardHeader>
