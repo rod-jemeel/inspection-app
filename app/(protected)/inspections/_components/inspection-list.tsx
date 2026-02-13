@@ -1,12 +1,14 @@
 "use client"
 
-import { useState, useMemo, useCallback, useRef } from "react"
+import { useState, useMemo, useCallback, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { parseAsString, useQueryState } from "nuqs"
 import { AlertTriangle, ChevronRight, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { StatusBadge } from "@/components/status-badge"
+import { FrequencyBadge } from "@/components/frequency-badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
 import {
@@ -28,7 +30,7 @@ export interface Instance {
   template_id: string
   template_task?: string
   template_description?: string | null
-  template_frequency?: "weekly" | "monthly" | "yearly" | "every_3_years" | null
+  template_frequency?: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years" | null
   location_id?: string
   due_at: string
   assigned_to_profile_id?: string | null
@@ -52,21 +54,6 @@ const STATUS_TABS = [
   { value: "passed", label: "Passed" },
   { value: "void", label: "Void" },
 ] as const
-
-const statusConfig: Record<string, { variant: string; className?: string }> = {
-  pending: { variant: "outline" },
-  in_progress: { variant: "secondary" },
-  failed: { variant: "destructive" },
-  passed: { variant: "default", className: "bg-green-600 hover:bg-green-700" },
-  void: { variant: "outline", className: "opacity-50" },
-}
-
-const FREQ_CONFIG: Record<string, { label: string; className: string }> = {
-  weekly: { label: "Weekly", className: "bg-blue-100 text-blue-700 border-blue-200" },
-  monthly: { label: "Monthly", className: "bg-green-100 text-green-700 border-green-200" },
-  yearly: { label: "Yearly", className: "bg-amber-100 text-amber-700 border-amber-200" },
-  every_3_years: { label: "Every 3 Years", className: "bg-purple-100 text-purple-700 border-purple-200" },
-}
 
 interface UrgencyGroups {
   overdue: Instance[]
@@ -124,6 +111,15 @@ export function InspectionList({
       (status === "pending" || status === "in_progress") && new Date(dueAt) < now,
     [now]
   )
+
+  // Cleanup prefetch timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (prefetchTimeoutRef.current) {
+        clearTimeout(prefetchTimeoutRef.current)
+      }
+    }
+  }, [])
 
   // Prefetch instance data on hover for faster modal loading (debounced)
   const prefetchInstance = useCallback(
@@ -248,7 +244,6 @@ export function InspectionList({
   const renderInstanceCard = useCallback(
     (inst: Instance) => {
       const overdue = isOverdue(inst.due_at, inst.status)
-      const config = statusConfig[inst.status] ?? { variant: "outline" }
 
       return (
         <button
@@ -292,22 +287,9 @@ export function InspectionList({
           {/* Badges and arrow */}
           <div className="flex shrink-0 items-center gap-2">
             {inst.template_frequency && (
-              <Badge
-                variant="outline"
-                className={cn(
-                  "text-[10px]",
-                  FREQ_CONFIG[inst.template_frequency]?.className
-                )}
-              >
-                {FREQ_CONFIG[inst.template_frequency]?.label ?? "Unknown"}
-              </Badge>
+              <FrequencyBadge frequency={inst.template_frequency} />
             )}
-            <Badge
-              variant={config.variant as "outline" | "secondary" | "destructive" | "default"}
-              className={cn("text-[10px] capitalize", config.className)}
-            >
-              {inst.status.replace("_", " ")}
-            </Badge>
+            <StatusBadge status={inst.status} />
             <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
           </div>
         </button>
