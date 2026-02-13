@@ -147,7 +147,8 @@ export function InspectionCalendar({ events, locationId, locationName }: Inspect
   const isModalOpen = !!calendarDate || !!calendarEvent
 
   // Memoize events to prevent calendar re-initialization on modal interactions
-  const stableEvents = useMemo(() => events, [JSON.stringify(events)])
+  const eventsKey = events.map(e => e.id).join(",")
+  const stableEvents = useMemo(() => events, [eventsKey])
 
   // Create a map for quick event lookup
   const eventMap = useRef<Map<string, CalendarEvent>>(new Map())
