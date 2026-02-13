@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 import { requireLocationAccess, getSession, getProfile } from "@/lib/server/auth-helpers"
 import { supabase } from "@/lib/server/db"
+import { LoadingSpinner } from "@/components/loading-spinner"
 import { DashboardContent } from "./_components/dashboard-content"
 
 export const metadata: Metadata = {
@@ -454,7 +455,7 @@ export default async function DashboardPage({
     <Suspense
       fallback={
         <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="mx-auto h-6 w-6 animate-spin rounded-none border-2 border-muted border-t-primary" />
+          <LoadingSpinner />
         </div>
       }
     >

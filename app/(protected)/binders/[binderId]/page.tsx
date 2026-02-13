@@ -3,6 +3,7 @@ import { Suspense } from "react"
 import { requireLocationAccess } from "@/lib/server/auth-helpers"
 import { getBinder, canUserEditBinder } from "@/lib/server/services/binders"
 import { listFormTemplates } from "@/lib/server/services/form-templates"
+import { LoadingSpinner } from "@/components/loading-spinner"
 import { BinderDetail } from "./_components/binder-detail"
 
 export const metadata: Metadata = { title: "Binder - Inspection Tracker" }
@@ -46,7 +47,7 @@ export default async function BinderPage({
     <Suspense
       fallback={
         <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="mx-auto h-6 w-6 animate-spin rounded-none border-2 border-muted border-t-primary" />
+          <LoadingSpinner />
         </div>
       }
     >

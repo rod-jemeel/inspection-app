@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { LoadingSpinner } from "@/components/loading-spinner"
 import { cn } from "@/lib/utils"
 import type { ResponseStatus } from "@/lib/validations/form-response"
 
@@ -74,7 +75,7 @@ export function ResponseList({ binderId, locationId }: ResponseListProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted border-t-primary" />
+        <LoadingSpinner />
       </div>
     )
   }
