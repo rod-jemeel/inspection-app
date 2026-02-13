@@ -1,9 +1,25 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useId } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ChevronLeft, Plus, GripVertical, Pencil, Trash2, Eye, ChevronUp, ChevronDown, Save, X, Loader2 } from "lucide-react"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
+import { ChevronLeft, Plus, GripVertical, Pencil, Trash2, Eye, Save, X, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -74,13 +90,11 @@ const fieldTypeConfig: Record<string, { label: string; icon: string; color: stri
 
 function FieldEditor({
   field,
-  locationId,
   onSave,
   onCancel,
   saving,
 }: {
   field: FormField
-  locationId: string
   onSave: (updates: Partial<FormField>) => Promise<void>
   onCancel: () => void
   saving: boolean
@@ -276,14 +290,123 @@ function FieldEditor({
   )
 }
 
+function SortableFieldCard({
+  field,
+  index,
+  isExpanded,
+  isSaving,
+  onExpand,
+  onDelete,
+  onSave,
+  onCancelEdit,
+}: {
+  field: FormField
+  index: number
+  isExpanded: boolean
+  isSaving: boolean
+  onExpand: () => void
+  onDelete: () => void
+  onSave: (updates: Partial<FormField>) => Promise<void>
+  onCancelEdit: () => void
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: field.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "rounded-lg border bg-card shadow-sm",
+        isDragging && "z-50 opacity-50 shadow-lg"
+      )}
+    >
+      <div className="flex items-center gap-3 p-4">
+        <button
+          type="button"
+          className="cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+        <span className="text-xs font-medium text-muted-foreground">{index + 1}</span>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">{field.label}</span>
+            {field.required && <span className="text-xs text-red-500">*</span>}
+          </div>
+        </div>
+        <Badge variant="secondary" className={cn("text-xs", fieldTypeConfig[field.field_type]?.color)}>
+          {fieldTypeConfig[field.field_type]?.icon} {fieldTypeConfig[field.field_type]?.label}
+        </Badge>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onExpand}
+            className="h-7 w-7 p-0"
+          >
+            <Pencil className="h-3 w-3" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onDelete}
+            className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
+
+      {isExpanded && (
+        <div className="border-t p-4">
+          <FieldEditor
+            field={field}
+            onSave={onSave}
+            onCancel={onCancelEdit}
+            saving={isSaving}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function FormBuilder({ binder, template, fields: initialFields, locationId, responseCount = 0 }: FormBuilderProps) {
   const router = useRouter()
+  const dndId = useId()
   const [fields, setFields] = useState(() => initialFields.filter(f => f.active).sort((a, b) => a.sort_order - b.sort_order))
   const [expandedFieldId, setExpandedFieldId] = useState<string | null>(null)
   const [savingFieldId, setSavingFieldId] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [fieldToDelete, setFieldToDelete] = useState<string | null>(null)
   const [addDialogOpen, setAddDialogOpen] = useState(false)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
   const handleFieldAdded = useCallback((field: FormField) => {
     setFields((prev) => [...prev, field])
@@ -339,18 +462,15 @@ export function FormBuilder({ binder, template, fields: initialFields, locationI
     }
   }, [locationId, template.id])
 
-  const handleReorder = useCallback(async (fieldId: string, direction: "up" | "down") => {
-    const currentIndex = fields.findIndex((f) => f.id === fieldId)
-    if (
-      (direction === "up" && currentIndex === 0) ||
-      (direction === "down" && currentIndex === fields.length - 1)
-    ) {
-      return
-    }
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
 
-    const newIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1
+    const oldIndex = fields.findIndex((f) => f.id === active.id)
+    const newIndex = fields.findIndex((f) => f.id === over.id)
+
     const newFields = [...fields]
-    const [moved] = newFields.splice(currentIndex, 1)
+    const [moved] = newFields.splice(oldIndex, 1)
     newFields.splice(newIndex, 0, moved)
 
     setFields(newFields)
@@ -368,9 +488,7 @@ export function FormBuilder({ binder, template, fields: initialFields, locationI
       if (!response.ok) {
         throw new Error("Failed to reorder fields")
       }
-
-      toast.success("Field reordered")
-    } catch (error) {
+    } catch {
       setFields(fields)
       toast.error("Failed to reorder fields")
     }
@@ -403,89 +521,45 @@ export function FormBuilder({ binder, template, fields: initialFields, locationI
         </div>
       </div>
 
-      <div className="space-y-3">
-        {fields.map((field, index) => (
-          <div key={field.id} className="rounded-lg border bg-card shadow-sm">
-            <div className="flex items-center gap-3 p-4">
-              <GripVertical className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground">{index + 1}</span>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{field.label}</span>
-                  {field.required && <span className="text-xs text-red-500">*</span>}
-                </div>
-              </div>
-              <Badge variant="secondary" className={cn("text-xs", fieldTypeConfig[field.field_type]?.color)}>
-                {fieldTypeConfig[field.field_type]?.icon} {fieldTypeConfig[field.field_type]?.label}
-              </Badge>
-              <div className="flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleReorder(field.id, "up")}
-                  disabled={index === 0}
-                  className="h-7 w-7 p-0"
-                >
-                  <ChevronUp className="h-3 w-3" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleReorder(field.id, "down")}
-                  disabled={index === fields.length - 1}
-                  className="h-7 w-7 p-0"
-                >
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setExpandedFieldId(field.id)}
-                  className="h-7 w-7 p-0"
-                >
-                  <Pencil className="h-3 w-3" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setFieldToDelete(field.id)
-                    setDeleteDialogOpen(true)
-                  }}
-                  className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
-            </div>
-
-            {expandedFieldId === field.id && (
-              <div className="border-t p-4">
-                <FieldEditor
-                  field={field}
-                  locationId={locationId}
-                  onSave={(updates) => handleSaveField(field.id, updates)}
-                  onCancel={() => setExpandedFieldId(null)}
-                  saving={savingFieldId === field.id}
-                />
-              </div>
-            )}
-          </div>
-        ))}
-
-        <button
-          type="button"
-          className="flex h-20 w-full items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/50 transition-colors hover:border-muted-foreground/50 hover:bg-muted"
-          onClick={() => setAddDialogOpen(true)}
+      <DndContext
+        id={dndId}
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={fields.map((f) => f.id)}
+          strategy={verticalListSortingStrategy}
         >
-          <Plus className="mr-2 h-5 w-5 text-muted-foreground" />
-          <span className="text-sm font-medium text-muted-foreground">Add Field</span>
-        </button>
-      </div>
+          <div className="space-y-3">
+            {fields.map((field, index) => (
+              <SortableFieldCard
+                key={field.id}
+                field={field}
+                index={index}
+                isExpanded={expandedFieldId === field.id}
+                isSaving={savingFieldId === field.id}
+                onExpand={() => setExpandedFieldId(field.id)}
+                onDelete={() => {
+                  setFieldToDelete(field.id)
+                  setDeleteDialogOpen(true)
+                }}
+                onSave={(updates) => handleSaveField(field.id, updates)}
+                onCancelEdit={() => setExpandedFieldId(null)}
+              />
+            ))}
+
+            <button
+              type="button"
+              className="flex h-20 w-full items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/50 transition-colors hover:border-muted-foreground/50 hover:bg-muted"
+              onClick={() => setAddDialogOpen(true)}
+            >
+              <Plus className="mr-2 h-5 w-5 text-muted-foreground" />
+              <span className="text-sm font-medium text-muted-foreground">Add Field</span>
+            </button>
+          </div>
+        </SortableContext>
+      </DndContext>
 
       <AddFieldDialog
         open={addDialogOpen}
