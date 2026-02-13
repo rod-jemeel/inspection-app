@@ -71,12 +71,12 @@ export async function POST(
         // Fetch field labels for the response
         const { data: fieldData } = await supabase
           .from("form_fields")
-          .select("id, label, field_type, sheet_header")
+          .select("id, label, field_type, sheet_header, options")
           .eq("form_template_id", formId)
           .order("sort_order", { ascending: true })
 
         const fieldMap = new Map(
-          (fieldData ?? []).map((f: { id: string; label: string; field_type: string; sheet_header: string | null }) => [f.id, f])
+          (fieldData ?? []).map((f: { id: string; label: string; field_type: string; sheet_header: string | null; options: string[] | null }) => [f.id, f])
         )
 
         // Get binder name
@@ -94,7 +94,14 @@ export async function POST(
           })
           .map((fr) => {
             const field = fieldMap.get(fr.form_field_id)
-            const value = fr.value_text ?? fr.value_number ?? fr.value_boolean ?? fr.value_date ?? fr.value_datetime ?? null
+            let value: string | number | boolean | null = fr.value_text ?? fr.value_number ?? fr.value_boolean ?? fr.value_date ?? fr.value_datetime ?? null
+            // Resolve booleans to custom labels for Google Sheets
+            if (field?.field_type === "boolean") {
+              const yesLabel = field.options?.[0] || "Yes"
+              const noLabel = field.options?.[1] || "No"
+              if (value === true) value = yesLabel
+              else if (value === false || value === null) value = noLabel
+            }
             return {
               label: field?.label ?? "Unknown",
               field_type: field?.field_type ?? "text",

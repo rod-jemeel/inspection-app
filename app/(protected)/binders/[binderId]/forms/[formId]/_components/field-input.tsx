@@ -208,7 +208,9 @@ function FieldInputInner({ field, value, onChange, error }: Omit<FieldInputProps
       )
     }
 
-    case "boolean":
+    case "boolean": {
+      const yesLabel = field.options?.[0] || "Yes"
+      const noLabel = field.options?.[1] || "No"
       return (
         <div data-slot="field-input" className="flex items-center gap-3 pt-0.5">
           <Switch
@@ -217,10 +219,11 @@ function FieldInputInner({ field, value, onChange, error }: Omit<FieldInputProps
             aria-invalid={hasError || undefined}
           />
           <span className="text-xs text-muted-foreground select-none">
-            {value === true ? "Yes" : "No"}
+            {value === true ? yesLabel : noLabel}
           </span>
         </div>
       )
+    }
 
     case "select":
       return (
