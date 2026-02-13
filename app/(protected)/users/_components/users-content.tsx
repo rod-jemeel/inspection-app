@@ -6,17 +6,7 @@ import {
   Search,
   UserPlus,
   Key,
-  Check,
-  Copy,
-  X,
-  Edit2,
-  UserMinus,
-  MoreHorizontal,
   Users,
-  Trash2,
-  Clock,
-  Mail,
-  Settings,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -29,14 +19,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import {
   Dialog,
   DialogContent,
@@ -66,6 +48,9 @@ import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui
 import { AddMemberDialog } from "@/app/(protected)/settings/_components/add-member-dialog"
 import { InviteDialog } from "@/app/(protected)/settings/_components/invite-dialog"
 import { MemberDetailDialog } from "./member-detail-dialog"
+import { MemberTable, ROLE_CONFIG } from "./member-table"
+import { InviteTable } from "./invite-table"
+import { MemberActionsBanner } from "./member-actions-banner"
 import type { Role } from "@/lib/permissions"
 
 interface TeamMember {
@@ -108,29 +93,6 @@ interface UsersContentProps {
 interface ResetPasswordResult {
   tempPassword: string
   fullName: string
-}
-
-const ROLE_CONFIG: Record<string, { label: string; className: string; description: string }> = {
-  owner: {
-    label: "Owner",
-    className: "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300",
-    description: "Full access to all features and settings",
-  },
-  admin: {
-    label: "Admin",
-    className: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300",
-    description: "Can manage templates, inspections, and team",
-  },
-  nurse: {
-    label: "Staff",
-    className: "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300",
-    description: "Can view and perform inspections",
-  },
-  inspector: {
-    label: "Inspector",
-    className: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300",
-    description: "Can perform assigned inspections only",
-  },
 }
 
 const ROLE_TABS = [
@@ -178,7 +140,6 @@ export function UsersContent({
   } | null>(null)
   const [resetPasswordResult, setResetPasswordResult] = useState<ResetPasswordResult | null>(null)
   const [generatedCode, setGeneratedCode] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
 
   const filteredMembers = useMemo(() => {
     return teamMembers
@@ -210,15 +171,6 @@ export function UsersContent({
   }, [invites, search])
 
   const activeInvites = filteredInvites.filter((inv) => !inv.consumed_at && new Date(inv.expires_at) > new Date())
-  const expiredOrUsedInvites = filteredInvites.filter((inv) => inv.consumed_at || new Date(inv.expires_at) <= new Date())
-
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch {}
-  }
 
   const handleEditMember = (member: TeamMember) => {
     setEditingMember(member)
@@ -318,112 +270,17 @@ export function UsersContent({
     }
   }
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr)
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-  }
-
-  const isExpired = (expiresAt: string) => new Date(expiresAt) <= new Date()
-
   return (
     <div className="space-y-4">
-      {/* Generated Credentials Banner */}
-      {generatedCredentials && (
-        <div className="flex items-center gap-3 rounded-md border-2 border-green-500 bg-green-500/5 p-4">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-green-500/10">
-            <UserPlus className="size-5 text-green-600" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-xs font-medium text-muted-foreground">
-              Member Created: {generatedCredentials.fullName}
-            </div>
-            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
-              <div>
-                <span className="text-[11px] text-muted-foreground">Username: </span>
-                <code className="text-sm font-mono font-semibold">{generatedCredentials.username}</code>
-              </div>
-              <div>
-                <span className="text-[11px] text-muted-foreground">Password: </span>
-                <code className="text-sm font-mono font-semibold">{generatedCredentials.password}</code>
-              </div>
-            </div>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Share these credentials. They'll be prompted to change their password.
-            </p>
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => copyToClipboard(`Username: ${generatedCredentials.username}\nPassword: ${generatedCredentials.password}`)}
-              className="gap-1.5"
-            >
-              {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-              {copied ? "Copied" : "Copy"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setGeneratedCredentials(null)}>
-              <X className="size-3.5" />
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Reset Password Banner */}
-      {resetPasswordResult && (
-        <div className="flex items-center gap-3 rounded-md border-2 border-amber-500 bg-amber-500/5 p-4">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-amber-500/10">
-            <Key className="size-5 text-amber-600" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-xs font-medium text-muted-foreground">
-              Password Reset: {resetPasswordResult.fullName}
-            </div>
-            <div className="mt-1">
-              <span className="text-[11px] text-muted-foreground">New Password: </span>
-              <code className="text-sm font-mono font-semibold">{resetPasswordResult.tempPassword}</code>
-            </div>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Share this password. They'll be prompted to change it on next login.
-            </p>
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => copyToClipboard(resetPasswordResult.tempPassword)}
-              className="gap-1.5"
-            >
-              {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-              {copied ? "Copied" : "Copy"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setResetPasswordResult(null)}>
-              <X className="size-3.5" />
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Generated Invite Code Banner */}
-      {generatedCode && (
-        <div className="flex items-center gap-3 rounded-md border-2 border-primary bg-primary/5 p-4">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/10">
-            <Key className="size-5 text-primary" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-xs font-medium text-muted-foreground">Invite Code Generated</div>
-            <code className="text-base font-mono font-semibold tracking-widest">{generatedCode}</code>
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <Button size="sm" variant="outline" onClick={() => copyToClipboard(generatedCode)} className="gap-1.5">
-              {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-              {copied ? "Copied" : "Copy"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setGeneratedCode(null)}>
-              <X className="size-3.5" />
-            </Button>
-          </div>
-        </div>
-      )}
+      {/* Banners */}
+      <MemberActionsBanner
+        generatedCredentials={generatedCredentials}
+        resetPasswordResult={resetPasswordResult}
+        generatedCode={generatedCode}
+        onDismissCredentials={() => setGeneratedCredentials(null)}
+        onDismissReset={() => setResetPasswordResult(null)}
+        onDismissCode={() => setGeneratedCode(null)}
+      />
 
       {/* Main Tabs */}
       {canEdit && (
@@ -535,86 +392,15 @@ export function UsersContent({
               No members match your search.
             </div>
           ) : (
-            <div className="rounded-md border bg-card shadow-sm">
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-xs">Name</TableHead>
-                    <TableHead className="text-xs">Email / Username</TableHead>
-                    <TableHead className="text-xs">Role</TableHead>
-                    {canEdit && <TableHead className="w-12 text-xs" />}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredMembers.map((member) => {
-                    const roleConfig = ROLE_CONFIG[member.role] ?? ROLE_CONFIG.inspector
-                    const isCurrentUser = member.id === currentProfileId
-                    const canManage = canEdit && !isCurrentUser && member.role !== "owner"
-
-                    return (
-                      <TableRow key={member.id}>
-                        <TableCell className="py-3">
-                          <div className="flex items-center gap-2">
-                            <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-[10px] font-medium uppercase">
-                              {member.full_name.charAt(0)}
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-xs font-medium">{member.full_name}</span>
-                              {isCurrentUser && (
-                                <Badge variant="outline" className="text-[9px]">You</Badge>
-                              )}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {member.email || member.username || "—"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={cn("text-[10px]", roleConfig.className)}>
-                            {roleConfig.label}
-                          </Badge>
-                        </TableCell>
-                        {canEdit && (
-                          <TableCell>
-                            {canManage && (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon-xs" className="text-muted-foreground hover:text-foreground">
-                                    <MoreHorizontal className="size-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-40">
-                                  <DropdownMenuItem onClick={() => setManagingMember(member)} className="text-xs">
-                                    <Settings className="mr-2 size-3.5" />
-                                    Manage Permissions
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleEditMember(member)} className="text-xs">
-                                    <Edit2 className="mr-2 size-3.5" />
-                                    Change Role
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => setResettingMember(member)} className="text-xs">
-                                    <Key className="mr-2 size-3.5" />
-                                    Reset Password
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={() => setRemovingMember(member)}
-                                    className="text-xs text-destructive focus:text-destructive"
-                                  >
-                                    <UserMinus className="mr-2 size-3.5" />
-                                    Remove
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            )}
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+            <MemberTable
+              members={filteredMembers}
+              currentProfileId={currentProfileId}
+              canEdit={canEdit}
+              onManage={setManagingMember}
+              onEdit={handleEditMember}
+              onRemove={setRemovingMember}
+              onReset={setResettingMember}
+            />
           )}
         </>
       )}
@@ -636,122 +422,7 @@ export function UsersContent({
               No invites match your search.
             </div>
           ) : (
-            <div className="space-y-6">
-              {/* Active Invites */}
-              {activeInvites.length > 0 && (
-                <div>
-                  <h3 className="mb-2 text-xs font-medium text-muted-foreground">Active Invites</h3>
-                  <div className="rounded-md border bg-card shadow-sm">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="hover:bg-transparent">
-                          <TableHead className="text-xs">Email</TableHead>
-                          <TableHead className="text-xs">Role</TableHead>
-                          <TableHead className="text-xs">Expires</TableHead>
-                          <TableHead className="text-xs">Uses</TableHead>
-                          <TableHead className="w-12 text-xs" />
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {activeInvites.map((invite) => {
-                          const roleConfig = ROLE_CONFIG[invite.role_grant] ?? ROLE_CONFIG.inspector
-
-                          return (
-                            <TableRow key={invite.id}>
-                              <TableCell className="py-3">
-                                <div className="flex items-center gap-2">
-                                  <Mail className="size-3.5 text-muted-foreground" />
-                                  <span className="text-xs">{invite.assigned_email || "Any email"}</span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className={cn("text-[10px]", roleConfig.className)}>
-                                  {roleConfig.label}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-xs text-muted-foreground">
-                                <div className="flex items-center gap-1">
-                                  <Clock className="size-3" />
-                                  {formatDate(invite.expires_at)}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-xs">
-                                {invite.uses} / {invite.max_uses}
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="ghost"
-                                  size="icon-xs"
-                                  onClick={() => setRevokingInvite(invite)}
-                                  className="text-muted-foreground hover:text-destructive"
-                                >
-                                  <Trash2 className="size-3.5" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          )
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-              )}
-
-              {/* Expired/Used Invites */}
-              {expiredOrUsedInvites.length > 0 && (
-                <div>
-                  <h3 className="mb-2 text-xs font-medium text-muted-foreground">Expired / Used</h3>
-                  <div className="rounded-md border bg-card shadow-sm opacity-60">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="hover:bg-transparent">
-                          <TableHead className="text-xs">Email</TableHead>
-                          <TableHead className="text-xs">Role</TableHead>
-                          <TableHead className="text-xs">Status</TableHead>
-                          <TableHead className="text-xs">Uses</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {expiredOrUsedInvites.map((invite) => {
-                          const roleConfig = ROLE_CONFIG[invite.role_grant] ?? ROLE_CONFIG.inspector
-                          const expired = isExpired(invite.expires_at)
-
-                          return (
-                            <TableRow key={invite.id}>
-                              <TableCell className="py-3">
-                                <div className="flex items-center gap-2">
-                                  <Mail className="size-3.5 text-muted-foreground" />
-                                  <span className="text-xs">{invite.assigned_email || "Any email"}</span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className={cn("text-[10px]", roleConfig.className)}>
-                                  {roleConfig.label}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-xs">
-                                {invite.consumed_at ? (
-                                  <Badge variant="outline" className="text-[10px] bg-green-100 text-green-700 border-green-200">
-                                    Used
-                                  </Badge>
-                                ) : expired ? (
-                                  <Badge variant="outline" className="text-[10px] bg-red-100 text-red-700 border-red-200">
-                                    Expired
-                                  </Badge>
-                                ) : null}
-                              </TableCell>
-                              <TableCell className="text-xs">
-                                {invite.uses} / {invite.max_uses}
-                              </TableCell>
-                            </TableRow>
-                          )
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-              )}
-            </div>
+            <InviteTable invites={filteredInvites} onRevoke={setRevokingInvite} />
           )}
         </>
       )}
