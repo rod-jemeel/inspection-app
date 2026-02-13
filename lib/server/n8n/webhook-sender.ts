@@ -43,7 +43,7 @@ export async function sendWebhookToN8n(
 export async function notifyAssignmentChanged(
   data: AssignmentChangedPayload
 ): Promise<void> {
-  if (!n8nConfig.webhookSecret) return
+  if (!n8nConfig.baseUrl) return
 
   const result = await sendWebhookToN8n(
     n8nConfig.webhooks.assignmentChanged,
@@ -58,7 +58,7 @@ export async function notifyAssignmentChanged(
 export async function notifyInspectionCompleted(
   data: InspectionCompletedPayload
 ): Promise<void> {
-  if (!n8nConfig.webhookSecret) return
+  if (!n8nConfig.baseUrl) return
 
   const result = await sendWebhookToN8n(
     n8nConfig.webhooks.inspectionCompleted,
@@ -73,7 +73,7 @@ export async function notifyInspectionCompleted(
 export async function notifyFormResponseSubmitted(
   data: FormResponseSubmittedPayload
 ): Promise<void> {
-  if (!n8nConfig.webhookSecret) return
+  if (!n8nConfig.baseUrl) return
 
   // Only send if form has a linked Google Sheet
   if (!data.google_sheet_id) return

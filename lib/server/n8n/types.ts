@@ -36,11 +36,14 @@ export interface FormResponseSubmittedPayload extends WebhookPayload {
   submitted_by_name: string | null
   status: string
   overall_pass: boolean | null
+  completion_signature: string | null
+  completion_selfie: string | null
   google_sheet_id: string | null
   google_sheet_tab: string | null
   field_responses: Array<{
     label: string
     field_type: string
+    sheet_header: string | null
     value: string | number | boolean | null
   }>
 }

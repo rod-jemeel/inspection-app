@@ -16,74 +16,25 @@
     },
     {
       "parameters": {
-        "jsCode": "const crypto = require('crypto');\n\nconst incomingSignature = $input.first().json.headers['x-n8n-signature'];\nconst body = JSON.stringify($input.first().json.body);\nconst secret = $env.N8N_WEBHOOK_SECRET || '';\n\nconst expectedSignature = crypto.createHmac('sha256', secret)\n  .update(body)\n  .digest('hex');\n\nif (incomingSignature !== expectedSignature) {\n  throw new Error('Invalid HMAC signature');\n}\n\nreturn [{\n  json: {\n    verified: true,\n    payload: $input.first().json.body\n  }\n}];"
-      },
-      "name": "Verify Signature",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [500, 300]
-    },
-    {
-      "parameters": {
-        "jsCode": "const payload = $json.payload;\n\n// Skip if no Google Sheet configured\nif (!payload.google_sheet_id) {\n  return [{ json: { skip: true, reason: 'No Google Sheet ID configured' } }];\n}\n\n// Build header row from field labels\nconst headers = [\n  'Timestamp',\n  'Submitted By',\n  'Status',\n  'Overall Pass',\n  ...payload.field_responses.map(f => f.label)\n];\n\n// Build data row from field values\nconst values = [\n  payload.timestamp,\n  payload.submitted_by_name || payload.submitted_by_profile_id,\n  payload.status,\n  payload.overall_pass === null ? '' : payload.overall_pass ? 'PASS' : 'FAIL',\n  ...payload.field_responses.map(f => {\n    if (f.value === null || f.value === undefined) return '';\n    if (typeof f.value === 'boolean') return f.value ? 'Yes' : 'No';\n    return String(f.value);\n  })\n];\n\nreturn [{\n  json: {\n    skip: false,\n    google_sheet_id: payload.google_sheet_id,\n    google_sheet_tab: payload.google_sheet_tab || 'Sheet1',\n    headers: headers,\n    values: values,\n    response_id: payload.response_id,\n    form_template_name: payload.form_template_name,\n    binder_name: payload.binder_name\n  }\n}];"
-      },
-      "name": "Prepare Sheet Data",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [750, 300]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "leftValue": "={{$json.skip}}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "name": "Has Sheet ID?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [1000, 300]
-    },
-    {
-      "parameters": {
-        "operation": "append",
+        "operation": "read",
         "documentId": {
           "__rl": true,
           "mode": "id",
-          "value": "={{$json.google_sheet_id}}"
+          "value": "={{$json.body.google_sheet_id}}"
         },
         "sheetName": {
           "__rl": true,
           "mode": "name",
-          "value": "={{$json.google_sheet_tab}}"
-        },
-        "columns": {
-          "mappingMode": "autoMapInputData",
-          "value": {}
+          "value": "={{$json.body.google_sheet_tab || 'Form Responses 1'}}"
         },
         "options": {
-          "useAppend": true
+          "range": "1:2"
         }
       },
-      "name": "Google Sheets",
+      "name": "Read Sheet Headers",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
-      "position": [1250, 400],
+      "position": [500, 300],
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "CONFIGURE_ME",
@@ -93,56 +44,71 @@
     },
     {
       "parameters": {
-        "jsCode": "// Convert headers + values into a key-value object for Google Sheets append\nconst headers = $('Prepare Sheet Data').first().json.headers;\nconst values = $('Prepare Sheet Data').first().json.values;\n\nconst row = {};\nfor (let i = 0; i < headers.length; i++) {\n  row[headers[i]] = values[i] || '';\n}\n\nreturn [{ json: row }];"
+        "jsCode": "// Date formatting helpers (match Google Forms format)\nfunction fmtTimestamp(iso) {\n  const d = new Date(iso);\n  if (isNaN(d.getTime())) return iso;\n  const M = d.getMonth() + 1;\n  const D = d.getDate();\n  const Y = d.getFullYear();\n  const h = d.getHours();\n  const m = String(d.getMinutes()).padStart(2, '0');\n  const s = String(d.getSeconds()).padStart(2, '0');\n  return `${M}/${D}/${Y} ${h}:${m}:${s}`;\n}\nfunction fmtDate(val) {\n  const d = new Date(val);\n  if (isNaN(d.getTime())) return String(val);\n  return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;\n}\nfunction fmtTime(val) {\n  const d = new Date(val);\n  if (isNaN(d.getTime())) return String(val);\n  let h = d.getHours();\n  const ap = h >= 12 ? 'PM' : 'AM';\n  h = h % 12 || 12;\n  const m = String(d.getMinutes()).padStart(2, '0');\n  const s = String(d.getSeconds()).padStart(2, '0');\n  return `${h}:${m}:${s} ${ap}`;\n}\n\n// Get sheet column headers (skip n8n metadata 'row_number')\nconst sheetRow = $('Read Sheet Headers').first().json;\nconst headers = Object.keys(sheetRow).filter(h => h !== 'row_number');\n\nconst payload = $('Webhook').first().json.body;\n\n// SPARSE mapping: only include columns that match field responses\n// This prevents overwriting other columns when updating an existing row\n// (e.g., weekly form updating weekly columns without clearing daily columns)\nconst row = {};\nlet lookupColumn = null;\nlet lookupValue = null;\n\n// Set Timestamp in first column\nif (headers.length > 0) {\n  row[headers[0]] = fmtTimestamp(payload.timestamp);\n}\n\n// Name-based matching: match each field to its sheet column\n// Uses sheet_header (exact Google Sheet column name) if available, falls back to label\nfor (const f of payload.field_responses) {\n  const matchName = f.sheet_header || f.label;\n  const matched = headers.find(h =>\n    h === matchName || h.trim() === matchName || h.trim() === matchName.trim()\n  );\n  if (matched) {\n    let value;\n    if (f.value === null || f.value === undefined) {\n      value = '';\n    } else if (typeof f.value === 'boolean') {\n      value = f.value ? 'Done' : '';\n    } else if (f.field_type === 'date') {\n      value = fmtDate(f.value);\n    } else if (f.field_type === 'datetime') {\n      value = fmtTime(f.value);\n    } else {\n      value = String(f.value);\n    }\n    row[matched] = value;\n\n    // Use the first date field as the lookup column for upsert\n    // This allows multiple forms sharing the same sheet to match rows by date\n    if (f.field_type === 'date' && !lookupColumn) {\n      lookupColumn = matched;\n      lookupValue = value;\n    }\n  }\n}\n\n// Add signature/selfie URLs if present\nif (payload.completion_signature) {\n  row['Signature'] = payload.completion_signature;\n}\nif (payload.completion_selfie) {\n  row['Selfie'] = payload.completion_selfie;\n}\n\n// Store lookup info as metadata for the Append Or Update node\nrow['__lookupColumn'] = lookupColumn || headers[0];\nrow['__lookupValue'] = lookupValue || row[headers[0]];\n\nreturn [{ json: { ...row } }];"
       },
-      "name": "Build Row Object",
+      "name": "Map Fields to Columns",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1250, 200]
+      "position": [750, 300]
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ { success: true, message: 'Skipped - no Google Sheet configured' } }}",
-        "options": {}
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{$('Webhook').first().json.body.google_sheet_id}}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{$('Webhook').first().json.body.google_sheet_tab || 'Form Responses 1'}}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": ["={{$json.__lookupColumn}}"],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED",
+          "handlingExtraData": "insertInNewColumn"
+        }
       },
-      "name": "Respond Skipped",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
-      "position": [1500, 100]
+      "name": "Append Or Update",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1000, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CONFIGURE_ME",
+          "name": "Google Sheets account"
+        }
+      }
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: true, message: 'Row appended to Google Sheet', response_id: $('Prepare Sheet Data').first().json.response_id } }}",
+        "responseBody": "={{ { success: true, message: 'Row synced to Google Sheet', response_id: $('Webhook').first().json.body.response_id, lookup_column: $('Map Fields to Columns').first().json.__lookupColumn } }}",
         "options": {}
       },
       "name": "Respond Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1750, 300]
+      "position": [1250, 300]
     }
   ],
   "connections": {
     "Webhook": {
-      "main": [[{ "node": "Verify Signature", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Read Sheet Headers", "type": "main", "index": 0 }]]
     },
-    "Verify Signature": {
-      "main": [[{ "node": "Prepare Sheet Data", "type": "main", "index": 0 }]]
+    "Read Sheet Headers": {
+      "main": [[{ "node": "Map Fields to Columns", "type": "main", "index": 0 }]]
     },
-    "Prepare Sheet Data": {
-      "main": [[{ "node": "Has Sheet ID?", "type": "main", "index": 0 }]]
+    "Map Fields to Columns": {
+      "main": [[{ "node": "Append Or Update", "type": "main", "index": 0 }]]
     },
-    "Has Sheet ID?": {
-      "main": [
-        [{ "node": "Respond Skipped", "type": "main", "index": 0 }],
-        [{ "node": "Build Row Object", "type": "main", "index": 0 }]
-      ]
-    },
-    "Build Row Object": {
-      "main": [[{ "node": "Google Sheets", "type": "main", "index": 0 }]]
-    },
-    "Google Sheets": {
+    "Append Or Update": {
       "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]]
     }
   },
