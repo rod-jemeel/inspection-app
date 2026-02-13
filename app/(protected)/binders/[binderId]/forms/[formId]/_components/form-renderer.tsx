@@ -347,7 +347,9 @@ export function FormRenderer({
   )
 
   // Build a map of field ID → section header ID (for section toggle)
-  // Fields after a section_header belong to that section until the next one
+  // Fields after a section_header belong to that section until the next
+  // section_header or the first required field of a different type (e.g.
+  // Inspector Name at the end is required text — not part of the weekly section).
   const sectionMap = useMemo(() => {
     const map: Record<string, string> = {} // fieldId → sectionHeaderId
     let currentSectionId: string | null = null
@@ -355,7 +357,14 @@ export function FormRenderer({
       if (f.field_type === "section_header") {
         currentSectionId = f.id
       } else if (currentSectionId) {
-        map[f.id] = currentSectionId
+        // End the section when we hit a required field that isn't the same
+        // type as the section's fields (boolean). This prevents trailing
+        // fields like "Inspector Name" from being swallowed by the section.
+        if (f.required) {
+          currentSectionId = null
+        } else {
+          map[f.id] = currentSectionId
+        }
       }
     }
     return map
