@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { FolderOpen, Plus, MoreHorizontal, Pencil, Trash2, Loader2 } from "lucide-react"
+import { FolderOpen, Plus, MoreHorizontal, Pencil, Trash2, Loader2, ChevronRight } from "lucide-react"
 import { toast } from "sonner"
 import {
   SidebarGroup,
@@ -13,6 +13,11 @@ import {
   SidebarMenuItem,
   SidebarMenuAction,
 } from "@/components/ui/sidebar"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -73,75 +78,84 @@ export function NavBinders({ binders, locationId }: NavBindersProps) {
 
   return (
     <>
-      <SidebarGroup>
-        <SidebarGroupLabel className="flex items-center justify-between">
-          <span>Binders</span>
-          <button
-            onClick={() => router.push(`/binders?loc=${locationId}`)}
-            className="flex size-5 items-center justify-center rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-            title="Manage binders"
-          >
-            <Plus className="size-3.5" />
-          </button>
-        </SidebarGroupLabel>
-        <SidebarMenu>
-          {binders.map((binder) => {
-            const binderPath = `/binders/${binder.id}`
-            const href = locationId
-              ? `${binderPath}?loc=${locationId}`
-              : binderPath
-            const isActive = pathname.startsWith(binderPath)
+      <Collapsible defaultOpen className="group/binders">
+        <SidebarGroup>
+          <SidebarGroupLabel className="flex items-center justify-between" asChild>
+            <div>
+              <CollapsibleTrigger className="flex items-center gap-1 [&[data-state=open]>svg]:rotate-90">
+                <ChevronRight className="size-3 transition-transform" />
+                <span>Binders</span>
+              </CollapsibleTrigger>
+              <button
+                onClick={() => router.push(`/binders?loc=${locationId}`)}
+                className="flex size-5 items-center justify-center rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                title="Manage binders"
+              >
+                <Plus className="size-3.5" />
+              </button>
+            </div>
+          </SidebarGroupLabel>
+          <CollapsibleContent>
+            <SidebarMenu>
+              {binders.map((binder) => {
+                const binderPath = `/binders/${binder.id}`
+                const href = locationId
+                  ? `${binderPath}?loc=${locationId}`
+                  : binderPath
+                const isActive = pathname.startsWith(binderPath)
 
-            return (
-              <SidebarMenuItem key={binder.id}>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive}
-                  tooltip={binder.name}
-                >
-                  <Link href={href}>
-                    {binder.color ? (
-                      <span
-                        className="inline-block size-3 shrink-0 rounded-full"
-                        style={{ backgroundColor: binder.color }}
-                      />
-                    ) : (
-                      <FolderOpen className="size-4" />
-                    )}
-                    <span className="truncate">{binder.name}</span>
-                  </Link>
-                </SidebarMenuButton>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <SidebarMenuAction>
-                      <MoreHorizontal className="size-4" />
-                    </SidebarMenuAction>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent side="right" align="start">
-                    <DropdownMenuItem
-                      onClick={() => router.push(href)}
+                return (
+                  <SidebarMenuItem key={binder.id}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      tooltip={binder.name}
                     >
-                      <Pencil className="mr-2 size-4" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
-                      onClick={() => {
-                        setDeletingBinder(binder)
-                        setConfirmName("")
-                      }}
-                    >
-                      <Trash2 className="mr-2 size-4" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </SidebarMenuItem>
-            )
-          })}
-        </SidebarMenu>
-      </SidebarGroup>
+                      <Link href={href}>
+                        {binder.color ? (
+                          <span
+                            className="inline-block size-3 shrink-0 rounded-full"
+                            style={{ backgroundColor: binder.color }}
+                          />
+                        ) : (
+                          <FolderOpen className="size-4" />
+                        )}
+                        <span className="truncate">{binder.name}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <SidebarMenuAction>
+                          <MoreHorizontal className="size-4" />
+                        </SidebarMenuAction>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent side="right" align="start">
+                        <DropdownMenuItem
+                          onClick={() => router.push(href)}
+                        >
+                          <Pencil className="mr-2 size-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => {
+                            setDeletingBinder(binder)
+                            setConfirmName("")
+                          }}
+                        >
+                          <Trash2 className="mr-2 size-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </SidebarMenuItem>
+                )
+              })}
+            </SidebarMenu>
+          </CollapsibleContent>
+        </SidebarGroup>
+      </Collapsible>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog
