@@ -5,6 +5,7 @@ import { getInstance } from "@/lib/server/services/instances"
 import { getTemplate } from "@/lib/server/services/templates"
 import { listEvents } from "@/lib/server/services/events"
 import { getSignatures } from "@/lib/server/services/signatures"
+import { LoadingSpinner } from "@/components/loading-spinner"
 import { InspectionDetail } from "./_components/inspection-detail"
 
 export const metadata: Metadata = {
@@ -61,7 +62,7 @@ export default async function InspectionDetailPage({
     <Suspense
       fallback={
         <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="mx-auto h-6 w-6 animate-spin rounded-none border-2 border-muted border-t-primary" />
+          <LoadingSpinner />
         </div>
       }
     >

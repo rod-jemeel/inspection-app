@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { requireLocationAccess } from "@/lib/server/auth-helpers"
 import { getLocation } from "@/lib/server/services/locations"
 import { getReminderSettings } from "@/lib/server/services/reminder-settings"
+import { LoadingSpinner } from "@/components/loading-spinner"
 import { SettingsContent } from "./_components/settings-content"
 
 export const metadata: Metadata = {
@@ -47,7 +48,7 @@ export default async function SettingsPage({
     <Suspense
       fallback={
         <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="mx-auto h-6 w-6 animate-spin rounded-none border-2 border-muted border-t-primary" />
+          <LoadingSpinner />
         </div>
       }
     >

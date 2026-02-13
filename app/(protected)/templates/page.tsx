@@ -4,6 +4,7 @@ import { requireLocationAccess } from "@/lib/server/auth-helpers"
 import { listTemplates } from "@/lib/server/services/templates"
 import { listBinders } from "@/lib/server/services/binders"
 import { listFormTemplates } from "@/lib/server/services/form-templates"
+import { LoadingSpinner } from "@/components/loading-spinner"
 import { TemplateList } from "./_components/template-list"
 
 export const metadata: Metadata = {
@@ -62,7 +63,7 @@ export default async function TemplatesPage({
     <Suspense
       fallback={
         <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-muted border-t-primary" />
+          <LoadingSpinner />
         </div>
       }
     >

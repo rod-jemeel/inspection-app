@@ -6,6 +6,7 @@ import { listFormFields } from "@/lib/server/services/form-fields"
 import { getBinder, canUserEditBinder } from "@/lib/server/services/binders"
 import { getInstance } from "@/lib/server/services/instances"
 import { getFormResponse } from "@/lib/server/services/form-responses"
+import { LoadingSpinner } from "@/components/loading-spinner"
 import { FormRenderer } from "./_components/form-renderer"
 
 export const metadata: Metadata = {
@@ -100,7 +101,7 @@ export default async function FormPage({
     <Suspense
       fallback={
         <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="mx-auto h-6 w-6 animate-spin rounded-none border-2 border-muted border-t-primary" />
+          <LoadingSpinner />
         </div>
       }
     >

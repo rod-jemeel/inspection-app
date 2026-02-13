@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { getSession, getProfile } from "@/lib/server/auth-helpers"
 import { supabase } from "@/lib/server/db"
 import { listBinders } from "@/lib/server/services/binders"
+import { LoadingSpinner } from "@/components/loading-spinner"
 import { AppShell } from "./_components/app-shell"
 
 async function AuthenticatedShell({ children }: { children: React.ReactNode }) {
@@ -55,7 +56,7 @@ export default function ProtectedLayout({
       fallback={
         <div className="flex min-h-svh items-center justify-center bg-background">
           <div className="space-y-3 text-center">
-            <div className="mx-auto h-6 w-6 animate-spin rounded-none border-2 border-muted border-t-primary" />
+            <LoadingSpinner />
             <p className="text-xs text-muted-foreground">Loading...</p>
           </div>
         </div>

@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { requireLocationAccess } from "@/lib/server/auth-helpers"
 import { getTeamMembers } from "@/lib/server/services/locations"
 import { listInviteCodes } from "@/lib/server/services/invite-codes"
+import { LoadingSpinner } from "@/components/loading-spinner"
 import { UsersContent } from "./_components/users-content"
 
 export const metadata: Metadata = {
@@ -47,7 +48,7 @@ export default async function UsersPage({
     <Suspense
       fallback={
         <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="mx-auto h-6 w-6 animate-spin rounded-md border-2 border-muted border-t-primary" />
+          <LoadingSpinner />
         </div>
       }
     >

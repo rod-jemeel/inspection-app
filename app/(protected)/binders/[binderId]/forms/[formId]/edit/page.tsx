@@ -7,6 +7,7 @@ import { getBinder } from "@/lib/server/services/binders"
 import { canUserEditBinder } from "@/lib/server/services/binders"
 import { supabase } from "@/lib/server/db"
 import { redirect } from "next/navigation"
+import { LoadingSpinner } from "@/components/loading-spinner"
 import { FormBuilder } from "./_components/form-builder"
 
 export const metadata: Metadata = {
@@ -72,7 +73,7 @@ export default async function EditFormPage({
     <Suspense
       fallback={
         <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="mx-auto h-6 w-6 animate-spin rounded-none border-2 border-muted border-t-primary" />
+          <LoadingSpinner />
         </div>
       }
     >

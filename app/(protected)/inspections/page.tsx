@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { requireLocationAccess } from "@/lib/server/auth-helpers"
 import { listInstances } from "@/lib/server/services/instances"
 import { listBinders } from "@/lib/server/services/binders"
+import { LoadingSpinner } from "@/components/loading-spinner"
 import { InspectionList } from "./_components/inspection-list"
 import { InspectionModal } from "./_components/inspection-modal"
 
@@ -62,7 +63,7 @@ export default async function InspectionsPage({
     <Suspense
       fallback={
         <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-muted border-t-primary" />
+          <LoadingSpinner />
         </div>
       }
     >
