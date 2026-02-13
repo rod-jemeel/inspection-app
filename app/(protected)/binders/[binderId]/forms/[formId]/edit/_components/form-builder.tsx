@@ -111,6 +111,7 @@ function FieldEditor({
 
   const needsOptions = fieldType === "select" || fieldType === "multi_select"
   const needsValidation = fieldType === "number" || fieldType === "temperature" || fieldType === "pressure"
+  const isBooleanType = fieldType === "boolean"
 
   const handleSave = () => {
     if (!label.trim()) {
@@ -126,7 +127,11 @@ function FieldEditor({
       label,
       field_type: fieldType,
       required,
-      options: needsOptions ? options.filter(o => o.trim()) : null,
+      options: needsOptions
+        ? options.filter(o => o.trim())
+        : isBooleanType
+          ? (options[0]?.trim() || options[1]?.trim() ? [options[0]?.trim() || "Yes", options[1]?.trim() || "No"] : null)
+          : null,
       validation_rules: needsValidation ? validationRules : null,
       help_text: helpText.trim() || null,
       placeholder: placeholder.trim() || null,
@@ -205,6 +210,47 @@ function FieldEditor({
           >
             <Plus className="mr-1 h-3 w-3" /> Add Option
           </Button>
+        </div>
+      )}
+
+      {isBooleanType && (
+        <div className="space-y-2">
+          <Label className="text-xs font-medium">Response Labels</Label>
+          <p className="text-[11px] text-muted-foreground">
+            Customize what &quot;Yes&quot; and &quot;No&quot; display as (e.g. &quot;Done&quot; / &quot;Does not apply&quot;)
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="yesLabel" className="text-[11px] text-muted-foreground">When ON</Label>
+              <Input
+                id="yesLabel"
+                value={options[0] ?? ""}
+                onChange={(e) => {
+                  const newOpts = [...options]
+                  newOpts[0] = e.target.value
+                  if (newOpts.length < 2) newOpts[1] = ""
+                  setOptions(newOpts)
+                }}
+                placeholder="Yes"
+                className="h-8 text-xs"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="noLabel" className="text-[11px] text-muted-foreground">When OFF</Label>
+              <Input
+                id="noLabel"
+                value={options[1] ?? ""}
+                onChange={(e) => {
+                  const newOpts = [...options]
+                  if (newOpts.length < 1) newOpts[0] = ""
+                  newOpts[1] = e.target.value
+                  setOptions(newOpts)
+                }}
+                placeholder="No"
+                className="h-8 text-xs"
+              />
+            </div>
+          </div>
         </div>
       )}
 
