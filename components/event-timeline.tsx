@@ -1,5 +1,3 @@
-"use client"
-
 import {
   Plus, UserPlus, Play, XCircle, CheckCircle,
   PenTool, MessageSquare, Bell, AlertTriangle, Clock
