@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useRef, useCallback } from "react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
@@ -11,13 +12,13 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
 import { Camera, PenLine, CalendarIcon, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
+import { FullscreenSignaturePad } from "@/components/fullscreen-signature-pad"
 
 export interface FormField {
   id: string
@@ -337,30 +338,10 @@ function FieldInputInner({ field, value, onChange, error }: Omit<FieldInputProps
     }
 
     case "signature":
-      return (
-        <div
-          data-slot="field-input"
-          className="flex items-center gap-2.5 rounded-md border border-dashed border-input bg-muted/30 px-4 py-5"
-        >
-          <PenLine className="size-4 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">
-            Signature capture coming soon
-          </span>
-        </div>
-      )
+      return <SignatureField value={value} onChange={onChange} hasError={hasError} />
 
     case "photo":
-      return (
-        <div
-          data-slot="field-input"
-          className="flex items-center gap-2.5 rounded-md border border-dashed border-input bg-muted/30 px-4 py-5"
-        >
-          <Camera className="size-4 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">
-            Photo upload coming soon
-          </span>
-        </div>
-      )
+      return <PhotoField value={value} onChange={onChange} hasError={hasError} />
 
     default:
       return (
@@ -374,4 +355,125 @@ function FieldInputInner({ field, value, onChange, error }: Omit<FieldInputProps
         </div>
       )
   }
+}
+
+// ---------------------------------------------------------------------------
+// Signature field — opens FullscreenSignaturePad, stores base64 preview
+// ---------------------------------------------------------------------------
+
+function SignatureField({
+  value,
+  onChange,
+  hasError,
+}: {
+  value: unknown
+  onChange: (value: unknown) => void
+  hasError: boolean
+}) {
+  const [showPad, setShowPad] = useState(false)
+  const preview = typeof value === "string" && value.startsWith("data:") ? value : null
+
+  const handleSave = useCallback(
+    async (data: { imageBlob: Blob; points: unknown; signerName: string }) => {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        onChange(reader.result as string)
+        setShowPad(false)
+      }
+      reader.readAsDataURL(data.imageBlob)
+    },
+    [onChange]
+  )
+
+  return (
+    <>
+      <button
+        type="button"
+        data-slot="field-input"
+        onClick={() => setShowPad(true)}
+        className={cn(
+          "flex w-full flex-col items-center gap-1.5 rounded-md border border-dashed px-4 py-4 text-xs transition-colors hover:bg-muted/50",
+          hasError ? "border-destructive" : "border-input",
+          preview && "border-solid border-primary/50 bg-muted/20"
+        )}
+      >
+        {preview ? (
+          <img src={preview} alt="Signature" className="h-10 w-24 object-contain" />
+        ) : (
+          <PenLine className="size-5 text-muted-foreground" />
+        )}
+        <span className="text-muted-foreground">
+          {preview ? "Tap to re-sign" : "Tap to sign"}
+        </span>
+      </button>
+      {showPad && (
+        <FullscreenSignaturePad
+          onSave={handleSave}
+          onCancel={() => setShowPad(false)}
+        />
+      )}
+    </>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Photo field — opens device camera or file picker, stores base64 preview
+// ---------------------------------------------------------------------------
+
+function PhotoField({
+  value,
+  onChange,
+  hasError,
+}: {
+  value: unknown
+  onChange: (value: unknown) => void
+  hasError: boolean
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const preview = typeof value === "string" && value.startsWith("data:") ? value : null
+
+  const handleCapture = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        onChange(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    },
+    [onChange]
+  )
+
+  return (
+    <>
+      <button
+        type="button"
+        data-slot="field-input"
+        onClick={() => inputRef.current?.click()}
+        className={cn(
+          "flex w-full flex-col items-center gap-1.5 rounded-md border border-dashed px-4 py-4 text-xs transition-colors hover:bg-muted/50",
+          hasError ? "border-destructive" : "border-input",
+          preview && "border-solid border-primary/50 bg-muted/20"
+        )}
+      >
+        {preview ? (
+          <img src={preview} alt="Photo" className="size-12 rounded-md object-cover" />
+        ) : (
+          <Camera className="size-5 text-muted-foreground" />
+        )}
+        <span className="text-muted-foreground">
+          {preview ? "Retake photo" : "Take photo"}
+        </span>
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleCapture}
+      />
+    </>
+  )
 }

@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -37,32 +38,33 @@ const statusLabels = {
 }
 
 export function ResponseList({ binderId, locationId }: ResponseListProps) {
+  const router = useRouter()
   const [responses, setResponses] = useState<FormResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<ResponseStatus | "all">("all")
 
-  useEffect(() => {
-    async function fetchResponses() {
-      setLoading(true)
-      try {
-        const url = new URL(`/api/locations/${locationId}/binders/${binderId}/responses`, window.location.origin)
-        url.searchParams.set("limit", "50")
+  const fetchResponses = useCallback(async () => {
+    setLoading(true)
+    try {
+      const url = new URL(`/api/locations/${locationId}/binders/${binderId}/responses`, window.location.origin)
+      url.searchParams.set("limit", "50")
 
-        const res = await fetch(url.toString())
-        if (!res.ok) throw new Error("Failed to fetch responses")
+      const res = await fetch(url.toString())
+      if (!res.ok) throw new Error("Failed to fetch responses")
 
-        const data = await res.json()
-        setResponses(data.responses || [])
-      } catch (error) {
-        console.error("Error fetching responses:", error)
-        setResponses([])
-      } finally {
-        setLoading(false)
-      }
+      const data = await res.json()
+      setResponses(data.responses || [])
+    } catch (error) {
+      console.error("Error fetching responses:", error)
+      setResponses([])
+    } finally {
+      setLoading(false)
     }
-
-    fetchResponses()
   }, [binderId, locationId])
+
+  useEffect(() => {
+    fetchResponses()
+  }, [fetchResponses])
 
   const filteredResponses = useMemo(() => {
     if (statusFilter === "all") return responses
@@ -123,8 +125,9 @@ export function ResponseList({ binderId, locationId }: ResponseListProps) {
               key={response.id}
               className="group flex cursor-pointer items-center gap-3 rounded-md border bg-card p-3 shadow-sm transition-shadow hover:shadow-md"
               onClick={() => {
-                // TODO: Navigate to response detail view
-                console.log("View response:", response.id)
+                router.push(
+                  `/binders/${binderId}/forms/${response.form_template_id}?loc=${locationId}&responseId=${response.id}`
+                )
               }}
             >
               {/* Form Name & Submitted By */}
@@ -137,9 +140,10 @@ export function ResponseList({ binderId, locationId }: ResponseListProps) {
                 </p>
               </div>
 
-              {/* Date */}
-              <div className="text-xs text-muted-foreground">
-                {new Date(response.submitted_at).toLocaleDateString()}
+              {/* Date & Time */}
+              <div className="text-right text-xs text-muted-foreground">
+                <div>{new Date(response.submitted_at).toLocaleDateString()}</div>
+                <div>{new Date(response.submitted_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</div>
               </div>
 
               {/* Status Badge */}
@@ -190,6 +194,7 @@ export function ResponseList({ binderId, locationId }: ResponseListProps) {
           {responses.length === 1 ? "response" : "responses"}
         </p>
       )}
+
     </div>
   )
 }

@@ -2,7 +2,7 @@ import { NextRequest, after } from "next/server"
 import { requireLocationAccess } from "@/lib/server/auth-helpers"
 import { handleError, validationError } from "@/lib/server/errors"
 import { submitFormResponseSchema, filterResponsesSchema } from "@/lib/validations/form-response"
-import { submitFormResponse, listFormResponses } from "@/lib/server/services/form-responses"
+import { submitFormResponse, listFormResponses, uploadFormImage, getFormImageUrl } from "@/lib/server/services/form-responses"
 import { getFormTemplate } from "@/lib/server/services/form-templates"
 import { getBinder } from "@/lib/server/services/binders"
 import { notifyFormResponseSubmitted } from "@/lib/server/n8n/webhook-sender"
@@ -51,6 +51,18 @@ export async function POST(
     const parsed = submitFormResponseSchema.safeParse({ ...body, form_template_id: formId })
     if (!parsed.success) return validationError(parsed.error.issues).toResponse()
 
+    // Upload completion images to Supabase Storage (replace base64 with paths)
+    if (parsed.data.completion_signature?.startsWith("data:")) {
+      parsed.data.completion_signature = await uploadFormImage(
+        formId, profile.id, parsed.data.completion_signature, "signature"
+      )
+    }
+    if (parsed.data.completion_selfie?.startsWith("data:")) {
+      parsed.data.completion_selfie = await uploadFormImage(
+        formId, profile.id, parsed.data.completion_selfie, "selfie"
+      )
+    }
+
     const response = await submitFormResponse(locationId, profile.id, parsed.data)
 
     // Fire-and-forget: sync to Google Sheets via n8n
@@ -59,12 +71,12 @@ export async function POST(
         // Fetch field labels for the response
         const { data: fieldData } = await supabase
           .from("form_fields")
-          .select("id, label, field_type")
+          .select("id, label, field_type, sheet_header")
           .eq("form_template_id", formId)
           .order("sort_order", { ascending: true })
 
         const fieldMap = new Map(
-          (fieldData ?? []).map((f: { id: string; label: string; field_type: string }) => [f.id, f])
+          (fieldData ?? []).map((f: { id: string; label: string; field_type: string; sheet_header: string | null }) => [f.id, f])
         )
 
         // Get binder name
@@ -81,9 +93,18 @@ export async function POST(
           return {
             label: field?.label ?? "Unknown",
             field_type: field?.field_type ?? "text",
+            sheet_header: field?.sheet_header ?? null,
             value,
           }
         })
+
+        // Generate short redirect URLs for the webhook
+        const signatureUrl = response.completion_signature
+          ? getFormImageUrl(response.id, "signature")
+          : null
+        const selfieUrl = response.completion_selfie
+          ? getFormImageUrl(response.id, "selfie")
+          : null
 
         await notifyFormResponseSubmitted({
           event: "form_response_submitted",
@@ -97,6 +118,8 @@ export async function POST(
           submitted_by_name: profile.full_name ?? null,
           status: response.status,
           overall_pass: response.overall_pass,
+          completion_signature: signatureUrl,
+          completion_selfie: selfieUrl,
           google_sheet_id: template.google_sheet_id,
           google_sheet_tab: template.google_sheet_tab,
           field_responses: fieldResponses,

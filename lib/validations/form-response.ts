@@ -20,11 +20,13 @@ export type FieldResponseInput = z.infer<typeof fieldResponseSchema>
 
 export const submitFormResponseSchema = z.object({
   form_template_id: z.string().uuid(),
-  inspection_instance_id: z.string().uuid().optional(),
+  inspection_instance_id: z.string().optional(),
   status: responseStatusEnum.default("complete"),
   remarks: z.string().max(5000).optional(),
   corrective_action: z.string().max(5000).optional(),
   field_responses: z.array(fieldResponseSchema).min(1),
+  completion_signature: z.string().nullable().optional(),
+  completion_selfie: z.string().nullable().optional(),
 })
 
 export type SubmitFormResponseInput = z.infer<typeof submitFormResponseSchema>
@@ -33,6 +35,8 @@ export const updateFormResponseSchema = z.object({
   status: responseStatusEnum.optional(),
   remarks: z.string().max(5000).nullable().optional(),
   corrective_action: z.string().max(5000).nullable().optional(),
+  completion_signature: z.string().nullable().optional(),
+  completion_selfie: z.string().nullable().optional(),
   field_responses: z.array(fieldResponseSchema).optional(),
 })
 

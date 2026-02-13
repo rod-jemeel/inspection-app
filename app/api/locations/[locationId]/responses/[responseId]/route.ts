@@ -6,6 +6,7 @@ import {
   getFormResponse,
   updateFormResponse,
   deleteFormResponse,
+  uploadFormImage,
 } from "@/lib/server/services/form-responses"
 import { ApiError } from "@/lib/server/errors"
 
@@ -56,6 +57,18 @@ export async function PATCH(
     const body = await request.json()
     const parsed = updateFormResponseSchema.safeParse(body)
     if (!parsed.success) return validationError(parsed.error.issues).toResponse()
+
+    // Upload base64 images to storage (same pattern as POST)
+    if (parsed.data.completion_signature?.startsWith("data:")) {
+      parsed.data.completion_signature = await uploadFormImage(
+        existing.form_template_id, profile.id, parsed.data.completion_signature, "signature"
+      )
+    }
+    if (parsed.data.completion_selfie?.startsWith("data:")) {
+      parsed.data.completion_selfie = await uploadFormImage(
+        existing.form_template_id, profile.id, parsed.data.completion_selfie, "selfie"
+      )
+    }
 
     const response = await updateFormResponse(locationId, responseId, parsed.data)
     return Response.json(response)

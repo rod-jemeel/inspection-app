@@ -1,4 +1,5 @@
 import "server-only"
+import sharp from "sharp"
 import { unstable_cache, revalidateTag } from "next/cache"
 import { supabase } from "@/lib/server/db"
 import { ApiError } from "@/lib/server/errors"
@@ -8,6 +9,73 @@ import type {
   FilterResponsesInput,
   FieldResponseInput,
 } from "@/lib/validations/form-response"
+
+// ---------------------------------------------------------------------------
+// Storage helpers for completion images (signature / selfie)
+// ---------------------------------------------------------------------------
+
+/**
+ * Upload a base64 data URL image to Supabase Storage.
+ * Returns the storage path (not the full URL).
+ */
+export async function uploadFormImage(
+  formTemplateId: string,
+  profileId: string,
+  base64DataUrl: string,
+  type: "signature" | "selfie"
+): Promise<string> {
+  const bucket = process.env.SIGNATURES_BUCKET ?? "signatures"
+
+  const matches = base64DataUrl.match(/^data:([^;]+);base64,(.+)$/)
+  if (!matches) throw new ApiError("VALIDATION_ERROR", "Invalid image data URL")
+
+  const contentType = matches[1]
+  const base64Data = matches[2]
+  const rawBuffer = Buffer.from(base64Data, "base64")
+
+  // Trim whitespace around signatures for cleaner display
+  let uploadBuffer: Uint8Array = rawBuffer
+  let uploadContentType = contentType
+  let ext = contentType.split("/")[1]?.replace("jpeg", "jpg") || "png"
+
+  if (type === "signature") {
+    uploadBuffer = await sharp(rawBuffer)
+      .trim()
+      .extend({
+        top: 10,
+        bottom: 10,
+        left: 10,
+        right: 10,
+        background: { r: 255, g: 255, b: 255, alpha: 0 },
+      })
+      .png()
+      .toBuffer()
+    uploadContentType = "image/png"
+    ext = "png"
+  }
+
+  const path = `form-responses/${formTemplateId}/${profileId}-${Date.now()}-${type}.${ext}`
+
+  const { error } = await supabase.storage
+    .from(bucket)
+    .upload(path, uploadBuffer, {
+      contentType: uploadContentType,
+      upsert: false,
+    })
+
+  if (error) throw new ApiError("INTERNAL_ERROR", `Image upload failed: ${error.message}`)
+  return path
+}
+
+/**
+ * Build a short redirect URL for a form response image.
+ * The /api/files/:responseId?type=signature|selfie endpoint
+ * creates a short-lived signed URL on demand and redirects.
+ */
+export function getFormImageUrl(responseId: string, type: "signature" | "selfie"): string {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+  return `${baseUrl}/api/files/${responseId}?type=${type}`
+}
 
 function revalidateResponsesCache(locationId: string) {
   revalidateTag("form-responses", "max")
@@ -25,6 +93,8 @@ export interface FormResponse {
   overall_pass: boolean | null
   remarks: string | null
   corrective_action: string | null
+  completion_signature: string | null
+  completion_selfie: string | null
   created_at: string
   updated_at: string
   // Enriched fields
@@ -78,6 +148,8 @@ export async function submitFormResponse(
       overall_pass,
       remarks: input.remarks ?? null,
       corrective_action: input.corrective_action ?? null,
+      completion_signature: input.completion_signature ?? null,
+      completion_selfie: input.completion_selfie ?? null,
     })
     .select()
     .single()
@@ -157,6 +229,8 @@ export async function getFormResponse(
     overall_pass: row.overall_pass as boolean | null,
     remarks: row.remarks as string | null,
     corrective_action: row.corrective_action as string | null,
+    completion_signature: row.completion_signature as string | null,
+    completion_selfie: row.completion_selfie as string | null,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
     submitted_by_name: submittedBy?.full_name ?? null,
@@ -240,6 +314,8 @@ export async function updateFormResponse(
   if (input.status !== undefined) updates.status = input.status
   if (input.remarks !== undefined) updates.remarks = input.remarks
   if (input.corrective_action !== undefined) updates.corrective_action = input.corrective_action
+  if (input.completion_signature !== undefined) updates.completion_signature = input.completion_signature
+  if (input.completion_selfie !== undefined) updates.completion_selfie = input.completion_selfie
 
   const { data, error } = await supabase
     .from("form_responses")
