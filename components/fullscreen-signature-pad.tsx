@@ -11,6 +11,8 @@ interface FullscreenSignaturePadProps {
   onSave: (data: { imageBlob: Blob; points: unknown; signerName: string }) => void
   onCancel: () => void
   disabled?: boolean
+  title?: string
+  description?: string
 }
 
 // Check if device is mobile-sized (cached at module level for perf)
@@ -23,6 +25,8 @@ export function FullscreenSignaturePad({
   onSave,
   onCancel,
   disabled,
+  title,
+  description,
 }: FullscreenSignaturePadProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -177,9 +181,9 @@ export function FullscreenSignaturePad({
         <div className="mx-4 w-full max-w-md rounded-lg border bg-background p-6 shadow-lg">
           <div className="space-y-4">
             <div className="space-y-2 text-center">
-              <h2 className="text-lg font-semibold">Sign Inspection</h2>
+              <h2 className="text-lg font-semibold">{title || "Sign Inspection"}</h2>
               <p className="text-sm text-muted-foreground">
-                Please enter your full name, then sign to complete the inspection.
+                {description || "Please enter your full name, then sign to complete."}
               </p>
             </div>
 
