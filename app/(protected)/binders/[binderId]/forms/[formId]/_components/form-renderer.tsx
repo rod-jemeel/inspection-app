@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { ChevronLeft, Send, CheckCircle, AlertCircle, Loader2, PenLine, Camera, Eye, Pencil } from "lucide-react"
+import { ChevronLeft, ChevronDown, ChevronRight, Send, CheckCircle, AlertCircle, Loader2, PenLine, Camera, Eye, Pencil } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
@@ -87,8 +88,31 @@ type FieldErrors = Record<string, string>
 // Helpers
 // ---------------------------------------------------------------------------
 
-function buildFieldResponse(field: FormField, value: unknown) {
+function buildFieldResponse(field: FormField, value: unknown, sectionCollapsed?: boolean) {
   const base: Record<string, unknown> = { form_field_id: field.id }
+
+  // For fields in a collapsed section, send null values
+  if (sectionCollapsed) {
+    switch (field.field_type) {
+      case "boolean":
+        base.value_boolean = null
+        break
+      case "number":
+      case "temperature":
+      case "pressure":
+        base.value_number = null
+        break
+      case "date":
+        base.value_date = null
+        break
+      case "datetime":
+        base.value_datetime = null
+        break
+      default:
+        base.value_text = null
+    }
+    return base
+  }
 
   switch (field.field_type) {
     case "text":
@@ -127,7 +151,12 @@ function buildFieldResponse(field: FormField, value: unknown) {
   return base
 }
 
-function validateField(field: FormField, value: unknown): string | null {
+function validateField(field: FormField, value: unknown, sectionCollapsed?: boolean): string | null {
+  // Section headers have no value to validate
+  if (field.field_type === "section_header") return null
+  // Skip validation for collapsed sections
+  if (sectionCollapsed) return null
+
   // Required check
   if (field.required) {
     if (value === undefined || value === null || value === "") {
@@ -317,6 +346,45 @@ export function FormRenderer({
     [fields]
   )
 
+  // Build a map of field ID → section header ID (for section toggle)
+  // Fields after a section_header belong to that section until the next one
+  const sectionMap = useMemo(() => {
+    const map: Record<string, string> = {} // fieldId → sectionHeaderId
+    let currentSectionId: string | null = null
+    for (const f of sortedFields) {
+      if (f.field_type === "section_header") {
+        currentSectionId = f.id
+      } else if (currentSectionId) {
+        map[f.id] = currentSectionId
+      }
+    }
+    return map
+  }, [sortedFields])
+
+  // Track which sections are expanded (default: all collapsed)
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(() => new Set())
+
+  const isSectionCollapsed = useCallback(
+    (fieldId: string) => {
+      const sectionId = sectionMap[fieldId]
+      if (!sectionId) return false // not in any section
+      return !expandedSections.has(sectionId)
+    },
+    [sectionMap, expandedSections]
+  )
+
+  const toggleSection = useCallback((sectionId: string) => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev)
+      if (next.has(sectionId)) {
+        next.delete(sectionId)
+      } else {
+        next.add(sectionId)
+      }
+      return next
+    })
+  }, [])
+
   const [values, setValues] = useState<FieldValues>(() =>
     existingResponse
       ? getValuesFromResponse(sortedFields, existingResponse)
@@ -368,10 +436,11 @@ export function FormRenderer({
   )
 
   const handleSubmit = useCallback(async () => {
-    // Validate all fields
+    // Validate all fields (skip collapsed sections)
     const newErrors: FieldErrors = {}
     for (const field of sortedFields) {
-      const error = validateField(field, values[field.id])
+      const collapsed = isSectionCollapsed(field.id)
+      const error = validateField(field, values[field.id], collapsed)
       if (error) newErrors[field.id] = error
     }
 
@@ -396,9 +465,12 @@ export function FormRenderer({
     setSubmitError(null)
 
     try {
-      const fieldResponses = sortedFields.map((field) =>
-        buildFieldResponse(field, values[field.id])
-      )
+      const fieldResponses = sortedFields
+        .filter((field) => field.field_type !== "section_header")
+        .map((field) => {
+          const collapsed = isSectionCollapsed(field.id)
+          return buildFieldResponse(field, values[field.id], collapsed)
+        })
 
       let res: Response
 
@@ -461,7 +533,7 @@ export function FormRenderer({
     } finally {
       setSubmitting(false)
     }
-  }, [sortedFields, values, remarks, template.id, locationId, signaturePreview, selfiePreview, isEditMode, existingResponse, inspectionInstanceId])
+  }, [sortedFields, values, remarks, template.id, locationId, signaturePreview, selfiePreview, isEditMode, existingResponse, inspectionInstanceId, isSectionCollapsed])
 
   const handleBackToBinder = useCallback(() => {
     router.push(`/binders/${binder.id}?loc=${locationId}`)
@@ -515,8 +587,11 @@ export function FormRenderer({
   }
 
   // ----- Form state -----
-  const requiredCount = sortedFields.filter((f) => f.required).length
-  const filledRequiredCount = sortedFields.filter((f) => {
+  const activeFields = sortedFields.filter(
+    (f) => f.field_type !== "section_header" && !isSectionCollapsed(f.id)
+  )
+  const requiredCount = activeFields.filter((f) => f.required).length
+  const filledRequiredCount = activeFields.filter((f) => {
     if (!f.required) return false
     const v = values[f.id]
     if (v === null || v === undefined || v === "") return false
@@ -567,7 +642,7 @@ export function FormRenderer({
             {/* Meta row */}
             <div className="flex items-center gap-3 pt-1 text-[11px] text-muted-foreground">
               <span>
-                {sortedFields.length} {sortedFields.length === 1 ? "field" : "fields"}
+                {activeFields.length} {activeFields.length === 1 ? "field" : "fields"}
               </span>
               {!isPreviewMode && requiredCount > 0 && (
                 <>
@@ -606,58 +681,104 @@ export function FormRenderer({
         {/* ---------------------------------------------------------------- */}
         {/* Field cards                                                      */}
         {/* ---------------------------------------------------------------- */}
-        {sortedFields.map((field, index) => (
-          <div
-            key={field.id}
-            id={`field-${field.id}`}
-            className={cn(
-              "rounded-md border bg-card px-5 py-4 shadow-sm transition-shadow",
-              errors[field.id] && "border-destructive/50 shadow-destructive/5"
-            )}
-          >
-            <div className="space-y-2.5">
-              {/* Label row */}
-              <div className="flex items-start gap-1">
-                <label className="text-xs font-medium leading-snug">
-                  {field.label}
-                  {field.required && (
-                    <span className="ml-0.5 text-destructive" aria-label="required">
-                      *
+        {sortedFields.map((field) => {
+          // Section header: render as toggle card
+          if (field.field_type === "section_header") {
+            const isExpanded = expandedSections.has(field.id)
+            return (
+              <div
+                key={field.id}
+                className="rounded-md border border-indigo-200 bg-indigo-50/50 px-5 py-3 shadow-sm"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    {isExpanded ? (
+                      <ChevronDown className="size-4 text-indigo-600" />
+                    ) : (
+                      <ChevronRight className="size-4 text-indigo-600" />
+                    )}
+                    <span className="text-xs font-semibold text-indigo-700">
+                      {field.label}
                     </span>
-                  )}
-                </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {field.help_text && !isExpanded && (
+                      <span className="text-[10px] text-muted-foreground hidden sm:inline">
+                        {field.help_text}
+                      </span>
+                    )}
+                    <Switch
+                      checked={isExpanded}
+                      onCheckedChange={() => toggleSection(field.id)}
+                      aria-label={`Toggle ${field.label}`}
+                    />
+                  </div>
+                </div>
+                {isExpanded && field.help_text && (
+                  <p className="mt-1.5 text-[11px] text-muted-foreground leading-relaxed pl-6">
+                    {field.help_text}
+                  </p>
+                )}
               </div>
+            )
+          }
 
-              {/* Help text */}
-              {field.help_text && (
-                <p className="text-[11px] text-muted-foreground leading-relaxed -mt-1">
-                  {field.help_text}
-                </p>
+          // Regular field: hide if in a collapsed section
+          if (isSectionCollapsed(field.id)) return null
+
+          return (
+            <div
+              key={field.id}
+              id={`field-${field.id}`}
+              className={cn(
+                "rounded-md border bg-card px-5 py-4 shadow-sm transition-shadow",
+                errors[field.id] && "border-destructive/50 shadow-destructive/5"
               )}
+            >
+              <div className="space-y-2.5">
+                {/* Label row */}
+                <div className="flex items-start gap-1">
+                  <label className="text-xs font-medium leading-snug">
+                    {field.label}
+                    {field.required && (
+                      <span className="ml-0.5 text-destructive" aria-label="required">
+                        *
+                      </span>
+                    )}
+                  </label>
+                </div>
 
-              {/* Input */}
-              <FieldInput
-                field={field}
-                value={values[field.id]}
-                onChange={(v) => handleFieldChange(field.id, v)}
-                error={errors[field.id]}
-                disabled={isPreviewMode}
-              />
+                {/* Help text */}
+                {field.help_text && (
+                  <p className="text-[11px] text-muted-foreground leading-relaxed -mt-1">
+                    {field.help_text}
+                  </p>
+                )}
 
-              {/* Error */}
-              {errors[field.id] && (
-                <p
-                  role="alert"
-                  data-slot="field-error"
-                  className="flex items-center gap-1.5 text-xs text-destructive"
-                >
-                  <AlertCircle className="size-3 shrink-0" />
-                  {errors[field.id]}
-                </p>
-              )}
+                {/* Input */}
+                <FieldInput
+                  field={field}
+                  value={values[field.id]}
+                  onChange={(v) => handleFieldChange(field.id, v)}
+                  error={errors[field.id]}
+                  disabled={isPreviewMode}
+                />
+
+                {/* Error */}
+                {errors[field.id] && (
+                  <p
+                    role="alert"
+                    data-slot="field-error"
+                    className="flex items-center gap-1.5 text-xs text-destructive"
+                  >
+                    <AlertCircle className="size-3 shrink-0" />
+                    {errors[field.id]}
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
 
         {/* ---------------------------------------------------------------- */}
         {/* Remarks card (fill mode only)                                    */}
