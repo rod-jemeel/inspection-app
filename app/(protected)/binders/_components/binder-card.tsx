@@ -1,6 +1,18 @@
 "use client"
 
-import { ArrowRight, FolderOpen, FileText, Folder } from "lucide-react"
+import {
+  ArrowRight,
+  FolderOpen,
+  FileText,
+  Folder,
+  Hand,
+  Shield,
+  HeartPulse,
+  ClipboardList,
+  Microscope,
+  Stethoscope,
+  Thermometer,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 
@@ -21,11 +33,18 @@ interface BinderCardProps {
   onClick: () => void
 }
 
-// Map icon names to Lucide icons
+// Map icon names to Lucide icons (must match PRESET_ICONS in binder-dialog.tsx)
 const ICON_MAP: Record<string, React.ElementType> = {
   folder: Folder,
   "folder-open": FolderOpen,
   file: FileText,
+  hand: Hand,
+  shield: Shield,
+  "heart-pulse": HeartPulse,
+  "clipboard-list": ClipboardList,
+  microscope: Microscope,
+  stethoscope: Stethoscope,
+  thermometer: Thermometer,
 }
 
 export function BinderCard({ binder, onClick }: BinderCardProps) {

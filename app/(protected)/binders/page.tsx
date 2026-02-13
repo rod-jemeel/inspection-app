@@ -41,7 +41,7 @@ export default async function BindersPage({
     <Suspense
       fallback={
         <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-muted border-t-primary" />
+          <div className="mx-auto h-6 w-6 animate-spin rounded-none border-2 border-muted border-t-primary" />
         </div>
       }
     >

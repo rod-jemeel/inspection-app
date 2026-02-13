@@ -14,9 +14,8 @@ interface Template {
   id: string
   task: string
   description: string | null
-  frequency: "weekly" | "monthly" | "yearly" | "every_3_years"
+  frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years"
   default_due_rule: DueRule | null
-  default_assignee_email: string | null
   active: boolean
   sort_order: number
   created_by: string | null

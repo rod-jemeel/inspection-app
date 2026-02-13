@@ -31,9 +31,8 @@ interface Template {
   id: string
   task: string
   description: string | null
-  frequency: "weekly" | "monthly" | "yearly" | "every_3_years"
+  frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years"
   default_due_rule: DueRule | null
-  default_assignee_email: string | null
   active: boolean
   sort_order: number
   created_by: string | null
@@ -47,14 +46,16 @@ interface Template {
 }
 
 const FREQ_LABELS: Record<string, string> = {
+  daily: "Daily",
   weekly: "Weekly",
   monthly: "Monthly",
+  quarterly: "Quarterly",
   yearly: "Yearly",
   every_3_years: "Every 3 Years",
 }
 
 interface FrequencySectionProps {
-  frequency: "weekly" | "monthly" | "yearly" | "every_3_years"
+  frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years"
   templates: Template[]
   canManage: boolean
   onEdit: (template: Template) => void

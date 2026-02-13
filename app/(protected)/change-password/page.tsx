@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function ChangePasswordPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="mx-auto max-w-md py-10">
       <ChangePasswordForm />
     </div>
   )
