@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     // 1. Fetch all active templates with binder_id
     const { data: templates, error: templatesError } = await supabase
       .from("inspection_templates")
-      .select("id, location_id, frequency, default_assignee_profile_id, binder_id")
+      .select("id, location_id, frequency, default_assignee_profile_id, binder_id, default_due_rule")
       .eq("active", true)
 
     if (templatesError) {
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Generate the next instance
-        const dueDate = calculateNextDueDate(template.frequency)
+        const dueDate = calculateNextDueDate(template.frequency, undefined, template.default_due_rule)
 
         // Determine assignee: template default > binder assignment > null
         const assigneeProfileId =

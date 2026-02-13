@@ -16,9 +16,8 @@ export interface Template {
   location_id: string
   task: string
   description: string | null
-  frequency: "weekly" | "monthly" | "yearly" | "every_3_years"
+  frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years"
   default_assignee_profile_id: string | null
-  default_assignee_email: string | null
   default_due_rule: Record<string, unknown> | null
   active: boolean
   sort_order: number
@@ -39,7 +38,7 @@ async function fetchTemplates(locationId: string, active?: boolean, binderId?: s
     .from("inspection_templates")
     .select(`
       id, location_id, task, description, frequency,
-      default_assignee_profile_id, default_assignee_email, default_due_rule,
+      default_assignee_profile_id, default_due_rule,
       active, sort_order, created_by, updated_by, created_at, updated_at,
       binder_id, form_template_id,
       created_by_profile:profiles!inspection_templates_created_by_profile_fkey(full_name),
@@ -69,7 +68,6 @@ async function fetchTemplates(locationId: string, active?: boolean, binderId?: s
     description: row.description,
     frequency: row.frequency,
     default_assignee_profile_id: row.default_assignee_profile_id,
-    default_assignee_email: row.default_assignee_email,
     default_due_rule: row.default_due_rule,
     active: row.active,
     sort_order: row.sort_order,
@@ -100,7 +98,7 @@ export async function getTemplate(locationId: string, templateId: string) {
     .from("inspection_templates")
     .select(`
       id, location_id, task, description, frequency,
-      default_assignee_profile_id, default_assignee_email, default_due_rule,
+      default_assignee_profile_id, default_due_rule,
       active, sort_order, created_by, updated_by, created_at, updated_at,
       binder_id, form_template_id,
       created_by_profile:profiles!inspection_templates_created_by_profile_fkey(full_name),
@@ -120,7 +118,6 @@ export async function getTemplate(locationId: string, templateId: string) {
     description: row.description,
     frequency: row.frequency,
     default_assignee_profile_id: row.default_assignee_profile_id,
-    default_assignee_email: row.default_assignee_email,
     default_due_rule: row.default_due_rule,
     active: row.active,
     sort_order: row.sort_order,
@@ -136,19 +133,6 @@ export async function getTemplate(locationId: string, templateId: string) {
 }
 
 export async function createTemplate(locationId: string, userId: string, input: CreateTemplateInput) {
-  // If email is provided, try to find matching profile
-  let assigneeProfileId = input.default_assignee_profile_id
-  if (input.default_assignee_email && !assigneeProfileId) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("email", input.default_assignee_email)
-      .single()
-    if (profile) {
-      assigneeProfileId = profile.id
-    }
-  }
-
   // Insert without JOINs to avoid issues with null updated_by
   const { data, error } = await supabase
     .from("inspection_templates")
@@ -156,11 +140,10 @@ export async function createTemplate(locationId: string, userId: string, input: 
       location_id: locationId,
       created_by: userId,
       ...input,
-      default_assignee_profile_id: assigneeProfileId,
     })
     .select(`
       id, location_id, task, description, frequency,
-      default_assignee_profile_id, default_assignee_email, default_due_rule,
+      default_assignee_profile_id, default_due_rule,
       active, sort_order, created_by, updated_by, created_at, updated_at,
       binder_id, form_template_id
     `)
@@ -178,7 +161,6 @@ export async function createTemplate(locationId: string, userId: string, input: 
     description: row.description,
     frequency: row.frequency,
     default_assignee_profile_id: row.default_assignee_profile_id,
-    default_assignee_email: row.default_assignee_email,
     default_due_rule: row.default_due_rule,
     active: row.active,
     sort_order: row.sort_order,
@@ -200,7 +182,6 @@ export async function createTemplate(locationId: string, userId: string, input: 
         template_id: template.id,
         due_at: dueDate.toISOString(),
         assigned_to_profile_id: template.default_assignee_profile_id ?? undefined,
-        assigned_to_email: template.default_assignee_email ?? undefined,
       })
     } catch (instanceError) {
       console.error("Failed to create initial instance for template:", instanceError)
@@ -214,26 +195,6 @@ export async function createTemplate(locationId: string, userId: string, input: 
 export async function updateTemplate(locationId: string, templateId: string, userId: string, input: UpdateTemplateInput) {
   const updates: Record<string, unknown> = { ...input, updated_at: new Date().toISOString(), updated_by: userId }
 
-  // If email is provided, try to find matching profile
-  if (input.default_assignee_email !== undefined) {
-    if (input.default_assignee_email) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("email", input.default_assignee_email)
-        .single()
-      if (profile) {
-        updates.default_assignee_profile_id = profile.id
-      } else {
-        // Clear profile if email doesn't match any registered user
-        updates.default_assignee_profile_id = null
-      }
-    } else {
-      // Clearing the email clears the profile too
-      updates.default_assignee_profile_id = null
-    }
-  }
-
   const { data, error } = await supabase
     .from("inspection_templates")
     .update(updates)
@@ -241,7 +202,7 @@ export async function updateTemplate(locationId: string, templateId: string, use
     .eq("location_id", locationId)
     .select(`
       id, location_id, task, description, frequency,
-      default_assignee_profile_id, default_assignee_email, default_due_rule,
+      default_assignee_profile_id, default_due_rule,
       active, sort_order, created_by, updated_by, created_at, updated_at,
       binder_id, form_template_id,
       created_by_profile:profiles!inspection_templates_created_by_profile_fkey(full_name),
@@ -252,15 +213,13 @@ export async function updateTemplate(locationId: string, templateId: string, use
   if (error || !data) throw new ApiError("NOT_FOUND", "Template not found")
 
   // If default assignee was updated, propagate to pending instances
-  if (input.default_assignee_email !== undefined) {
-    const newEmail = input.default_assignee_email || null
-    const newProfileId = updates.default_assignee_profile_id as string | null
+  if (input.default_assignee_profile_id !== undefined) {
+    const newProfileId = input.default_assignee_profile_id
 
     // Update all pending instances for this template
     await supabase
       .from("inspection_instances")
       .update({
-        assigned_to_email: newEmail,
         assigned_to_profile_id: newProfileId,
       })
       .eq("template_id", templateId)
@@ -277,7 +236,6 @@ export async function updateTemplate(locationId: string, templateId: string, use
     description: row.description,
     frequency: row.frequency,
     default_assignee_profile_id: row.default_assignee_profile_id,
-    default_assignee_email: row.default_assignee_email,
     default_due_rule: row.default_due_rule,
     active: row.active,
     sort_order: row.sort_order,
