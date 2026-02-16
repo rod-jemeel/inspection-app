@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState, useCallback } from "react"
 import { Eraser, Check, ArrowRight } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { trimCanvas } from "@/lib/trim-canvas"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import type SignaturePadType from "signature_pad"
@@ -82,7 +83,10 @@ export function SignaturePad({ onSave, onCancel, disabled, className }: Signatur
     if (!pad || pad.isEmpty() || !signerName.trim()) return
 
     const points = pad.toData()
-    const dataUrl = pad.toDataURL("image/png")
+
+    // Trim whitespace around signature before exporting
+    const trimmed = trimCanvas(canvasRef.current!)
+    const dataUrl = trimmed.toDataURL("image/png")
 
     // Convert data URL to Blob
     const response = await fetch(dataUrl)

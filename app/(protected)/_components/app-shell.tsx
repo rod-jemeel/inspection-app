@@ -39,6 +39,8 @@ const pageTitles: Record<string, string> = {
   "/binders": "Binders",
   "/templates": "Templates",
   "/inspections": "Inspections",
+  "/logs": "Logs",
+  "/logs/narcotic": "Narcotic Log",
   "/invites": "Invites",
   "/settings": "Settings",
   "/change-password": "Change Password",
