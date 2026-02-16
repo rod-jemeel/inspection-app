@@ -72,13 +72,28 @@ export function NarcoticLog({ locationId, initialDate, initialEntry }: NarcoticL
   async function save(newStatus: "draft" | "complete") {
     setSaving(true)
     try {
+      // Fill in computed end counts for any fields the user hasn't manually overridden
+      const rows = data.rows
+      const sum = (key: keyof typeof rows[0]) =>
+        rows.reduce((s, r) => s + ((r[key] as number | null) ?? 0), 0)
+      const bc = data.beginning_count
+      const ec = data.end_count
+      const filledEndCount = {
+        versed: ec.versed ?? (bc.versed !== null ? bc.versed - sum("versed") : null),
+        fentanyl: ec.fentanyl ?? (bc.fentanyl !== null ? bc.fentanyl - sum("fentanyl") : null),
+        drug3: ec.drug3 ?? (bc.drug3 !== null ? bc.drug3 - sum("drug3") : null),
+        versed_total_waste: ec.versed_total_waste ?? (sum("versed_waste") || null),
+        fentanyl_total_waste: ec.fentanyl_total_waste ?? (sum("fentanyl_waste") || null),
+        drug3_total_waste: ec.drug3_total_waste ?? (sum("drug3_waste") || null),
+      }
+
       const res = await fetch(`/api/locations/${locationId}/logs`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           log_type: "narcotic_log",
           log_date: date,
-          data,
+          data: { ...data, end_count: filledEndCount },
           status: newStatus,
         }),
       })

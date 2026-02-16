@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import { Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -92,6 +93,40 @@ export function NarcoticTable({ data, onChange, locationId, disabled, date, onNa
 
   function numVal(v: number | null): string {
     return v === null ? "" : String(v)
+  }
+
+  // Auto-calculate end counts from beginning count - patient row usage
+  // and total waste from sum of patient row waste columns
+  const computed = useMemo(() => {
+    const sumUsed = (key: keyof NarcoticRow) =>
+      data.rows.reduce((sum, r) => sum + ((r[key] as number | null) ?? 0), 0)
+
+    const versedUsed = sumUsed("versed")
+    const fentanylUsed = sumUsed("fentanyl")
+    const drug3Used = sumUsed("drug3")
+
+    return {
+      versed: data.beginning_count.versed !== null ? data.beginning_count.versed - versedUsed : null,
+      fentanyl: data.beginning_count.fentanyl !== null ? data.beginning_count.fentanyl - fentanylUsed : null,
+      drug3: data.beginning_count.drug3 !== null ? data.beginning_count.drug3 - drug3Used : null,
+      versed_total_waste: sumUsed("versed_waste") || null,
+      fentanyl_total_waste: sumUsed("fentanyl_waste") || null,
+      drug3_total_waste: sumUsed("drug3_waste") || null,
+    }
+  }, [data.rows, data.beginning_count])
+
+  // Show computed value if user hasn't manually overridden, otherwise show their override
+  function endVal(field: keyof typeof computed): string {
+    const endKey = field as keyof typeof data.end_count
+    const manual = data.end_count[endKey]
+    const calc = computed[field]
+    // If user has manually set a value, show that; otherwise show computed
+    return manual !== null ? String(manual) : calc !== null ? String(calc) : ""
+  }
+
+  function handleEndChange(field: keyof typeof data.end_count, raw: string) {
+    const val = parseNum(raw)
+    updateField("end_count", { ...data.end_count, [field]: val })
   }
 
   return (
@@ -354,22 +389,22 @@ export function NarcoticTable({ data, onChange, locationId, disabled, date, onNa
           <tr>
             <td className={cn(HDR, "sticky left-0 z-10 bg-muted/30 text-left")}>End Count:</td>
             <td className={cn(CELL)}>
-              <Input type="number" value={numVal(data.end_count.versed)} onChange={(e) => updateField("end_count", { ...data.end_count, versed: parseNum(e.target.value) })} disabled={disabled} className={NUM} />
+              <Input type="number" value={endVal("versed")} onChange={(e) => handleEndChange("versed", e.target.value)} disabled={disabled} className={cn(NUM, data.end_count.versed === null && computed.versed !== null && "text-muted-foreground")} placeholder={numVal(computed.versed)} />
             </td>
             <td className={cn(CELL)}>
-              <Input type="number" value={numVal(data.end_count.versed_total_waste)} onChange={(e) => updateField("end_count", { ...data.end_count, versed_total_waste: parseNum(e.target.value) })} disabled={disabled} className={NUM} />
+              <Input type="number" value={endVal("versed_total_waste")} onChange={(e) => handleEndChange("versed_total_waste", e.target.value)} disabled={disabled} className={cn(NUM, data.end_count.versed_total_waste === null && computed.versed_total_waste !== null && "text-muted-foreground")} placeholder={numVal(computed.versed_total_waste)} />
             </td>
             <td className={cn(CELL)}>
-              <Input type="number" value={numVal(data.end_count.fentanyl)} onChange={(e) => updateField("end_count", { ...data.end_count, fentanyl: parseNum(e.target.value) })} disabled={disabled} className={NUM} />
+              <Input type="number" value={endVal("fentanyl")} onChange={(e) => handleEndChange("fentanyl", e.target.value)} disabled={disabled} className={cn(NUM, data.end_count.fentanyl === null && computed.fentanyl !== null && "text-muted-foreground")} placeholder={numVal(computed.fentanyl)} />
             </td>
             <td className={cn(CELL)}>
-              <Input type="number" value={numVal(data.end_count.fentanyl_total_waste)} onChange={(e) => updateField("end_count", { ...data.end_count, fentanyl_total_waste: parseNum(e.target.value) })} disabled={disabled} className={NUM} />
+              <Input type="number" value={endVal("fentanyl_total_waste")} onChange={(e) => handleEndChange("fentanyl_total_waste", e.target.value)} disabled={disabled} className={cn(NUM, data.end_count.fentanyl_total_waste === null && computed.fentanyl_total_waste !== null && "text-muted-foreground")} placeholder={numVal(computed.fentanyl_total_waste)} />
             </td>
             <td className={cn(CELL)}>
-              <Input type="number" value={numVal(data.end_count.drug3)} onChange={(e) => updateField("end_count", { ...data.end_count, drug3: parseNum(e.target.value) })} disabled={disabled} className={NUM} />
+              <Input type="number" value={endVal("drug3")} onChange={(e) => handleEndChange("drug3", e.target.value)} disabled={disabled} className={cn(NUM, data.end_count.drug3 === null && computed.drug3 !== null && "text-muted-foreground")} placeholder={numVal(computed.drug3)} />
             </td>
             <td className={cn(CELL)}>
-              <Input type="number" value={numVal(data.end_count.drug3_total_waste)} onChange={(e) => updateField("end_count", { ...data.end_count, drug3_total_waste: parseNum(e.target.value) })} disabled={disabled} className={NUM} />
+              <Input type="number" value={endVal("drug3_total_waste")} onChange={(e) => handleEndChange("drug3_total_waste", e.target.value)} disabled={disabled} className={cn(NUM, data.end_count.drug3_total_waste === null && computed.drug3_total_waste !== null && "text-muted-foreground")} placeholder={numVal(computed.drug3_total_waste)} />
             </td>
             <td className={cn(CELL, "px-2")}>
               <SignatureCell
