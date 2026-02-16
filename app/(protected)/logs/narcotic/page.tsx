@@ -17,7 +17,7 @@ async function NarcoticLogLoader({
   loc: string
   date: string
 }) {
-  await requireLocationAccess(loc)
+  const { profile } = await requireLocationAccess(loc)
 
   const entry = await getLogEntryByDate(loc, "narcotic_log", date)
 
@@ -31,11 +31,14 @@ async function NarcoticLogLoader({
       }
     : null
 
+  const isAdmin = profile.role === "admin" || profile.role === "owner"
+
   return (
     <NarcoticLog
       locationId={loc}
       initialDate={date}
       initialEntry={initialEntry}
+      isAdmin={isAdmin}
     />
   )
 }

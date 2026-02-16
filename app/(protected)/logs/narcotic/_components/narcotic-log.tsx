@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Save, CheckCircle2 } from "lucide-react"
+import { Save, CheckCircle2, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -23,9 +23,10 @@ interface NarcoticLogProps {
   locationId: string
   initialDate: string
   initialEntry: LogEntryData | null
+  isAdmin?: boolean
 }
 
-export function NarcoticLog({ locationId, initialDate, initialEntry }: NarcoticLogProps) {
+export function NarcoticLog({ locationId, initialDate, initialEntry, isAdmin = false }: NarcoticLogProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [saving, setSaving] = useState(false)
@@ -70,6 +71,20 @@ export function NarcoticLog({ locationId, initialDate, initialEntry }: NarcoticL
   // ---------------------------------------------------------------------------
 
   async function save(newStatus: "draft" | "complete") {
+    // Require signatures on non-empty patient rows when submitting as complete
+    if (newStatus === "complete") {
+      const missingRows = data.rows
+        .map((row, i) => ({ row, idx: i + 1 }))
+        .filter(({ row }) => row.patient.trim())
+        .filter(({ row }) => !row.sig1 || !row.sig2)
+
+      if (missingRows.length > 0) {
+        const rowNums = missingRows.map((r) => r.idx).join(", ")
+        alert(`Patient row${missingRows.length > 1 ? "s" : ""} ${rowNums} ${missingRows.length > 1 ? "are" : "is"} missing licensed staff signature(s). Both signatures are required for each patient row.`)
+        return
+      }
+    }
+
     setSaving(true)
     try {
       // Fill in computed end counts for any fields the user hasn't manually overridden
@@ -172,9 +187,20 @@ export function NarcoticLog({ locationId, initialDate, initialEntry }: NarcoticL
               </Button>
             </>
           )}
-          {isDisabled && (
+          {isDisabled && isAdmin && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => save("draft")}
+              disabled={saving}
+            >
+              <RotateCcw className="mr-1 size-3" />
+              {saving ? "Reverting..." : "Revert to Draft"}
+            </Button>
+          )}
+          {isDisabled && !isAdmin && (
             <p className="text-xs text-muted-foreground">
-              This log has been submitted as complete. To edit, an admin must revert the status.
+              This log has been submitted as complete. Contact an admin to revert.
             </p>
           )}
         </div>
