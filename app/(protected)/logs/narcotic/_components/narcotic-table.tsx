@@ -217,27 +217,10 @@ export function NarcoticTable({ data, onChange, locationId, disabled, date, onNa
                 </Popover>
               </div>
             </td>
-            <td className={cn(B, "bg-background px-2 py-2 align-top")}>
-              <span className={cn(SIG_LABEL, "mb-1 block text-center text-muted-foreground")}>
-                Licensed Staff<br />Signature
+            <td colSpan={2} className={cn(B, "bg-background px-2 py-2 text-center")}>
+              <span className={cn(SIG_LABEL, "text-muted-foreground")}>
+                Licensed Staff Signature
               </span>
-              <SignatureCell
-                value={data.header_sig1}
-                onChange={(_p, b) => updateField("header_sig1", b)}
-                locationId={locationId}
-                disabled={disabled}
-              />
-            </td>
-            <td className={cn(B, "bg-background px-2 py-2 align-top")}>
-              <span className={cn(SIG_LABEL, "mb-1 block text-center text-muted-foreground")}>
-                Licensed Staff<br />Signature
-              </span>
-              <SignatureCell
-                value={data.header_sig2}
-                onChange={(_p, b) => updateField("header_sig2", b)}
-                locationId={locationId}
-                disabled={disabled}
-              />
             </td>
           </tr>
 
@@ -258,8 +241,22 @@ export function NarcoticTable({ data, onChange, locationId, disabled, date, onNa
               <Input type="number" value={numVal(data.beginning_count.drug3)} onChange={(e) => updateField("beginning_count", { ...data.beginning_count, drug3: parseNum(e.target.value) })} disabled={disabled} className={NUM} />
             </td>
             <td className={cn(CELL, GREY)} />
-            <td className={cn(CELL, GREY)} />
-            <td className={cn(CELL, GREY)} />
+            <td className={cn(CELL, "px-2")}>
+              <SignatureCell
+                value={data.header_sig1}
+                onChange={(_p, b) => updateField("header_sig1", b)}
+                locationId={locationId}
+                disabled={disabled}
+              />
+            </td>
+            <td className={cn(CELL, "px-2")}>
+              <SignatureCell
+                value={data.header_sig2}
+                onChange={(_p, b) => updateField("header_sig2", b)}
+                locationId={locationId}
+                disabled={disabled}
+              />
+            </td>
           </tr>
 
           {/* ================================================================
