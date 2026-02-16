@@ -838,7 +838,7 @@ export function FormRenderer({
                     <img
                       src={signaturePreview}
                       alt="Signature"
-                      className="h-8 w-20 object-contain"
+                      className="h-12 w-32 object-contain"
                     />
                   ) : (
                     <PenLine className="size-5" />

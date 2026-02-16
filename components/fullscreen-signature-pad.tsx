@@ -5,6 +5,7 @@ import { X, Eraser, Check, Undo2, ArrowUp, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import { trimCanvas } from "@/lib/trim-canvas"
 import type SignaturePadType from "signature_pad"
 
 interface FullscreenSignaturePadProps {
@@ -163,7 +164,10 @@ export function FullscreenSignaturePad({
     if (!pad || pad.isEmpty() || !signerName.trim()) return
 
     const points = pad.toData()
-    const dataUrl = pad.toDataURL("image/png")
+
+    // Trim whitespace around signature before exporting
+    const trimmed = trimCanvas(canvasRef.current!)
+    const dataUrl = trimmed.toDataURL("image/png")
 
     const response = await fetch(dataUrl)
     const blob = await response.blob()
