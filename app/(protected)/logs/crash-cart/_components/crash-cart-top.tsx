@@ -1,9 +1,11 @@
 "use client";
 
+import { UserPen } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { TOP_OF_CART_ITEMS } from "@/lib/validations/log-entry";
 import { SignatureCell } from "../../narcotic/_components/signature-cell";
+import { useMySignature } from "@/hooks/use-my-signature";
 import { cn } from "@/lib/utils";
 import type { CrashCartLogData } from "@/lib/validations/log-entry";
 
@@ -38,6 +40,7 @@ export function CrashCartTop({
   disabled,
   isDraft,
 }: CrashCartTopProps) {
+  const { profile: myProfile } = useMySignature();
   // -- Toggle a top-of-cart checkbox -----------------------------------------
 
   function toggleItem(key: string) {
@@ -50,13 +53,12 @@ export function CrashCartTop({
 
   // -- Update a signature entry ----------------------------------------------
 
-  function updateSignature(
+  function updateSignatureFields(
     index: number,
-    field: "name" | "signature" | "initials",
-    value: string | null,
+    fields: Partial<{ name: string; signature: string | null; initials: string }>,
   ) {
     const next = [...data.signatures];
-    next[index] = { ...next[index], [field]: value ?? "" };
+    next[index] = { ...next[index], ...fields };
     onChange({ ...data, signatures: next });
   }
 
@@ -115,41 +117,87 @@ export function CrashCartTop({
                     <td className={cn(CELL, "text-center text-xs font-medium")}>
                       {idx + 1}
                     </td>
+                    {/* Name cell — editable input when empty, read-only span when filled; UserPen to apply profile */}
                     <td className={CELL}>
-                      <Input
-                        type="text"
-                        value={data.signatures[idx]?.name ?? ""}
-                        onChange={(e) =>
-                          updateSignature(idx, "name", e.target.value)
-                        }
-                        disabled={disabled}
-                        aria-label={`Signature ${idx + 1} name`}
-                        className="h-8 w-full border-0 bg-transparent text-xs shadow-none focus-visible:ring-1 focus-visible:ring-ring"
-                        placeholder="Name"
-                      />
+                      <div className="flex items-center gap-1">
+                        {data.signatures[idx]?.name && !disabled ? (
+                          <span
+                            className="flex-1 truncate text-xs leading-7 min-w-0 cursor-default px-0.5"
+                            title={data.signatures[idx].name}
+                          >
+                            {data.signatures[idx].name}
+                          </span>
+                        ) : (
+                          <Input
+                            type="text"
+                            value={data.signatures[idx]?.name ?? ""}
+                            onChange={(e) =>
+                              updateSignatureFields(idx, { name: e.target.value })
+                            }
+                            disabled={disabled}
+                            placeholder="Name"
+                            className="h-7 flex-1 min-w-0 text-xs border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-ring"
+                          />
+                        )}
+                        {myProfile && !disabled && (
+                          <button
+                            type="button"
+                            title="Apply my name & initials"
+                            onClick={() =>
+                              updateSignatureFields(idx, {
+                                name: myProfile.name,
+                                initials: myProfile.default_initials ?? "",
+                              })
+                            }
+                            className="shrink-0 flex items-center justify-center size-5 rounded-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation"
+                            tabIndex={-1}
+                          >
+                            <UserPen className="size-3" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                     <td className={CELL}>
                       <SignatureCell
                         value={data.signatures[idx]?.signature ?? null}
                         onChange={(_storagePath, base64) =>
-                          updateSignature(idx, "signature", base64)
+                          updateSignatureFields(idx, { signature: base64 })
                         }
                         locationId={locationId}
                         disabled={disabled}
+                        defaultSignerName={myProfile?.name}
+                        hideSignerName
+                        onNameChange={(name) => {
+                          if (name) {
+                            updateSignatureFields(idx, {
+                              name,
+                              initials: myProfile?.default_initials ?? "",
+                            });
+                          } else {
+                            updateSignatureFields(idx, { name: "", initials: "" });
+                          }
+                        }}
                       />
                     </td>
+                    {/* Initials cell — editable input when empty, read-only span when filled */}
                     <td className={CELL}>
-                      <Input
-                        type="text"
-                        value={data.signatures[idx]?.initials ?? ""}
-                        onChange={(e) =>
-                          updateSignature(idx, "initials", e.target.value)
-                        }
-                        disabled={disabled}
-                        aria-label={`Signature ${idx + 1} initials`}
-                        className="h-8 w-full border-0 bg-transparent text-center text-xs shadow-none focus-visible:ring-1 focus-visible:ring-ring"
-                        placeholder="Init."
-                      />
+                      {data.signatures[idx]?.initials && !disabled ? (
+                        <span className="block w-full text-center text-xs leading-7 cursor-default">
+                          {data.signatures[idx].initials}
+                        </span>
+                      ) : (
+                        <Input
+                          type="text"
+                          value={data.signatures[idx]?.initials ?? ""}
+                          onChange={(e) =>
+                            updateSignatureFields(idx, { initials: e.target.value })
+                          }
+                          disabled={disabled}
+                          maxLength={5}
+                          placeholder="Init."
+                          className="h-7 w-full text-xs text-center border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-ring"
+                        />
+                      )}
                     </td>
                   </tr>
                 );
