@@ -1,15 +1,20 @@
 "use client"
 
-import { Plus, Trash2 } from "lucide-react"
+import { CalendarIcon, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { SignatureCell } from "@/app/(protected)/logs/narcotic/_components/signature-cell"
+import { useMySignature } from "@/hooks/use-my-signature"
 import { cn } from "@/lib/utils"
 import type { CardiacArrestRecordData, CardiacArrestRow } from "@/lib/validations/log-entry"
 
 interface CardiacArrestTableProps {
   data: CardiacArrestRecordData
   onChange: (data: CardiacArrestRecordData) => void
+  locationId: string
   disabled?: boolean
   isDraft?: boolean
 }
@@ -36,7 +41,9 @@ const TXT_SM =
   "h-8 md:h-9 w-full text-xs text-center border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-ring"
 const LBL = `${B} bg-muted/30 px-2 py-1.5 text-xs font-semibold whitespace-nowrap`
 
-export function CardiacArrestTable({ data, onChange, disabled, isDraft }: CardiacArrestTableProps) {
+export function CardiacArrestTable({ data, onChange, locationId, disabled, isDraft }: CardiacArrestTableProps) {
+  const { profile: myProfile } = useMySignature()
+
   // ---------------------------------------------------------------------------
   // Field updaters
   // ---------------------------------------------------------------------------
@@ -57,6 +64,16 @@ export function CardiacArrestTable({ data, onChange, disabled, isDraft }: Cardia
     const rows = [...data.rows]
     rows[index] = { ...rows[index], ...updates }
     onChange({ ...data, rows })
+  }
+
+  function updateSignature(
+    index: number,
+    field: "name" | "signature" | "initials",
+    value: string | null,
+  ) {
+    const sigs = [...data.signatures]
+    sigs[index] = { ...sigs[index], [field]: value ?? "" }
+    onChange({ ...data, signatures: sigs })
   }
 
   function addRow() {
@@ -109,6 +126,7 @@ export function CardiacArrestTable({ data, onChange, disabled, isDraft }: Cardia
             <td className={cn(LBL)} colSpan={2}>Last Observation Time:</td>
             <td className={cn(CELL)} colSpan={1}>
               <Input
+                type="time"
                 value={data.last_observation_time}
                 onChange={(e) => updateField("last_observation_time", e.target.value)}
                 disabled={disabled}
@@ -177,16 +195,40 @@ export function CardiacArrestTable({ data, onChange, disabled, isDraft }: Cardia
             </td>
             <td className={cn(LBL)}>Date:</td>
             <td className={cn(CELL)}>
-              <Input
-                value={data.arrest_date}
-                onChange={(e) => updateField("arrest_date", e.target.value)}
-                disabled={disabled}
-                className={TXT}
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    className={cn(
+                      "flex h-8 md:h-9 w-full items-center justify-center gap-1 text-xs",
+                      !data.arrest_date && "text-muted-foreground",
+                    )}
+                  >
+                    {data.arrest_date ? data.arrest_date : <CalendarIcon className="size-3.5 text-muted-foreground/40" />}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={data.arrest_date ? new Date(data.arrest_date + "T00:00:00") : undefined}
+                    onSelect={(d) => {
+                      if (d) {
+                        const y = d.getFullYear()
+                        const m = String(d.getMonth() + 1).padStart(2, "0")
+                        const day = String(d.getDate()).padStart(2, "0")
+                        updateField("arrest_date", `${y}-${m}-${day}`)
+                      }
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </td>
             <td className={cn(LBL)}>Time:</td>
             <td className={cn(CELL)}>
               <Input
+                type="time"
                 value={data.arrest_time}
                 onChange={(e) => updateField("arrest_time", e.target.value)}
                 disabled={disabled}
@@ -220,6 +262,7 @@ export function CardiacArrestTable({ data, onChange, disabled, isDraft }: Cardia
             <td className={cn(LBL)} colSpan={2}>Time CPR Begun:</td>
             <td className={cn(CELL)} colSpan={1}>
               <Input
+                type="time"
                 value={data.time_cpr_begun}
                 onChange={(e) => updateField("time_cpr_begun", e.target.value)}
                 disabled={disabled}
@@ -280,6 +323,7 @@ export function CardiacArrestTable({ data, onChange, disabled, isDraft }: Cardia
             <td className={cn(LBL)}>Time:</td>
             <td className={cn(CELL)} colSpan={2}>
               <Input
+                type="time"
                 value={data.intubation_time}
                 onChange={(e) => updateField("intubation_time", e.target.value)}
                 disabled={disabled}
@@ -358,6 +402,7 @@ export function CardiacArrestTable({ data, onChange, disabled, isDraft }: Cardia
                 <td className={cn(CELL, isDraft && row.time && "bg-yellow-50")}>
                   <div className="flex items-center gap-0.5">
                     <Input
+                      type="time"
                       value={row.time}
                       onChange={(e) => updateRow(i, { time: e.target.value })}
                       disabled={disabled}
@@ -470,7 +515,35 @@ export function CardiacArrestTable({ data, onChange, disabled, isDraft }: Cardia
               </td>
               <td className={cn(LBL)} colSpan={1}>Date:</td>
               <td className={cn(CELL)} colSpan={1}>
-                <Input value={data.termination_date} onChange={(e) => updateField("termination_date", e.target.value)} disabled={disabled} className={TXT} />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      className={cn(
+                        "flex h-8 md:h-9 w-full items-center justify-center gap-1 text-xs",
+                        !data.termination_date && "text-muted-foreground",
+                      )}
+                    >
+                      {data.termination_date ? data.termination_date : <CalendarIcon className="size-3.5 text-muted-foreground/40" />}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={data.termination_date ? new Date(data.termination_date + "T00:00:00") : undefined}
+                      onSelect={(d) => {
+                        if (d) {
+                          const y = d.getFullYear()
+                          const m = String(d.getMonth() + 1).padStart(2, "0")
+                          const day = String(d.getDate()).padStart(2, "0")
+                          updateField("termination_date", `${y}-${m}-${day}`)
+                        }
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </td>
               <td className={cn(LBL)} colSpan={1}>Patient:</td>
               <td className={cn(CELL)} colSpan={3}>
@@ -495,7 +568,7 @@ export function CardiacArrestTable({ data, onChange, disabled, isDraft }: Cardia
               </td>
               <td className={cn(LBL)} colSpan={1}>Time:</td>
               <td className={cn(CELL)} colSpan={2}>
-                <Input value={data.termination_time} onChange={(e) => updateField("termination_time", e.target.value)} disabled={disabled} className={TXT} />
+                <Input type="time" value={data.termination_time} onChange={(e) => updateField("termination_time", e.target.value)} disabled={disabled} className={TXT} />
               </td>
             </tr>
 
@@ -505,11 +578,10 @@ export function CardiacArrestTable({ data, onChange, disabled, isDraft }: Cardia
               <td className={cn(CELL)} colSpan={5}>
                 <Input value={data.transferred_to} onChange={(e) => updateField("transferred_to", e.target.value)} disabled={disabled} className={TXT} />
               </td>
-              <td className={cn(CELL)} colSpan={1} />
-              <td className={cn(LBL, "text-center")} colSpan={5}>Signatures</td>
+              <td className={cn(LBL, "text-center")} colSpan={6}>Signatures</td>
             </tr>
 
-            {/* Row 3: Neuro Status / Team Leader / Recording RN */}
+            {/* Row 3: Neuro Status / Team Leader & Recording RN */}
             <tr>
               <td className={cn(LBL)} colSpan={1}>Neuro Status on Transfer:</td>
               <td className={cn(CELL)} colSpan={5}>
@@ -517,44 +589,92 @@ export function CardiacArrestTable({ data, onChange, disabled, isDraft }: Cardia
               </td>
               <td className={cn(LBL)} colSpan={1}>Team Leader:</td>
               <td className={cn(CELL)} colSpan={2}>
-                <Input value={data.team_leader} onChange={(e) => updateField("team_leader", e.target.value)} disabled={disabled} className={TXT} />
+                <SignatureCell
+                  value={data.signatures[0]?.signature ?? null}
+                  onChange={(_sp, b64) => updateSignature(0, "signature", b64)}
+                  locationId={locationId}
+                  disabled={disabled}
+                  defaultSignerName={myProfile?.name}
+                  signerName={data.signatures[0]?.name ?? ""}
+                  onNameChange={(name) => updateSignature(0, "name", name)}
+                />
               </td>
               <td className={cn(LBL)} colSpan={1}>Recording RN:</td>
               <td className={cn(CELL)} colSpan={2}>
-                <Input value={data.recording_rn} onChange={(e) => updateField("recording_rn", e.target.value)} disabled={disabled} className={TXT} />
+                <SignatureCell
+                  value={data.signatures[1]?.signature ?? null}
+                  onChange={(_sp, b64) => updateSignature(1, "signature", b64)}
+                  locationId={locationId}
+                  disabled={disabled}
+                  defaultSignerName={myProfile?.name}
+                  signerName={data.signatures[1]?.name ?? ""}
+                  onNameChange={(name) => updateSignature(1, "name", name)}
+                />
               </td>
             </tr>
 
-            {/* Row 4: Time Family Notified / Time MD Notified / Respiratory Care / Other */}
+            {/* Row 4: Time Family Notified / Time MD Notified / Respiratory Care & Other */}
             <tr>
               <td className={cn(LBL)} colSpan={1}>Time Family Notified:</td>
               <td className={cn(CELL)} colSpan={2}>
-                <Input value={data.time_family_notified} onChange={(e) => updateField("time_family_notified", e.target.value)} disabled={disabled} className={TXT} />
+                <Input type="time" value={data.time_family_notified} onChange={(e) => updateField("time_family_notified", e.target.value)} disabled={disabled} className={TXT} />
               </td>
               <td className={cn(LBL)} colSpan={1}>Time Attending MD / Service Notified:</td>
               <td className={cn(CELL)} colSpan={2}>
-                <Input value={data.time_md_notified} onChange={(e) => updateField("time_md_notified", e.target.value)} disabled={disabled} className={TXT} />
+                <Input type="time" value={data.time_md_notified} onChange={(e) => updateField("time_md_notified", e.target.value)} disabled={disabled} className={TXT} />
               </td>
-              <td className={cn(LBL)} colSpan={1}>Respiratory Care Practitioner:</td>
+              <td className={cn(LBL)} colSpan={1}>Resp. Care:</td>
               <td className={cn(CELL)} colSpan={2}>
-                <Input value={data.respiratory_care} onChange={(e) => updateField("respiratory_care", e.target.value)} disabled={disabled} className={TXT} />
+                <SignatureCell
+                  value={data.signatures[2]?.signature ?? null}
+                  onChange={(_sp, b64) => updateSignature(2, "signature", b64)}
+                  locationId={locationId}
+                  disabled={disabled}
+                  defaultSignerName={myProfile?.name}
+                  signerName={data.signatures[2]?.name ?? ""}
+                  onNameChange={(name) => updateSignature(2, "name", name)}
+                />
               </td>
               <td className={cn(LBL)} colSpan={1}>Other:</td>
               <td className={cn(CELL)} colSpan={2}>
-                <Input value={data.other_sig_1} onChange={(e) => updateField("other_sig_1", e.target.value)} disabled={disabled} className={TXT} />
+                <SignatureCell
+                  value={data.signatures[4]?.signature ?? null}
+                  onChange={(_sp, b64) => updateSignature(4, "signature", b64)}
+                  locationId={locationId}
+                  disabled={disabled}
+                  defaultSignerName={myProfile?.name}
+                  signerName={data.signatures[4]?.name ?? ""}
+                  onNameChange={(name) => updateSignature(4, "name", name)}
+                />
               </td>
             </tr>
 
-            {/* Row 5: Medication RN / Other */}
+            {/* Row 5: Medication RN & Other */}
             <tr>
               <td className={cn(CELL)} colSpan={6} />
               <td className={cn(LBL)} colSpan={1}>Medication RN:</td>
               <td className={cn(CELL)} colSpan={2}>
-                <Input value={data.medication_rn} onChange={(e) => updateField("medication_rn", e.target.value)} disabled={disabled} className={TXT} />
+                <SignatureCell
+                  value={data.signatures[3]?.signature ?? null}
+                  onChange={(_sp, b64) => updateSignature(3, "signature", b64)}
+                  locationId={locationId}
+                  disabled={disabled}
+                  defaultSignerName={myProfile?.name}
+                  signerName={data.signatures[3]?.name ?? ""}
+                  onNameChange={(name) => updateSignature(3, "name", name)}
+                />
               </td>
               <td className={cn(LBL)} colSpan={1}>Other:</td>
               <td className={cn(CELL)} colSpan={2}>
-                <Input value={data.other_sig_2} onChange={(e) => updateField("other_sig_2", e.target.value)} disabled={disabled} className={TXT} />
+                <SignatureCell
+                  value={data.signatures[5]?.signature ?? null}
+                  onChange={(_sp, b64) => updateSignature(5, "signature", b64)}
+                  locationId={locationId}
+                  disabled={disabled}
+                  defaultSignerName={myProfile?.name}
+                  signerName={data.signatures[5]?.name ?? ""}
+                  onNameChange={(name) => updateSignature(5, "name", name)}
+                />
               </td>
             </tr>
           </tbody>

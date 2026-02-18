@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Save, CheckCircle2, RotateCcw } from "lucide-react"
+import { Save, CheckCircle2, RotateCcw, ChevronLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { CardiacArrestTable } from "./cardiac-arrest-table"
@@ -20,6 +20,8 @@ interface CardiacArrestLogProps {
   locationId: string
   initialEntry: EntryData | null
   initialDate: string
+  /** YYYY-MM — used for the back button and post-save redirects */
+  backMonth?: string
   isAdmin?: boolean
 }
 
@@ -27,6 +29,7 @@ export function CardiacArrestLog({
   locationId,
   initialEntry,
   initialDate,
+  backMonth,
   isAdmin = false,
 }: CardiacArrestLogProps) {
   const router = useRouter()
@@ -34,7 +37,27 @@ export function CardiacArrestLog({
   const [saving, setSaving] = useState(false)
 
   const [data, setData] = useState<CardiacArrestRecordData>(() => {
-    if (initialEntry?.data) return initialEntry.data
+    if (initialEntry?.data) {
+      // Backward compat: migrate old flat signature fields to signatures array
+      const d = { ...initialEntry.data } as CardiacArrestRecordData & Record<string, unknown>
+      if (d.team_leader !== undefined && !d.signatures) {
+        d.signatures = [
+          { role: "Team Leader", name: String(d.team_leader ?? ""), signature: null, initials: "" },
+          { role: "Recording RN", name: String(d.recording_rn ?? ""), signature: null, initials: "" },
+          { role: "Respiratory Care Practitioner", name: String(d.respiratory_care ?? ""), signature: null, initials: "" },
+          { role: "Medication RN", name: String(d.medication_rn ?? ""), signature: null, initials: "" },
+          { role: "Other", name: String(d.other_sig_1 ?? ""), signature: null, initials: "" },
+          { role: "Other", name: String(d.other_sig_2 ?? ""), signature: null, initials: "" },
+        ]
+        delete d.team_leader
+        delete d.recording_rn
+        delete d.respiratory_care
+        delete d.medication_rn
+        delete d.other_sig_1
+        delete d.other_sig_2
+      }
+      return d as CardiacArrestRecordData
+    }
     const empty = emptyCardiacArrestRecordData()
     // Pre-fill arrest_date with today
     empty.arrest_date = initialDate
@@ -78,9 +101,10 @@ export function CardiacArrestLog({
 
       // After saving a new entry, redirect to include the ID in the URL
       const result = await res.json()
+      const monthParam = backMonth ? `&month=${backMonth}` : ""
       if (!entryId && result?.id) {
         startTransition(() => {
-          router.replace(`/logs/cardiac-arrest?loc=${locationId}&id=${result.id}`)
+          router.replace(`/logs/cardiac-arrest?loc=${locationId}&id=${result.id}${monthParam}`)
         })
       } else {
         startTransition(() => {
@@ -96,6 +120,23 @@ export function CardiacArrestLog({
 
   return (
     <div className="space-y-4 overflow-hidden max-w-full">
+      {/* Back button */}
+      {backMonth && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 -ml-2 text-xs text-muted-foreground"
+          onClick={() =>
+            startTransition(() => {
+              router.push(`/logs/cardiac-arrest?loc=${locationId}&month=${backMonth}`)
+            })
+          }
+        >
+          <ChevronLeft className="size-3.5 mr-0.5" />
+          Back to Records
+        </Button>
+      )}
+
       {/* Header */}
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-semibold">Cardiac Arrest Record</h3>
@@ -111,6 +152,7 @@ export function CardiacArrestLog({
       <CardiacArrestTable
         data={data}
         onChange={handleDataChange}
+        locationId={locationId}
         disabled={isDisabled}
         isDraft={status === "draft"}
       />
