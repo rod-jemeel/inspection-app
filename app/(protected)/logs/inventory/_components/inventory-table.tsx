@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useMySignature } from "@/hooks/use-my-signature";
 import { Plus, Trash2, CalendarIcon, Lock } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
@@ -106,6 +107,7 @@ export function InventoryTable({
   onDateRangeChange,
   isDraft,
 }: InventoryTableProps) {
+  const { profile: myProfile } = useMySignature()
   const vialVolume = useMemo(
     () => parseVialVolume(data.size_qty),
     [data.size_qty],
@@ -433,6 +435,7 @@ export function InventoryTable({
                     locationId={locationId}
                     disabled={isLocked}
                     className="h-10"
+                    defaultSignerName={myProfile?.name}
                   />
                 </td>
 
@@ -450,6 +453,7 @@ export function InventoryTable({
                     locationId={locationId}
                     disabled={isLocked}
                     className="h-10"
+                    defaultSignerName={myProfile?.name}
                   />
                 </td>
 
