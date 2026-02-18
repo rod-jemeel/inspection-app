@@ -52,9 +52,9 @@ export async function POST(
       }
     }
 
-    // Upload row-level signatures
+    // Upload row-level signatures for narcotic log
     const rows = data.rows as Array<Record<string, unknown>> | undefined
-    if (rows) {
+    if (rows && parsed.data.log_type === "narcotic_log") {
       for (const row of rows) {
         if (typeof row.sig1 === "string" && row.sig1.startsWith("data:image/")) {
           row.sig1 = await uploadFormImage(
@@ -69,6 +69,29 @@ export async function POST(
             `log-${parsed.data.log_type}`,
             profile.id,
             row.sig2,
+            "signature"
+          )
+        }
+      }
+    }
+
+    // Upload inventory row-level signatures
+    const invRows = data.rows as Array<Record<string, unknown>> | undefined
+    if (invRows && parsed.data.log_type === "controlled_substance_inventory") {
+      for (const row of invRows) {
+        if (typeof row.rn_sig === "string" && row.rn_sig.startsWith("data:image/")) {
+          row.rn_sig = await uploadFormImage(
+            `log-${parsed.data.log_type}`,
+            profile.id,
+            row.rn_sig,
+            "signature"
+          )
+        }
+        if (typeof row.witness_sig === "string" && row.witness_sig.startsWith("data:image/")) {
+          row.witness_sig = await uploadFormImage(
+            `log-${parsed.data.log_type}`,
+            profile.id,
+            row.witness_sig,
             "signature"
           )
         }

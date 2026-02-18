@@ -15,6 +15,7 @@ export interface LogEntry {
   id: string
   location_id: string
   log_type: string
+  log_key: string
   log_date: string
   data: Record<string, unknown>
   submitted_by_profile_id: string
@@ -43,18 +44,60 @@ export async function upsertLogEntry(
       {
         location_id: locationId,
         log_type: input.log_type,
+        log_key: input.log_key,
         log_date: input.log_date,
         data: validatedData as Record<string, unknown>,
         submitted_by_profile_id: profileId,
         status: input.status,
       },
-      { onConflict: "location_id,log_type,log_date" }
+      { onConflict: "location_id,log_type,log_key,log_date" }
     )
     .select()
     .single()
 
   if (error) throw new ApiError("INTERNAL_ERROR", error.message)
   return data as LogEntry
+}
+
+// ---------------------------------------------------------------------------
+// Get single by key (for perpetual logs)
+// ---------------------------------------------------------------------------
+
+export async function getLogEntryByKey(
+  locationId: string,
+  logType: string,
+  logKey: string
+): Promise<LogEntry | null> {
+  const { data, error } = await supabase
+    .from("log_entries")
+    .select(`
+      *,
+      submitted_by:profiles!log_entries_submitted_by_profile_id_fkey(full_name)
+    `)
+    .eq("location_id", locationId)
+    .eq("log_type", logType)
+    .eq("log_key", logKey)
+    .maybeSingle()
+
+  if (error) throw new ApiError("INTERNAL_ERROR", error.message)
+  if (!data) return null
+
+  const row = data as Record<string, unknown>
+  const submittedBy = row.submitted_by as { full_name: string } | null
+
+  return {
+    id: row.id as string,
+    location_id: row.location_id as string,
+    log_type: row.log_type as string,
+    log_key: row.log_key as string,
+    log_date: row.log_date as string,
+    data: row.data as Record<string, unknown>,
+    submitted_by_profile_id: row.submitted_by_profile_id as string,
+    status: row.status as "draft" | "complete",
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string,
+    submitted_by_name: submittedBy?.full_name ?? null,
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -87,6 +130,7 @@ export async function getLogEntryByDate(
     id: row.id as string,
     location_id: row.location_id as string,
     log_type: row.log_type as string,
+    log_key: row.log_key as string,
     log_date: row.log_date as string,
     data: row.data as Record<string, unknown>,
     submitted_by_profile_id: row.submitted_by_profile_id as string,
@@ -124,6 +168,7 @@ export async function getLogEntry(
     id: row.id as string,
     location_id: row.location_id as string,
     log_type: row.log_type as string,
+    log_key: row.log_key as string,
     log_date: row.log_date as string,
     data: row.data as Record<string, unknown>,
     submitted_by_profile_id: row.submitted_by_profile_id as string,
@@ -156,6 +201,7 @@ export async function listLogEntries(
   if (filters.from) query = query.gte("log_date", filters.from)
   if (filters.to) query = query.lte("log_date", filters.to)
   if (filters.status) query = query.eq("status", filters.status)
+  if (filters.log_key !== undefined) query = query.eq("log_key", filters.log_key)
 
   const { data, error, count } = await query
   if (error) throw new ApiError("INTERNAL_ERROR", error.message)
@@ -166,6 +212,7 @@ export async function listLogEntries(
       id: row.id as string,
       location_id: row.location_id as string,
       log_type: row.log_type as string,
+      log_key: row.log_key as string,
       log_date: row.log_date as string,
       data: row.data as Record<string, unknown>,
       submitted_by_profile_id: row.submitted_by_profile_id as string,
