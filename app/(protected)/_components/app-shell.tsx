@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect } from "react"
-import { usePathname, useRouter } from "next/navigation"
+import { useEffect, useMemo } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { parseAsString, useQueryState } from "nuqs"
 
 import { AppSidebar } from "@/components/app-sidebar"
@@ -41,6 +41,12 @@ const pageTitles: Record<string, string> = {
   "/inspections": "Inspections",
   "/logs": "Logs",
   "/logs/narcotic": "Narcotic Log",
+  "/logs/inventory": "Controlled Substances Inventory",
+  "/logs/crash-cart": "Crash Cart Monthly Checklist",
+  "/logs/crash-cart-daily": "Crash Cart Daily Checklist",
+  "/logs/narcotic-signout": "Narcotic Sign-out",
+  "/logs/narcotic-count": "Daily Narcotic Count",
+  "/logs/cardiac-arrest": "Cardiac Arrest Record",
   "/invites": "Invites",
   "/settings": "Settings",
   "/change-password": "Change Password",
@@ -75,7 +81,39 @@ export function AppShell({ user, locations, binders, children, mustChangePasswor
     setLocationId(id)
   }
 
-  const pageTitle = pageTitles[pathname] ?? "Inspection Tracker"
+  const searchParams = useSearchParams()
+
+  // Build hierarchical breadcrumb segments from pathname
+  const breadcrumbs = useMemo(() => {
+    const parts = pathname.split("/").filter(Boolean)
+    const segments: { label: string; href: string }[] = []
+    let currentPath = ""
+    for (const part of parts) {
+      currentPath += `/${part}`
+      const title = pageTitles[currentPath]
+      if (title) {
+        segments.push({ label: title, href: currentPath })
+      }
+    }
+    // Fallback: if no segments matched, use pathname as-is
+    if (segments.length === 0) {
+      segments.push({ label: "Inspection Tracker", href: pathname })
+    }
+    return segments
+  }, [pathname])
+
+  // Extra context from search params (e.g., drug name on inventory page)
+  const drugParam = searchParams.get("drug")
+  const drugLabel = useMemo(() => {
+    if (!drugParam || !pathname.startsWith("/logs/inventory")) return null
+    // Check preset drugs
+    const presets: Record<string, string> = {
+      versed: "Versed (Midazolam)",
+      fentanyl: "Fentanyl Citrate",
+      ephedrine: "Ephedrine Sulfate",
+    }
+    return presets[drugParam] ?? drugParam.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+  }, [drugParam, pathname])
 
   return (
     <SidebarProvider>
@@ -102,15 +140,37 @@ export function AppShell({ user, locations, binders, children, mustChangePasswor
                     Home
                   </BreadcrumbLink>
                 </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>{pageTitle}</BreadcrumbPage>
-                </BreadcrumbItem>
+                {breadcrumbs.map((segment, i) => {
+                  const isLast = i === breadcrumbs.length - 1 && !drugLabel
+                  const locQuery = locationId ? `?loc=${locationId}` : ""
+                  return (
+                    <span key={segment.href} className="contents">
+                      <BreadcrumbSeparator className="hidden md:block" />
+                      <BreadcrumbItem className={!isLast ? "hidden md:block" : ""}>
+                        {isLast ? (
+                          <BreadcrumbPage>{segment.label}</BreadcrumbPage>
+                        ) : (
+                          <BreadcrumbLink href={`${segment.href}${locQuery}`}>
+                            {segment.label}
+                          </BreadcrumbLink>
+                        )}
+                      </BreadcrumbItem>
+                    </span>
+                  )
+                })}
+                {drugLabel && (
+                  <span className="contents">
+                    <BreadcrumbSeparator className="hidden md:block" />
+                    <BreadcrumbItem>
+                      <BreadcrumbPage>{drugLabel}</BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </span>
+                )}
               </BreadcrumbList>
             </Breadcrumb>
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        <div className="flex min-w-0 flex-1 flex-col gap-4 p-4 pt-0">
           {children}
         </div>
       </SidebarInset>
