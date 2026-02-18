@@ -27,6 +27,8 @@ export interface TeamMember {
   can_view_all_responses: boolean
   can_export_reports: boolean
   can_configure_integrations: boolean
+  signature_image: string | null
+  default_initials: string | null
 }
 
 export async function getLocation(locationId: string): Promise<Location> {
@@ -74,7 +76,9 @@ export async function getTeamMembers(locationId: string): Promise<TeamMember[]> 
         can_manage_forms,
         can_view_all_responses,
         can_export_reports,
-        can_configure_integrations
+        can_configure_integrations,
+        signature_image,
+        default_initials
       )
     `)
     .eq("location_id", locationId)
@@ -94,6 +98,8 @@ export async function getTeamMembers(locationId: string): Promise<TeamMember[]> 
     can_view_all_responses: row.profiles.can_view_all_responses ?? false,
     can_export_reports: row.profiles.can_export_reports ?? false,
     can_configure_integrations: row.profiles.can_configure_integrations ?? false,
+    signature_image: row.profiles.signature_image,
+    default_initials: row.profiles.default_initials,
   }))
 }
 
