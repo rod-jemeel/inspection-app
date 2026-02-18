@@ -644,12 +644,19 @@ export const cardiacArrestRecordDataSchema = z.object({
   neuro_status: z.string().default(""),
   time_family_notified: z.string().default(""),
   time_md_notified: z.string().default(""),
-  team_leader: z.string().default(""),
-  recording_rn: z.string().default(""),
-  respiratory_care: z.string().default(""),
-  medication_rn: z.string().default(""),
-  other_sig_1: z.string().default(""),
-  other_sig_2: z.string().default(""),
+  signatures: z.array(z.object({
+    role: z.string().default(""),
+    name: z.string().default(""),
+    signature: z.string().nullable().default(null),
+    initials: z.string().default(""),
+  })).default([
+    { role: "Team Leader", name: "", signature: null, initials: "" },
+    { role: "Recording RN", name: "", signature: null, initials: "" },
+    { role: "Respiratory Care Practitioner", name: "", signature: null, initials: "" },
+    { role: "Medication RN", name: "", signature: null, initials: "" },
+    { role: "Other", name: "", signature: null, initials: "" },
+    { role: "Other", name: "", signature: null, initials: "" },
+  ]),
 })
 
 export type CardiacArrestRecordData = z.infer<typeof cardiacArrestRecordDataSchema>
@@ -683,6 +690,18 @@ const crashCartDailySigSchema = z.object({
   initials: z.string().default(""),
 })
 
+/** Audit record stored alongside each per-day initial stamp */
+const initialsAuditSchema = z.object({
+  /** Base64 PNG of the drawn signature */
+  sig: z.string(),
+  /** ISO 8601 timestamp of when the signature was drawn */
+  signed_at: z.string(),
+  /** Full name entered in the signature pad */
+  signer_name: z.string().default(""),
+})
+
+export type InitialsAudit = z.infer<typeof initialsAuditSchema>
+
 export const crashCartDailyLogDataSchema = z.object({
   year: z.number(),
   month: z.string().default(""),
@@ -693,6 +712,8 @@ export const crashCartDailyLogDataSchema = z.object({
     z.record(z.string(), z.string().default("")).default({}),
   ]).default([{}, {}, {}]),
   initials: z.record(z.string(), z.string().default("")).default({}),
+  /** Audit trail: per-day backing signature + timestamp for each stamped initial */
+  initials_signatures: z.record(z.string(), initialsAuditSchema.nullable()).default({}),
   notes: z.record(z.string(), z.string().default("")).default({}),
   lock_changes: z.array(lockChangeSchema).default(
     Array.from({ length: 4 }, () => ({ date_reason: "", new_lock: "" }))
@@ -712,6 +733,7 @@ export function emptyCrashCartDailyLogData(year?: number, month?: string): Crash
     checks: {},
     lock_digits: [{}, {}, {}],
     initials: {},
+    initials_signatures: {},
     notes: {},
     lock_changes: Array.from({ length: 4 }, () => ({ date_reason: "", new_lock: "" })),
     signatures: Array.from({ length: 4 }, () => ({ name: "", signature: null, initials: "" })),
