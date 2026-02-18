@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useTransition } from "react"
+import { useState, useCallback, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Save, CheckCircle2, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -28,10 +28,11 @@ interface NarcoticLogProps {
 
 export function NarcoticLog({ locationId, initialDate, initialEntry, isAdmin = false }: NarcoticLogProps) {
   const router = useRouter()
-  const [isPending, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
   const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(false)
 
-  const [date] = useState(initialDate)
+  const [currentDate, setCurrentDate] = useState(initialDate)
   const [data, setData] = useState<NarcoticLogData>(
     initialEntry?.data ?? emptyNarcoticLogData()
   )
@@ -39,23 +40,84 @@ export function NarcoticLog({ locationId, initialDate, initialEntry, isAdmin = f
   const [dirty, setDirty] = useState(false)
 
   // ---------------------------------------------------------------------------
-  // Date navigation (passed to table)
+  // Navigation guard - warn before discarding unsaved changes
   // ---------------------------------------------------------------------------
 
-  const navigateDate = useCallback((offset: number) => {
-    const d = new Date(date + "T00:00:00")
-    d.setDate(d.getDate() + offset)
-    const newDate = d.toISOString().split("T")[0]
-    startTransition(() => {
-      router.push(`/logs/narcotic?loc=${locationId}&date=${newDate}`)
-    })
-  }, [date, locationId, router])
+  useEffect(() => {
+    if (!dirty) return
 
-  const goToDate = useCallback((newDate: string) => {
-    startTransition(() => {
-      router.push(`/logs/narcotic?loc=${locationId}&date=${newDate}`)
-    })
-  }, [locationId, router])
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault()
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
+  }, [dirty])
+
+  // ---------------------------------------------------------------------------
+  // Date navigation - client-side fetch, no page reload
+  // ---------------------------------------------------------------------------
+
+  const fetchDateEntry = useCallback(
+    async (newDate: string) => {
+      if (newDate === currentDate) return
+
+      if (dirty) {
+        const confirmed = window.confirm(
+          "You have unsaved changes. Switching dates will discard them. Continue?"
+        )
+        if (!confirmed) return
+      }
+
+      setLoading(true)
+      try {
+        const params = new URLSearchParams({
+          log_type: "narcotic_log",
+          from: newDate,
+          to: newDate,
+        })
+        const res = await fetch(
+          `/api/locations/${locationId}/logs?${params.toString()}`
+        )
+        if (res.ok) {
+          const json = await res.json()
+          const entry = json.entries?.[0] ?? null
+          setData(entry?.data ?? emptyNarcoticLogData())
+          setStatus(entry?.status ?? "draft")
+        } else {
+          setData(emptyNarcoticLogData())
+          setStatus("draft")
+        }
+        setCurrentDate(newDate)
+        setDirty(false)
+        window.history.replaceState(
+          null,
+          "",
+          `/logs/narcotic?loc=${locationId}&date=${newDate}`
+        )
+      } finally {
+        setLoading(false)
+      }
+    },
+    [currentDate, dirty, locationId]
+  )
+
+  const navigateDate = useCallback(
+    (offset: number) => {
+      const d = new Date(currentDate + "T00:00:00")
+      d.setDate(d.getDate() + offset)
+      const newDate = d.toISOString().split("T")[0]
+      fetchDateEntry(newDate)
+    },
+    [currentDate, fetchDateEntry]
+  )
+
+  const goToDate = useCallback(
+    (newDate: string) => {
+      fetchDateEntry(newDate)
+    },
+    [fetchDateEntry]
+  )
 
   // ---------------------------------------------------------------------------
   // Data change
@@ -107,7 +169,7 @@ export function NarcoticLog({ locationId, initialDate, initialEntry, isAdmin = f
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           log_type: "narcotic_log",
-          log_date: date,
+          log_date: currentDate,
           data: { ...data, end_count: filledEndCount },
           status: newStatus,
         }),
@@ -133,15 +195,19 @@ export function NarcoticLog({ locationId, initialDate, initialEntry, isAdmin = f
   const isDisabled = status === "complete"
 
   return (
-    <Tabs defaultValue="fill" className="space-y-4">
+    <Tabs defaultValue="fill" className="space-y-4 overflow-hidden max-w-full">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold">Narcotic Log</h3>
           <Badge variant={status === "complete" ? "default" : "secondary"} className="text-[10px]">
             {status}
           </Badge>
           {dirty && !isDisabled && (
             <span className="text-xs text-amber-600">Unsaved changes</span>
+          )}
+          {loading && (
+            <span className="text-xs text-muted-foreground">Loading...</span>
           )}
         </div>
 
@@ -158,14 +224,15 @@ export function NarcoticLog({ locationId, initialDate, initialEntry, isAdmin = f
           onChange={handleDataChange}
           locationId={locationId}
           disabled={isDisabled}
-          date={date}
+          date={currentDate}
           onNavigateDate={navigateDate}
           onGoToDate={goToDate}
-          isPending={isPending}
+          isPending={loading}
+          isDraft={status === "draft"}
         />
 
         {/* Save actions */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="sticky bottom-0 z-20 border-t border-border/50 bg-background/95 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 flex flex-wrap items-center gap-2">
           {!isDisabled && (
             <>
               <Button
@@ -175,7 +242,7 @@ export function NarcoticLog({ locationId, initialDate, initialEntry, isAdmin = f
                 disabled={saving || !dirty}
               >
                 <Save className="mr-1 size-3" />
-                {saving ? "Saving..." : "Save Draft"}
+                {saving ? "Saving\u2026" : "Save Draft"}
               </Button>
               <Button
                 size="sm"
@@ -183,7 +250,7 @@ export function NarcoticLog({ locationId, initialDate, initialEntry, isAdmin = f
                 disabled={saving}
               >
                 <CheckCircle2 className="mr-1 size-3" />
-                {saving ? "Saving..." : "Submit as Complete"}
+                {saving ? "Saving\u2026" : "Submit as Complete"}
               </Button>
             </>
           )}
@@ -195,7 +262,7 @@ export function NarcoticLog({ locationId, initialDate, initialEntry, isAdmin = f
               disabled={saving}
             >
               <RotateCcw className="mr-1 size-3" />
-              {saving ? "Reverting..." : "Revert to Draft"}
+              {saving ? "Reverting\u2026" : "Revert to Draft"}
             </Button>
           )}
           {isDisabled && !isAdmin && (
