@@ -315,7 +315,7 @@ export function NarcoticSummary({ locationId }: NarcoticSummaryProps) {
             {loading && (
               <tr>
                 <td colSpan={hasDrug3 ? 14 : 13} className="px-3 py-8 text-center text-muted-foreground">
-                  Loading...
+                  Loading\u2026
                 </td>
               </tr>
             )}

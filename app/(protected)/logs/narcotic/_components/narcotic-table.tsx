@@ -19,6 +19,7 @@ interface NarcoticTableProps {
   onNavigateDate: (offset: number) => void
   onGoToDate: (date: string) => void
   isPending: boolean
+  isDraft?: boolean
 }
 
 function emptyRow(): NarcoticRow {
@@ -58,13 +59,13 @@ const HDR = `${B} bg-muted/30 px-2 py-2 text-xs font-semibold text-center`
 const CELL = `${B} px-1.5 py-1.5`
 const GREY = "bg-muted/15"
 const NUM =
-  "h-7 w-full text-center text-xs tabular-nums border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-ring [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+  "h-8 md:h-9 w-full text-center text-xs tabular-nums border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-ring [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 const TXT =
-  "h-7 w-full text-xs border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-ring"
+  "h-8 md:h-9 w-full text-xs border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-ring"
 
-const SIG_LABEL = "text-[10px] leading-tight font-semibold"
+const SIG_LABEL = "text-[10px] md:text-xs leading-tight font-semibold"
 
-export function NarcoticTable({ data, onChange, locationId, disabled, date, onNavigateDate, onGoToDate, isPending }: NarcoticTableProps) {
+export function NarcoticTable({ data, onChange, locationId, disabled, date, onNavigateDate, onGoToDate, isPending, isDraft }: NarcoticTableProps) {
   function updateField<K extends keyof NarcoticLogData>(field: K, value: NarcoticLogData[K]) {
     onChange({ ...data, [field]: value })
   }
@@ -130,18 +131,18 @@ export function NarcoticTable({ data, onChange, locationId, disabled, date, onNa
   }
 
   return (
-    <div className="-mx-4 overflow-x-auto sm:mx-0">
+    <div className="max-w-full overflow-x-auto">
       <table className="w-full min-w-[880px] border-collapse text-xs">
         <colgroup>
-          <col className="w-[22%] min-w-[160px]" />
+          <col className="w-[18%] md:w-[22%] min-w-[130px] md:min-w-[160px]" />
           <col className="w-[9%] min-w-[68px]" />
           <col className="w-[9%] min-w-[68px]" />
           <col className="w-[9%] min-w-[68px]" />
           <col className="w-[9%] min-w-[68px]" />
           <col className="w-[9%] min-w-[68px]" />
           <col className="w-[9%] min-w-[68px]" />
-          <col className="w-[12%] min-w-[100px]" />
-          <col className="w-[12%] min-w-[100px]" />
+          <col className="w-[12%] min-w-[80px] md:min-w-[100px]" />
+          <col className="w-[12%] min-w-[80px] md:min-w-[100px]" />
         </colgroup>
 
         <tbody>
@@ -229,15 +230,15 @@ export function NarcoticTable({ data, onChange, locationId, disabled, date, onNa
               ================================================================ */}
           <tr>
             <td className={cn(HDR, "sticky left-0 z-10 bg-muted/30 text-left")}>Beginning Count:</td>
-            <td className={cn(CELL)}>
+            <td className={cn(CELL, isDraft && data.beginning_count.versed !== null && "bg-yellow-50")}>
               <Input type="number" value={numVal(data.beginning_count.versed)} onChange={(e) => updateField("beginning_count", { ...data.beginning_count, versed: parseNum(e.target.value) })} disabled={disabled} className={NUM} />
             </td>
             <td className={cn(CELL, GREY)} />
-            <td className={cn(CELL)}>
+            <td className={cn(CELL, isDraft && data.beginning_count.fentanyl !== null && "bg-yellow-50")}>
               <Input type="number" value={numVal(data.beginning_count.fentanyl)} onChange={(e) => updateField("beginning_count", { ...data.beginning_count, fentanyl: parseNum(e.target.value) })} disabled={disabled} className={NUM} />
             </td>
             <td className={cn(CELL, GREY)} />
-            <td className={cn(CELL)}>
+            <td className={cn(CELL, isDraft && data.beginning_count.drug3 !== null && "bg-yellow-50")}>
               <Input type="number" value={numVal(data.beginning_count.drug3)} onChange={(e) => updateField("beginning_count", { ...data.beginning_count, drug3: parseNum(e.target.value) })} disabled={disabled} className={NUM} />
             </td>
             <td className={cn(CELL, GREY)} />
@@ -277,8 +278,14 @@ export function NarcoticTable({ data, onChange, locationId, disabled, date, onNa
               />
             </td>
             <td className={cn(HDR)}>Waste</td>
-            <td className={cn(HDR)}>Licensed Staff Signature</td>
-            <td className={cn(HDR)}>Licensed Staff Signature</td>
+            <td className={cn(HDR)}>
+              <span className="hidden md:inline">Licensed Staff Signature</span>
+              <span className="md:hidden">Sig</span>
+            </td>
+            <td className={cn(HDR)}>
+              <span className="hidden md:inline">Licensed Staff Signature</span>
+              <span className="md:hidden">Sig</span>
+            </td>
           </tr>
 
           {/* ================================================================
@@ -290,7 +297,7 @@ export function NarcoticTable({ data, onChange, locationId, disabled, date, onNa
 
             return (
               <tr key={i} className="group">
-                <td className={cn(CELL, "sticky left-0 z-10", empty ? "bg-muted/15" : "bg-background")}>
+                <td className={cn(CELL, "sticky left-0 z-10", empty ? "bg-muted/15" : "bg-background", isDraft && row.patient && "bg-yellow-50")}>
                   <div className="flex items-center gap-0.5">
                     <Input
                       value={row.patient}
@@ -310,25 +317,25 @@ export function NarcoticTable({ data, onChange, locationId, disabled, date, onNa
                     )}
                   </div>
                 </td>
-                <td className={cn(CELL, bg)}>
+                <td className={cn(CELL, bg, isDraft && row.versed !== null && "bg-yellow-50")}>
                   <Input type="number" value={numVal(row.versed)} onChange={(e) => updateRow(i, { versed: parseNum(e.target.value) })} disabled={disabled} className={NUM} />
                 </td>
-                <td className={cn(CELL, bg)}>
+                <td className={cn(CELL, bg, isDraft && row.versed_waste !== null && "bg-yellow-50")}>
                   <Input type="number" value={numVal(row.versed_waste)} onChange={(e) => updateRow(i, { versed_waste: parseNum(e.target.value) })} disabled={disabled} className={NUM} />
                 </td>
-                <td className={cn(CELL, bg)}>
+                <td className={cn(CELL, bg, isDraft && row.fentanyl !== null && "bg-yellow-50")}>
                   <Input type="number" value={numVal(row.fentanyl)} onChange={(e) => updateRow(i, { fentanyl: parseNum(e.target.value) })} disabled={disabled} className={NUM} />
                 </td>
-                <td className={cn(CELL, bg)}>
+                <td className={cn(CELL, bg, isDraft && row.fentanyl_waste !== null && "bg-yellow-50")}>
                   <Input type="number" value={numVal(row.fentanyl_waste)} onChange={(e) => updateRow(i, { fentanyl_waste: parseNum(e.target.value) })} disabled={disabled} className={NUM} />
                 </td>
-                <td className={cn(CELL, bg)}>
+                <td className={cn(CELL, bg, isDraft && row.drug3 !== null && "bg-yellow-50")}>
                   <Input type="number" value={numVal(row.drug3)} onChange={(e) => updateRow(i, { drug3: parseNum(e.target.value) })} disabled={disabled} className={NUM} />
                 </td>
-                <td className={cn(CELL, bg)}>
+                <td className={cn(CELL, bg, isDraft && row.drug3_waste !== null && "bg-yellow-50")}>
                   <Input type="number" value={numVal(row.drug3_waste)} onChange={(e) => updateRow(i, { drug3_waste: parseNum(e.target.value) })} disabled={disabled} className={NUM} />
                 </td>
-                <td className={cn(CELL, bg, "px-2")}>
+                <td className={cn(CELL, bg, "px-2", isDraft && row.sig1 && "bg-yellow-50")}>
                   <SignatureCell
                     value={row.sig1}
                     onChange={(_p, b) => updateRow(i, { sig1: b })}
@@ -336,7 +343,7 @@ export function NarcoticTable({ data, onChange, locationId, disabled, date, onNa
                     disabled={disabled}
                   />
                 </td>
-                <td className={cn(CELL, bg, "px-2")}>
+                <td className={cn(CELL, bg, "px-2", isDraft && row.sig2 && "bg-yellow-50")}>
                   <SignatureCell
                     value={row.sig2}
                     onChange={(_p, b) => updateRow(i, { sig2: b })}
