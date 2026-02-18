@@ -15,6 +15,10 @@ interface SignatureCellProps {
   signerName?: string
   /** Callback when signer name changes */
   onNameChange?: (name: string) => void
+  /** Pre-fill the signer name field in the signature pad (from logged-in user profile) */
+  defaultSignerName?: string
+  /** When true, suppresses the name text shown below the signature (use when a dedicated Name column is present in the table) */
+  hideSignerName?: boolean
 }
 
 export function SignatureCell({
@@ -25,6 +29,8 @@ export function SignatureCell({
   className,
   signerName,
   onNameChange,
+  defaultSignerName,
+  hideSignerName,
 }: SignatureCellProps) {
   const [showPad, setShowPad] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -84,7 +90,7 @@ export function SignatureCell({
         <div
           className={cn(
             "group/sig relative flex w-full items-center justify-center rounded-sm border border-border/60 bg-background transition-colors",
-            signerName !== undefined ? "h-7" : "h-8",
+            signerName !== undefined && !hideSignerName ? "h-7" : "h-8",
             !disabled && !displayUrl && "cursor-pointer hover:border-border hover:bg-muted/30",
             disabled && "opacity-50",
             className
@@ -116,8 +122,8 @@ export function SignatureCell({
             <PenLine className="size-3.5 text-muted-foreground/40" />
           )}
         </div>
-        {signerName !== undefined && (
-          <span className="w-full truncate text-center text-[9px] leading-tight text-muted-foreground">
+        {signerName !== undefined && !hideSignerName && (
+          <span className="w-full truncate text-center text-[11px] leading-tight text-foreground">
             {signerName || "\u00A0"}
           </span>
         )}
@@ -130,6 +136,7 @@ export function SignatureCell({
           disabled={disabled}
           title="Sign Log Entry"
           description="Sign as licensed staff to verify this log entry."
+          defaultSignerName={defaultSignerName}
         />
       )}
     </>
