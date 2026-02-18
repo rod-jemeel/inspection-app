@@ -343,25 +343,27 @@ export function NarcoticCountLog({
 
       {/* Count table or Summary view */}
       {viewMode === "form" ? (
-        <NarcoticCountTable
-          data={data}
-          onChange={handleDataChange}
-          disabled={isDisabled}
-          isDraft={status === "draft"}
-        />
+        <>
+          <NarcoticCountTable
+            data={data}
+            onChange={handleDataChange}
+            disabled={isDisabled}
+            isDraft={status === "draft"}
+          />
+
+          {/* Signature Identification — only shown in form view */}
+          <SignatureIdentification
+            signatures={data.signatures}
+            onChange={(sigs) => handleDataChange({ ...data, signatures: sigs })}
+            locationId={locationId}
+            disabled={isDisabled}
+            maxRows={8}
+            columns={2}
+          />
+        </>
       ) : (
         <NarcoticCountSummary data={data} />
       )}
-
-      {/* Signature Identification */}
-      <SignatureIdentification
-        signatures={data.signatures}
-        onChange={(sigs) => handleDataChange({ ...data, signatures: sigs })}
-        locationId={locationId}
-        disabled={isDisabled}
-        maxRows={8}
-        columns={2}
-      />
 
       {/* Save actions */}
       <div className="sticky bottom-0 z-20 border-t border-border/50 bg-background/95 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 flex flex-wrap items-center gap-2">

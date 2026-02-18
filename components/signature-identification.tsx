@@ -1,10 +1,9 @@
 "use client"
 
-import { useState } from "react"
 import { UserPen } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { SignatureCell } from "@/app/(protected)/logs/narcotic/_components/signature-cell"
+import { useMySignature } from "@/hooks/use-my-signature"
 import { cn } from "@/lib/utils"
 
 const B = "border border-foreground/25"
@@ -27,12 +26,6 @@ interface SignatureIdentificationProps {
   columns?: number
 }
 
-interface CachedProfile {
-  name: string
-  signature_image: string | null
-  default_initials: string
-}
-
 export function SignatureIdentification({
   signatures,
   onChange,
@@ -41,8 +34,7 @@ export function SignatureIdentification({
   maxRows = 8,
   columns = 2,
 }: SignatureIdentificationProps) {
-  const [cachedProfile, setCachedProfile] = useState<CachedProfile | null>(null)
-  const [isApplying, setIsApplying] = useState(false)
+  const { profile: myProfile } = useMySignature()
 
   function updateSignature(index: number, field: keyof SignatureEntry, value: string | null) {
     const updated = [...signatures]
@@ -50,50 +42,35 @@ export function SignatureIdentification({
     onChange(updated)
   }
 
-  async function applyMySignature() {
-    if (disabled) return
-
-    try {
-      setIsApplying(true)
-
-      // Fetch profile if not cached
-      let profile = cachedProfile
-      if (!profile) {
-        const res = await fetch("/api/users/me/signature")
-        if (!res.ok) {
-          alert("Failed to fetch signature")
-          return
-        }
-        const data = await res.json()
-        profile = {
-          name: data.name || "",
-          signature_image: data.signature_image,
-          default_initials: data.default_initials || "",
-        }
-        setCachedProfile(profile)
-      }
-
-      // Find first empty row
-      const emptyIndex = signatures.findIndex((sig) => !sig.name.trim())
-      if (emptyIndex === -1) {
-        alert("No empty rows available")
-        return
-      }
-
-      // Apply signature to empty row
-      const updated = [...signatures]
-      updated[emptyIndex] = {
-        name: profile.name,
-        signature: profile.signature_image,
-        initials: profile.default_initials,
-      }
-      onChange(updated)
-    } catch (error) {
-      console.error("Failed to apply signature:", error)
-      alert("Failed to apply signature")
-    } finally {
-      setIsApplying(false)
+  /** Apply my profile name + initials to a specific row (user still signs manually — fraud prevention) */
+  function applyMySignatureToRow(globalIndex: number) {
+    if (!myProfile || disabled) return
+    const updated = [...signatures]
+    updated[globalIndex] = {
+      ...updated[globalIndex],
+      name: myProfile.name,
+      initials: myProfile.default_initials,
     }
+    onChange(updated)
+  }
+
+  /**
+   * Called when user finishes drawing their signature.
+   * If the signer name typed in the pad matches the logged-in profile,
+   * also auto-fill the initials column.
+   */
+  function handleSignatureSaved(globalIndex: number, signerName: string) {
+    if (!signerName) return
+    const updated = [...signatures]
+    updated[globalIndex] = {
+      ...updated[globalIndex],
+      name: signerName,
+      initials:
+        myProfile && signerName === myProfile.name
+          ? myProfile.default_initials
+          : updated[globalIndex].initials,
+    }
+    onChange(updated)
   }
 
   // Split signatures into columns
@@ -105,25 +82,13 @@ export function SignatureIdentification({
     columnGroups.push(signatures.slice(start, end))
   }
 
+  const canApply = !!myProfile && !disabled
+
   return (
     <div className="space-y-2">
-      {/* Header with "Apply My Signature" button */}
-      <div className="flex items-center justify-between">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Signature Identification
-        </h4>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={applyMySignature}
-          disabled={disabled || isApplying}
-          className="h-7 text-xs"
-        >
-          <UserPen className="mr-1.5 size-3.5" />
-          Apply My Signature
-        </Button>
-      </div>
+      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Signature Identification
+      </h4>
 
       {/* Column layout */}
       <div className={cn("grid gap-4", columns === 2 && "grid-cols-1 xl:grid-cols-2")}>
@@ -131,25 +96,54 @@ export function SignatureIdentification({
           <table key={colIndex} className="w-full border-collapse">
             <thead>
               <tr>
-                <th className={cn(HDR, "w-[35%]")}>Name</th>
+                <th className={cn(HDR, "w-[38%]")}>Name</th>
                 <th className={cn(HDR, "w-[40%]")}>Signature</th>
-                <th className={cn(HDR, "w-[25%]")}>Initials</th>
+                <th className={cn(HDR, "w-[22%]")}>Initials</th>
               </tr>
             </thead>
             <tbody>
               {group.map((sig, localIndex) => {
                 const globalIndex = colIndex * rowsPerColumn + localIndex
+                const hasName = sig.name.trim() !== ""
+                const hasInitials = sig.initials.trim() !== ""
+
                 return (
                   <tr key={globalIndex}>
+                    {/* Name cell — read-only span when filled, input when empty; "Apply" icon always visible when profile available */}
                     <td className={CELL}>
-                      <Input
-                        type="text"
-                        value={sig.name}
-                        onChange={(e) => updateSignature(globalIndex, "name", e.target.value)}
-                        disabled={disabled}
-                        className={TXT}
-                      />
+                      <div className="relative flex items-center gap-1">
+                        {hasName && !disabled ? (
+                          <span
+                            className="flex-1 truncate text-xs leading-7 min-w-0 cursor-default"
+                            title={sig.name}
+                          >
+                            {sig.name}
+                          </span>
+                        ) : (
+                          <Input
+                            type="text"
+                            value={sig.name}
+                            onChange={(e) => updateSignature(globalIndex, "name", e.target.value)}
+                            disabled={disabled}
+                            className={cn(TXT, "flex-1 min-w-0")}
+                            placeholder="Name"
+                          />
+                        )}
+                        {canApply && (
+                          <button
+                            type="button"
+                            title="Apply my name & initials"
+                            onClick={() => applyMySignatureToRow(globalIndex)}
+                            className="shrink-0 flex items-center justify-center size-5 rounded-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation"
+                            tabIndex={-1}
+                          >
+                            <UserPen className="size-3" />
+                          </button>
+                        )}
+                      </div>
                     </td>
+
+                    {/* Signature cell — user must draw manually (fraud prevention) */}
                     <td className={CELL}>
                       <SignatureCell
                         value={sig.signature}
@@ -158,17 +152,31 @@ export function SignatureIdentification({
                         }
                         locationId={locationId}
                         disabled={disabled}
+                        defaultSignerName={myProfile?.name}
+                        hideSignerName
+                        onNameChange={(name) => handleSignatureSaved(globalIndex, name)}
                       />
                     </td>
+
+                    {/* Initials cell — read-only span when filled, input when empty */}
                     <td className={CELL}>
-                      <Input
-                        type="text"
-                        value={sig.initials}
-                        onChange={(e) => updateSignature(globalIndex, "initials", e.target.value)}
-                        disabled={disabled}
-                        maxLength={5}
-                        className={cn(TXT, "text-center")}
-                      />
+                      {hasInitials && !disabled ? (
+                        <span className="block w-full text-center text-xs leading-7 cursor-default">
+                          {sig.initials}
+                        </span>
+                      ) : (
+                        <Input
+                          type="text"
+                          value={sig.initials}
+                          onChange={(e) =>
+                            updateSignature(globalIndex, "initials", e.target.value)
+                          }
+                          disabled={disabled}
+                          maxLength={5}
+                          className={cn(TXT, "text-center")}
+                          placeholder="Init."
+                        />
+                      )}
                     </td>
                   </tr>
                 )

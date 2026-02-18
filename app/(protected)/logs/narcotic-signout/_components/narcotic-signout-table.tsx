@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { SignatureCell } from "../../narcotic/_components/signature-cell"
+import { useMySignature } from "@/hooks/use-my-signature"
 import { cn } from "@/lib/utils"
 import { SIGNOUT_DRUGS } from "@/lib/validations/log-entry"
 import type { NarcoticSignoutLogData } from "@/lib/validations/log-entry"
@@ -47,6 +48,7 @@ export function NarcoticSignoutTable({
   isPending,
   isDraft,
 }: NarcoticSignoutTableProps) {
+  const { profile: myProfile } = useMySignature()
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
@@ -262,6 +264,7 @@ export function NarcoticSignoutTable({
                   onChange={(_p, b) => updateDrugHeader(drug.key, "anesthesiologist_sig", b)}
                   locationId={locationId}
                   disabled={disabled}
+                  defaultSignerName={myProfile?.name}
                 />
               </td>
             ))}
@@ -281,6 +284,7 @@ export function NarcoticSignoutTable({
                   onChange={(_p, b) => updateDrugHeader(drug.key, "nurse_sig", b)}
                   locationId={locationId}
                   disabled={disabled}
+                  defaultSignerName={myProfile?.name}
                 />
               </td>
             ))}
@@ -318,6 +322,7 @@ export function NarcoticSignoutTable({
               locationId={locationId}
               disabled={disabled}
               isDraft={isDraft}
+              defaultSignerName={myProfile?.name}
             />
           ))}
 
@@ -373,6 +378,7 @@ export function NarcoticSignoutTable({
                   onChange={(_p, b) => updateTop("rn_signature", b)}
                   locationId={locationId}
                   disabled={disabled}
+                  defaultSignerName={myProfile?.name}
                 />
               </div>
             </td>
@@ -409,6 +415,7 @@ function CaseBlock({
   locationId,
   disabled,
   isDraft,
+  defaultSignerName,
 }: {
   caseIdx: number
   caseData: NarcoticSignoutLogData["cases"][number]
@@ -425,6 +432,7 @@ function CaseBlock({
   locationId: string
   disabled?: boolean
   isDraft?: boolean
+  defaultSignerName?: string
 }) {
   return (
     <>
@@ -498,6 +506,7 @@ function CaseBlock({
               onChange={(_p, b) => onUpdateCase(caseIdx, { co_signature: b })}
               locationId={locationId}
               disabled={disabled}
+              defaultSignerName={defaultSignerName}
             />
           </div>
         </td>

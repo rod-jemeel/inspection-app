@@ -1,12 +1,13 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { SignatureCell } from "./signature-cell"
+import { useMySignature } from "@/hooks/use-my-signature"
 import { cn } from "@/lib/utils"
 import type { NarcoticLogData, NarcoticRow } from "@/lib/validations/log-entry"
 
@@ -66,6 +67,13 @@ const TXT =
 const SIG_LABEL = "text-[10px] md:text-xs leading-tight font-semibold"
 
 export function NarcoticTable({ data, onChange, locationId, disabled, date, onNavigateDate, onGoToDate, isPending, isDraft }: NarcoticTableProps) {
+  const { profile: myProfile } = useMySignature()
+  const [signerNames, setSignerNames] = useState<Record<string, string>>({})
+
+  function setSignerName(key: string, name: string) {
+    setSignerNames(prev => ({ ...prev, [key]: name }))
+  }
+
   function updateField<K extends keyof NarcoticLogData>(field: K, value: NarcoticLogData[K]) {
     onChange({ ...data, [field]: value })
   }
@@ -248,6 +256,9 @@ export function NarcoticTable({ data, onChange, locationId, disabled, date, onNa
                 onChange={(_p, b) => updateField("header_sig1", b)}
                 locationId={locationId}
                 disabled={disabled}
+                defaultSignerName={myProfile?.name}
+                signerName={signerNames["header_sig1"] ?? ""}
+                onNameChange={(name) => setSignerName("header_sig1", name)}
               />
             </td>
             <td className={cn(CELL, "px-2")}>
@@ -256,6 +267,9 @@ export function NarcoticTable({ data, onChange, locationId, disabled, date, onNa
                 onChange={(_p, b) => updateField("header_sig2", b)}
                 locationId={locationId}
                 disabled={disabled}
+                defaultSignerName={myProfile?.name}
+                signerName={signerNames["header_sig2"] ?? ""}
+                onNameChange={(name) => setSignerName("header_sig2", name)}
               />
             </td>
           </tr>
@@ -341,6 +355,9 @@ export function NarcoticTable({ data, onChange, locationId, disabled, date, onNa
                     onChange={(_p, b) => updateRow(i, { sig1: b })}
                     locationId={locationId}
                     disabled={disabled}
+                    defaultSignerName={myProfile?.name}
+                    signerName={signerNames[`row_${i}_sig1`] ?? ""}
+                    onNameChange={(name) => setSignerName(`row_${i}_sig1`, name)}
                   />
                 </td>
                 <td className={cn(CELL, bg, "px-2", isDraft && row.sig2 && "bg-yellow-50")}>
@@ -349,6 +366,9 @@ export function NarcoticTable({ data, onChange, locationId, disabled, date, onNa
                     onChange={(_p, b) => updateRow(i, { sig2: b })}
                     locationId={locationId}
                     disabled={disabled}
+                    defaultSignerName={myProfile?.name}
+                    signerName={signerNames[`row_${i}_sig2`] ?? ""}
+                    onNameChange={(name) => setSignerName(`row_${i}_sig2`, name)}
                   />
                 </td>
               </tr>
@@ -416,6 +436,9 @@ export function NarcoticTable({ data, onChange, locationId, disabled, date, onNa
                 onChange={(_p, b) => updateField("end_sig1", b)}
                 locationId={locationId}
                 disabled={disabled}
+                defaultSignerName={myProfile?.name}
+                signerName={signerNames["end_sig1"] ?? ""}
+                onNameChange={(name) => setSignerName("end_sig1", name)}
               />
             </td>
             <td className={cn(CELL, "px-2")}>
@@ -424,6 +447,9 @@ export function NarcoticTable({ data, onChange, locationId, disabled, date, onNa
                 onChange={(_p, b) => updateField("end_sig2", b)}
                 locationId={locationId}
                 disabled={disabled}
+                defaultSignerName={myProfile?.name}
+                signerName={signerNames["end_sig2"] ?? ""}
+                onNameChange={(name) => setSignerName("end_sig2", name)}
               />
             </td>
           </tr>
