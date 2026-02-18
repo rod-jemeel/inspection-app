@@ -14,6 +14,8 @@ interface FullscreenSignaturePadProps {
   disabled?: boolean
   title?: string
   description?: string
+  /** Pre-fill the signer name field (e.g. from logged-in user profile) */
+  defaultSignerName?: string
 }
 
 // Check if device is mobile-sized (cached at module level for perf)
@@ -28,12 +30,13 @@ export function FullscreenSignaturePad({
   disabled,
   title,
   description,
+  defaultSignerName,
 }: FullscreenSignaturePadProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const padRef = useRef<SignaturePadType | null>(null)
   const [step, setStep] = useState<"name" | "signature">("name")
-  const [signerName, setSignerName] = useState("")
+  const [signerName, setSignerName] = useState(defaultSignerName ?? "")
   const [isEmpty, setIsEmpty] = useState(true)
   const [canUndo, setCanUndo] = useState(false)
   const [loaded, setLoaded] = useState(false)
