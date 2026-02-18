@@ -4,6 +4,7 @@ import { LocationCard } from "./location-card"
 import { NotificationCard } from "./notification-card"
 import { DangerZone } from "./danger-zone"
 import { ReminderSettingsCard } from "./reminder-settings-card"
+import { MySignatureCard } from "./my-signature-card"
 import type { ReminderSettings } from "@/lib/validations/reminder-settings"
 
 interface Location {
@@ -21,15 +22,20 @@ interface SettingsContentProps {
   canEdit: boolean
   isOwner: boolean
   reminderSettings: ReminderSettings | null
+  profileSignature: string | null
+  profileInitials: string | null
 }
 
-export function SettingsContent({ location, canEdit, isOwner, reminderSettings }: SettingsContentProps) {
+export function SettingsContent({ location, canEdit, isOwner, reminderSettings, profileSignature, profileInitials }: SettingsContentProps) {
   return (
     <div className="space-y-6">
       {/* Bento Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {/* Location Card - spans 2 cols */}
         <LocationCard location={location} canEdit={canEdit} isOwner={isOwner} />
+
+        {/* My Signature Card */}
+        <MySignatureCard initialSignature={profileSignature} initialInitials={profileInitials} />
 
         {/* Notification Card */}
         <NotificationCard />

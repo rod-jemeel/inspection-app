@@ -20,6 +20,8 @@ export interface Profile {
   can_view_all_responses: boolean
   can_export_reports: boolean
   can_configure_integrations: boolean
+  signature_image: string | null
+  default_initials: string | null
   created_at: string
   updated_at: string
 }
@@ -37,7 +39,7 @@ export const getSession = cache(async (): Promise<Session> => {
 export const getProfile = cache(async (userId: string): Promise<Profile> => {
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, user_id, full_name, username, email, phone, role, must_change_password, can_manage_binders, can_manage_forms, can_view_all_responses, can_export_reports, can_configure_integrations, created_at, updated_at")
+    .select("id, user_id, full_name, username, email, phone, role, must_change_password, can_manage_binders, can_manage_forms, can_view_all_responses, can_export_reports, can_configure_integrations, signature_image, default_initials, created_at, updated_at")
     .eq("user_id", userId)
     .single()
 

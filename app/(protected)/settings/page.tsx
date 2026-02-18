@@ -26,6 +26,8 @@ async function SettingsData({ loc }: { loc: string }) {
       canEdit={canEdit}
       isOwner={isOwner}
       reminderSettings={reminderSettings}
+      profileSignature={profile.signature_image}
+      profileInitials={profile.default_initials}
     />
   )
 }
