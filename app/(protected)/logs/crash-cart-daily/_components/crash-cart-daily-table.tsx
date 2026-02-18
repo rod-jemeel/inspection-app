@@ -1,11 +1,16 @@
 "use client"
 
+import { useState } from "react"
+import { UserPen, PenLine, Eye, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CRASH_CART_DAILY_ITEMS } from "@/lib/validations/log-entry"
-import type { CrashCartDailyLogData } from "@/lib/validations/log-entry"
+import type { CrashCartDailyLogData, InitialsAudit } from "@/lib/validations/log-entry"
 import { SignatureCell } from "../../narcotic/_components/signature-cell"
+import { useMySignature } from "@/hooks/use-my-signature"
+import { FullscreenSignaturePad } from "@/components/fullscreen-signature-pad"
 
 // ---------------------------------------------------------------------------
 // Props
@@ -65,6 +70,13 @@ export function CrashCartDailyTable({
   disabled,
   isDraft,
 }: CrashCartDailyTableProps) {
+  const { profile: myProfile } = useMySignature()
+
+  /** Day currently being signed (null = pad closed) */
+  const [signingDay, setSigningDay] = useState<string | null>(null)
+  /** Day whose audit trail is being viewed (null = dialog closed) */
+  const [viewingDay, setViewingDay] = useState<string | null>(null)
+
   // -- Update helpers -------------------------------------------------------
 
   function updateCheck(itemKey: string, day: string, value: string) {
@@ -101,6 +113,21 @@ export function CrashCartDailyTable({
     })
   }
 
+  function updateInitialsAudit(day: string, audit: InitialsAudit | null) {
+    onChange({
+      ...data,
+      initials_signatures: { ...(data.initials_signatures ?? {}), [day]: audit },
+    })
+  }
+
+  function updateInitialsAndAudit(day: string, value: string, audit: InitialsAudit | null) {
+    onChange({
+      ...data,
+      initials: { ...data.initials, [day]: value },
+      initials_signatures: { ...(data.initials_signatures ?? {}), [day]: audit },
+    })
+  }
+
   function updateLockChange(index: number, field: "date_reason" | "new_lock", value: string) {
     const newChanges = data.lock_changes.map((lc, i) =>
       i === index ? { ...lc, [field]: value } : lc
@@ -108,9 +135,12 @@ export function CrashCartDailyTable({
     onChange({ ...data, lock_changes: newChanges })
   }
 
-  function updateSignature(index: number, field: string, value: string | null) {
+  function updateSignatureFields(
+    index: number,
+    fields: Partial<{ name: string; signature: string | null; initials: string }>
+  ) {
     const newSigs = data.signatures.map((s, i) =>
-      i === index ? { ...s, [field]: value } : s
+      i === index ? { ...s, ...fields } : s
     )
     onChange({ ...data, signatures: newSigs })
   }
@@ -232,18 +262,57 @@ export function CrashCartDailyTable({
               >
                 Initials
               </td>
-              {DAYS.map((d) => (
-                <td key={d} className={cn(CELL, isDraft && data.initials[d] && "bg-yellow-50")}>
-                  <input
-                    type="text"
-                    value={data.initials[d] || ""}
-                    onChange={(e) => updateInitials(d, e.target.value)}
-                    disabled={disabled}
-                    className={TXT}
-                    maxLength={4}
-                  />
-                </td>
-              ))}
+              {DAYS.map((d) => {
+                const stamped = data.initials[d]
+                const audit = data.initials_signatures?.[d]
+                return (
+                  <td key={d} className={cn(CELL, isDraft && stamped && "bg-yellow-50")}>
+                    {stamped ? (
+                      /* Stamped state — show initials + eye + optional clear */
+                      <div className="flex items-center justify-center gap-0.5 h-7 md:h-8 px-0.5">
+                        <span className="text-[11px] md:text-xs font-medium leading-none select-none">
+                          {stamped}
+                        </span>
+                        {audit && (
+                          <button
+                            type="button"
+                            onClick={() => setViewingDay(d)}
+                            className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+                            title="View signature"
+                          >
+                            <Eye className="size-2.5" />
+                          </button>
+                        )}
+                        {!disabled && (
+                          <button
+                            type="button"
+                            onClick={() => updateInitialsAndAudit(d, "", null)}
+                            className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            title="Clear initials"
+                          >
+                            <X className="size-2.5" />
+                          </button>
+                        )}
+                      </div>
+                    ) : !disabled ? (
+                      /* Empty + editable — pen icon to open signature pad */
+                      <div className="flex items-center justify-center h-7 md:h-8">
+                        <button
+                          type="button"
+                          onClick={() => setSigningDay(d)}
+                          className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+                          title="Sign to stamp initials"
+                        >
+                          <PenLine className="size-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      /* Empty + disabled — blank cell */
+                      <div className="h-7 md:h-8" />
+                    )}
+                  </td>
+                )
+              })}
               <td className={CELL} />
             </tr>
           </tbody>
@@ -372,9 +441,10 @@ export function CrashCartDailyTable({
               <table className="w-full border-collapse">
                 <thead>
                   <tr>
-                    <th className={cn(HDR, "text-left min-w-[160px]")}>Name</th>
+                    <th className={cn(HDR, "w-7 md:w-8")}>#</th>
+                    <th className={cn(HDR, "text-left min-w-[140px]")}>Name</th>
                     <th className={cn(HDR, "min-w-[120px]")}>Signature</th>
-                    <th className={cn(HDR, "w-[80px]")}>Initials</th>
+                    <th className={cn(HDR, "w-[70px]")}>Initials</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -384,36 +454,85 @@ export function CrashCartDailyTable({
                     if (!sig) return null
                     return (
                       <tr key={idx}>
-                        <td className={cn(CELL, isDraft && sig.name && "bg-yellow-50")}>
-                          <Input
-                            type="text"
-                            value={sig.name}
-                            onChange={(e) => updateSignature(idx, "name", e.target.value)}
-                            disabled={disabled}
-                            className={cn(NOTES_TXT, "h-8")}
-                          />
+                        {/* # */}
+                        <td className={cn(CELL, "text-center text-[11px] md:text-xs font-medium")}>
+                          {idx + 1}
                         </td>
+                        {/* Name */}
+                        <td className={cn(CELL, isDraft && sig.name && "bg-yellow-50")}>
+                          <div className="flex items-center gap-1 px-0.5">
+                            {sig.name && !disabled ? (
+                              <span className="flex-1 truncate text-[11px] md:text-xs leading-7 min-w-0 cursor-default px-0.5">
+                                {sig.name}
+                              </span>
+                            ) : (
+                              <Input
+                                type="text"
+                                value={sig.name}
+                                onChange={(e) => updateSignatureFields(idx, { name: e.target.value })}
+                                disabled={disabled}
+                                placeholder="Name"
+                                className="h-7 flex-1 min-w-0 text-[11px] md:text-xs border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-ring"
+                              />
+                            )}
+                            {myProfile && !disabled && (
+                              <button
+                                type="button"
+                                title="Apply my name & initials"
+                                onClick={() =>
+                                  updateSignatureFields(idx, {
+                                    name: myProfile.name,
+                                    initials: myProfile.default_initials ?? "",
+                                  })
+                                }
+                                className="shrink-0 flex items-center justify-center size-5 rounded-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation"
+                                tabIndex={-1}
+                              >
+                                <UserPen className="size-3" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                        {/* Signature */}
                         <td className={cn(CELL, "p-0.5", isDraft && sig.signature && "bg-yellow-50")}>
                           <SignatureCell
                             value={sig.signature}
                             onChange={(_storagePath, base64) =>
-                              updateSignature(idx, "signature", base64)
+                              updateSignatureFields(idx, { signature: base64 })
                             }
                             locationId={locationId}
                             disabled={disabled}
-                            signerName={sig.name}
-                            onNameChange={(name) => updateSignature(idx, "name", name)}
+                            defaultSignerName={myProfile?.name}
+                            hideSignerName
+                            onNameChange={(name) => {
+                              if (name) {
+                                updateSignatureFields(idx, {
+                                  name,
+                                  initials: myProfile?.default_initials ?? "",
+                                })
+                              } else {
+                                updateSignatureFields(idx, { name: "", initials: "" })
+                              }
+                            }}
                           />
                         </td>
+                        {/* Initials */}
                         <td className={cn(CELL, isDraft && sig.initials && "bg-yellow-50")}>
-                          <Input
-                            type="text"
-                            value={sig.initials}
-                            onChange={(e) => updateSignature(idx, "initials", e.target.value)}
-                            disabled={disabled}
-                            className={cn(TXT, "h-8")}
-                            maxLength={5}
-                          />
+                          {sig.initials && !disabled ? (
+                            <span className="block w-full text-center text-[11px] md:text-xs leading-7 cursor-default">
+                              {sig.initials}
+                            </span>
+                          ) : (
+                            <Input
+                              type="text"
+                              value={sig.initials}
+                              onChange={(e) => updateSignatureFields(idx, { initials: e.target.value })}
+                              disabled={disabled}
+                              maxLength={5}
+                              placeholder="Init."
+                              className="h-7 w-full text-[11px] md:text-xs text-center border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-ring"
+                            />
+                          )}
                         </td>
                       </tr>
                     )
@@ -437,6 +556,96 @@ export function CrashCartDailyTable({
           placeholder="Additional notes..."
         />
       </div>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Sign-to-stamp: FullscreenSignaturePad                               */}
+      {/* ------------------------------------------------------------------ */}
+      {signingDay !== null && (
+        <FullscreenSignaturePad
+          title="Sign to stamp initials"
+          description="Draw your signature below to confirm and stamp your initials for this day."
+          defaultSignerName={myProfile?.name ?? ""}
+          onCancel={() => setSigningDay(null)}
+          onSave={({ imageBlob, signerName }) => {
+            const day = signingDay
+            setSigningDay(null)
+            // Derive initials: prefer pre-configured default, else first letter of each word
+            const initials =
+              (myProfile?.default_initials?.trim()) ||
+              signerName
+                .trim()
+                .split(/\s+/)
+                .filter(Boolean)
+                .map((w) => w[0])
+                .join("")
+                .toUpperCase()
+                .slice(0, 4) ||
+              "?"
+            // Convert blob → base64 data URL then commit both at once
+            const reader = new FileReader()
+            reader.onloadend = () => {
+              updateInitialsAndAudit(day, initials, {
+                sig: reader.result as string,
+                signed_at: new Date().toISOString(),
+                signer_name: signerName,
+              })
+            }
+            reader.readAsDataURL(imageBlob)
+          }}
+        />
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Audit view dialog                                                    */}
+      {/* ------------------------------------------------------------------ */}
+      {viewingDay !== null && (
+        <Dialog open onOpenChange={() => setViewingDay(null)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="text-sm">
+                Initials Signature — Day {viewingDay}
+              </DialogTitle>
+            </DialogHeader>
+            {(() => {
+              const audit = data.initials_signatures?.[viewingDay]
+              if (!audit) {
+                return (
+                  <p className="text-xs text-muted-foreground">
+                    No signature audit data available for this day.
+                  </p>
+                )
+              }
+              return (
+                <div className="space-y-3">
+                  {/* Signature image */}
+                  <div className="border border-border rounded p-2 bg-muted/10 flex items-center justify-center min-h-[80px]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={audit.sig}
+                      alt="Drawn signature"
+                      className="max-h-28 w-auto object-contain"
+                    />
+                  </div>
+                  {/* Metadata */}
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+                    <dt className="text-muted-foreground font-medium">Signed by</dt>
+                    <dd className="font-medium">{audit.signer_name || "—"}</dd>
+                    <dt className="text-muted-foreground font-medium">Date &amp; time</dt>
+                    <dd>
+                      {audit.signed_at
+                        ? new Date(audit.signed_at).toLocaleString(undefined, {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })
+                        : "—"}
+                    </dd>
+                  </dl>
+                </div>
+              )
+            })()}
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }
