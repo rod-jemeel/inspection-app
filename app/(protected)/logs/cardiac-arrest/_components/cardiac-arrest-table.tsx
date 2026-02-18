@@ -34,6 +34,7 @@ const TXT =
   "h-8 md:h-9 w-full text-xs border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-ring"
 const TXT_SM =
   "h-8 md:h-9 w-full text-xs text-center border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-ring"
+const LBL = `${B} bg-muted/30 px-2 py-1.5 text-xs font-semibold whitespace-nowrap`
 
 export function CardiacArrestTable({ data, onChange, disabled, isDraft }: CardiacArrestTableProps) {
   // ---------------------------------------------------------------------------
@@ -74,218 +75,220 @@ export function CardiacArrestTable({ data, onChange, disabled, isDraft }: Cardia
 
   function renderHeader() {
     return (
-      <div className="space-y-3">
-        {/* Admission diagnosis */}
-        <div className="grid grid-cols-1 gap-3">
-          <div>
-            <label className="text-xs font-semibold">Admission Diagnosis</label>
-            <Input
-              value={data.admission_diagnosis}
-              onChange={(e) => updateField("admission_diagnosis", e.target.value)}
-              disabled={disabled}
-              className="mt-1 h-7 text-xs"
-            />
-          </div>
-        </div>
-
-        {/* History */}
-        <div>
-          <label className="text-xs font-semibold">History of Events Prior to Arrest</label>
-          <textarea
-            value={data.history_prior}
-            onChange={(e) => updateField("history_prior", e.target.value)}
-            disabled={disabled}
-            rows={2}
-            className="mt-1 w-full rounded border border-input bg-transparent px-3 py-1.5 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-          />
-        </div>
-
-        {/* Last observation time + Initial signs */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs font-semibold">Last Observation Time</label>
-            <Input
-              value={data.last_observation_time}
-              onChange={(e) => updateField("last_observation_time", e.target.value)}
-              disabled={disabled}
-              className="mt-1 h-7 text-xs"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold">Initial Heart Rhythm</label>
-            <Input
-              value={data.initial_heart_rhythm}
-              onChange={(e) => updateField("initial_heart_rhythm", e.target.value)}
-              disabled={disabled}
-              className="mt-1 h-7 text-xs"
-            />
-          </div>
-        </div>
-
-        {/* Initial signs of arrest */}
-        <div>
-          <label className="text-xs font-semibold">Initial Signs of Arrest</label>
-          <div className="mt-1.5 flex flex-wrap items-center gap-4">
-            <label className="flex items-center gap-1.5 text-xs">
-              <Checkbox
-                checked={data.initial_signs.cyanosis}
-                onCheckedChange={(v) => updateInitialSigns({ cyanosis: v === true })}
-                disabled={disabled}
-              />
-              Cyanosis
-            </label>
-            <label className="flex items-center gap-1.5 text-xs">
-              <Checkbox
-                checked={data.initial_signs.apnea}
-                onCheckedChange={(v) => updateInitialSigns({ apnea: v === true })}
-                disabled={disabled}
-              />
-              Apnea
-            </label>
-            <label className="flex items-center gap-1.5 text-xs">
-              <Checkbox
-                checked={data.initial_signs.absence_of_pulse}
-                onCheckedChange={(v) => updateInitialSigns({ absence_of_pulse: v === true })}
-                disabled={disabled}
-              />
-              Absence of Pulse
-            </label>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs">Other:</span>
+      <table className="w-full border-collapse text-xs">
+        <tbody>
+          {/* Row 1: Admission Diagnosis */}
+          <tr>
+            <td className={cn(LBL)} colSpan={2}>Admission Diagnosis:</td>
+            <td className={cn(CELL)} colSpan={10}>
               <Input
-                value={data.initial_signs.other}
-                onChange={(e) => updateInitialSigns({ other: e.target.value })}
+                value={data.admission_diagnosis}
+                onChange={(e) => updateField("admission_diagnosis", e.target.value)}
                 disabled={disabled}
-                className="h-7 w-28 text-xs md:w-40"
+                className={TXT}
               />
-            </div>
-          </div>
-        </div>
+            </td>
+          </tr>
 
-        {/* Site / Date / Time / Page */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div>
-            <label className="text-xs font-semibold">Site of Arrest</label>
-            <Input
-              value={data.site_of_arrest}
-              onChange={(e) => updateField("site_of_arrest", e.target.value)}
-              disabled={disabled}
-              className="mt-1 h-7 text-xs"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold">Date</label>
-            <Input
-              value={data.arrest_date}
-              onChange={(e) => updateField("arrest_date", e.target.value)}
-              disabled={disabled}
-              className="mt-1 h-7 text-xs"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold">Time</label>
-            <Input
-              value={data.arrest_time}
-              onChange={(e) => updateField("arrest_time", e.target.value)}
-              disabled={disabled}
-              className="mt-1 h-7 text-xs"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold">Page</label>
-            <div className="mt-1 flex items-center gap-1">
+          {/* Row 2: History of Events */}
+          <tr>
+            <td className={cn(LBL)} colSpan={2}>History of Events Prior to Arrest:</td>
+            <td className={cn(CELL)} colSpan={10}>
+              <textarea
+                value={data.history_prior}
+                onChange={(e) => updateField("history_prior", e.target.value)}
+                disabled={disabled}
+                rows={2}
+                className="w-full resize-none bg-transparent px-1 py-1 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              />
+            </td>
+          </tr>
+
+          {/* Row 3: Last Observation Time + Initial Signs */}
+          <tr>
+            <td className={cn(LBL)} colSpan={2}>Last Observation Time:</td>
+            <td className={cn(CELL)} colSpan={1}>
               <Input
-                value={data.page_number}
-                onChange={(e) => updateField("page_number", e.target.value)}
+                value={data.last_observation_time}
+                onChange={(e) => updateField("last_observation_time", e.target.value)}
                 disabled={disabled}
-                className="h-7 w-12 text-center text-xs"
-                placeholder="#"
+                className={TXT}
               />
-              <span className="text-xs text-muted-foreground">of</span>
+            </td>
+            <td className={cn(LBL)} colSpan={2}>Initial Signs of Arrest:</td>
+            <td className={cn(CELL)} colSpan={7}>
+              <div className="flex flex-wrap items-center gap-3 px-1">
+                <label className="flex items-center gap-1.5 text-xs">
+                  <Checkbox
+                    checked={data.initial_signs.cyanosis}
+                    onCheckedChange={(v) => updateInitialSigns({ cyanosis: v === true })}
+                    disabled={disabled}
+                  />
+                  Cyanosis
+                </label>
+                <label className="flex items-center gap-1.5 text-xs">
+                  <Checkbox
+                    checked={data.initial_signs.apnea}
+                    onCheckedChange={(v) => updateInitialSigns({ apnea: v === true })}
+                    disabled={disabled}
+                  />
+                  Apnea
+                </label>
+                <label className="flex items-center gap-1.5 text-xs">
+                  <Checkbox
+                    checked={data.initial_signs.absence_of_pulse}
+                    onCheckedChange={(v) => updateInitialSigns({ absence_of_pulse: v === true })}
+                    disabled={disabled}
+                  />
+                  Absence of Pulse
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs">Other:</span>
+                  <Input
+                    value={data.initial_signs.other}
+                    onChange={(e) => updateInitialSigns({ other: e.target.value })}
+                    disabled={disabled}
+                    className="h-7 w-24 text-xs md:w-36"
+                  />
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          {/* Row 4: Initial Heart Rhythm / Site / Date / Time / Page */}
+          <tr>
+            <td className={cn(LBL)} colSpan={2}>Initial Heart Rhythm:</td>
+            <td className={cn(CELL)} colSpan={1}>
               <Input
-                value={data.page_total}
-                onChange={(e) => updateField("page_total", e.target.value)}
+                value={data.initial_heart_rhythm}
+                onChange={(e) => updateField("initial_heart_rhythm", e.target.value)}
                 disabled={disabled}
-                className="h-7 w-12 text-center text-xs"
-                placeholder="#"
+                className={TXT}
               />
-            </div>
-          </div>
-        </div>
+            </td>
+            <td className={cn(LBL)}>Site of Arrest:</td>
+            <td className={cn(CELL)} colSpan={2}>
+              <Input
+                value={data.site_of_arrest}
+                onChange={(e) => updateField("site_of_arrest", e.target.value)}
+                disabled={disabled}
+                className={TXT}
+              />
+            </td>
+            <td className={cn(LBL)}>Date:</td>
+            <td className={cn(CELL)}>
+              <Input
+                value={data.arrest_date}
+                onChange={(e) => updateField("arrest_date", e.target.value)}
+                disabled={disabled}
+                className={TXT}
+              />
+            </td>
+            <td className={cn(LBL)}>Time:</td>
+            <td className={cn(CELL)}>
+              <Input
+                value={data.arrest_time}
+                onChange={(e) => updateField("arrest_time", e.target.value)}
+                disabled={disabled}
+                className={TXT}
+              />
+            </td>
+            <td className={cn(LBL)}>Page</td>
+            <td className={cn(CELL)}>
+              <div className="flex items-center gap-1">
+                <Input
+                  value={data.page_number}
+                  onChange={(e) => updateField("page_number", e.target.value)}
+                  disabled={disabled}
+                  className="h-7 w-10 text-center text-xs border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-ring"
+                  placeholder="#"
+                />
+                <span className="text-xs text-muted-foreground">of</span>
+                <Input
+                  value={data.page_total}
+                  onChange={(e) => updateField("page_total", e.target.value)}
+                  disabled={disabled}
+                  className="h-7 w-10 text-center text-xs border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-ring"
+                  placeholder="#"
+                />
+              </div>
+            </td>
+          </tr>
 
-        {/* CPR begun + Ventilation */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs font-semibold">Time CPR Begun</label>
-            <Input
-              value={data.time_cpr_begun}
-              onChange={(e) => updateField("time_cpr_begun", e.target.value)}
-              disabled={disabled}
-              className="mt-1 h-7 text-xs"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold">Ventilation</label>
-            <div className="mt-1.5 flex flex-wrap items-center gap-4">
-              <label className="flex items-center gap-1.5 text-xs">
-                <Checkbox
-                  checked={data.ventilation.mouth_mask}
-                  onCheckedChange={(v) => updateVentilation({ mouth_mask: v === true })}
-                  disabled={disabled}
-                />
-                Mouth/Mask
-              </label>
-              <label className="flex items-center gap-1.5 text-xs">
-                <Checkbox
-                  checked={data.ventilation.bag_mask}
-                  onCheckedChange={(v) => updateVentilation({ bag_mask: v === true })}
-                  disabled={disabled}
-                />
-                Bag/Mask
-              </label>
-              <label className="flex items-center gap-1.5 text-xs">
-                <Checkbox
-                  checked={data.ventilation.bag_tube}
-                  onCheckedChange={(v) => updateVentilation({ bag_tube: v === true })}
-                  disabled={disabled}
-                />
-                Bag/Tube
-              </label>
-            </div>
-          </div>
-        </div>
+          {/* Row 5: CPR Begun + Ventilation */}
+          <tr>
+            <td className={cn(LBL)} colSpan={2}>Time CPR Begun:</td>
+            <td className={cn(CELL)} colSpan={1}>
+              <Input
+                value={data.time_cpr_begun}
+                onChange={(e) => updateField("time_cpr_begun", e.target.value)}
+                disabled={disabled}
+                className={TXT}
+              />
+            </td>
+            <td className={cn(LBL)}>Ventilation:</td>
+            <td className={cn(CELL)} colSpan={8}>
+              <div className="flex flex-wrap items-center gap-3 px-1">
+                <label className="flex items-center gap-1.5 text-xs">
+                  <Checkbox
+                    checked={data.ventilation.mouth_mask}
+                    onCheckedChange={(v) => updateVentilation({ mouth_mask: v === true })}
+                    disabled={disabled}
+                  />
+                  Mouth/Mask
+                </label>
+                <label className="flex items-center gap-1.5 text-xs">
+                  <Checkbox
+                    checked={data.ventilation.bag_mask}
+                    onCheckedChange={(v) => updateVentilation({ bag_mask: v === true })}
+                    disabled={disabled}
+                  />
+                  Bag/Mask
+                </label>
+                <label className="flex items-center gap-1.5 text-xs">
+                  <Checkbox
+                    checked={data.ventilation.bag_tube}
+                    onCheckedChange={(v) => updateVentilation({ bag_tube: v === true })}
+                    disabled={disabled}
+                  />
+                  Bag/Tube
+                </label>
+              </div>
+            </td>
+          </tr>
 
-        {/* Intubation */}
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label className="text-xs font-semibold">Intubated By</label>
-            <Input
-              value={data.intubated_by}
-              onChange={(e) => updateField("intubated_by", e.target.value)}
-              disabled={disabled}
-              className="mt-1 h-7 text-xs"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold">ETT Size</label>
-            <Input
-              value={data.ett_size}
-              onChange={(e) => updateField("ett_size", e.target.value)}
-              disabled={disabled}
-              className="mt-1 h-7 text-xs"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold">Time</label>
-            <Input
-              value={data.intubation_time}
-              onChange={(e) => updateField("intubation_time", e.target.value)}
-              disabled={disabled}
-              className="mt-1 h-7 text-xs"
-            />
-          </div>
-        </div>
-      </div>
+          {/* Row 6: Intubation */}
+          <tr>
+            <td className={cn(LBL)} colSpan={2}>Intubated By:</td>
+            <td className={cn(CELL)} colSpan={4}>
+              <Input
+                value={data.intubated_by}
+                onChange={(e) => updateField("intubated_by", e.target.value)}
+                disabled={disabled}
+                className={TXT}
+              />
+            </td>
+            <td className={cn(LBL)}>ETT Size:</td>
+            <td className={cn(CELL)} colSpan={2}>
+              <Input
+                value={data.ett_size}
+                onChange={(e) => updateField("ett_size", e.target.value)}
+                disabled={disabled}
+                className={TXT}
+              />
+            </td>
+            <td className={cn(LBL)}>Time:</td>
+            <td className={cn(CELL)} colSpan={2}>
+              <Input
+                value={data.intubation_time}
+                onChange={(e) => updateField("intubation_time", e.target.value)}
+                disabled={disabled}
+                className={TXT}
+              />
+            </td>
+          </tr>
+        </tbody>
+      </table>
     )
   }
 
@@ -300,46 +303,53 @@ export function CardiacArrestTable({ data, onChange, disabled, isDraft }: Cardia
           <thead>
             {/* Row 1: Group headers */}
             <tr>
-              <th rowSpan={2} className={cn(HDR, "w-[60px]")}>Time</th>
+              <th rowSpan={3} className={cn(HDR, "w-[60px]")}>Time</th>
               <th colSpan={4} className={cn(HDR)}>Vital Signs</th>
               <th colSpan={4} className={cn(HDR)}>Drugs (amount &amp; route)</th>
               <th colSpan={3} className={cn(HDR)}>Defibrillation</th>
               <th colSpan={4} className={cn(HDR)}>IV Solutions (dose)</th>
-              <th rowSpan={2} className={cn(HDR, "min-w-[80px] md:min-w-[100px]")}>Comments</th>
+              <th rowSpan={3} className={cn(HDR, "min-w-[80px] md:min-w-[100px]")}>
+                <div>Comments</div>
+                <div className="font-normal text-[10px] text-muted-foreground leading-tight mt-0.5">(lab results [ABG&apos;s, K+]; procedures performed pacemaker, cardioversion pericardiocentesis [ABP, etc.])</div>
+              </th>
             </tr>
             {/* Row 2: Sub-headers */}
             <tr>
               {/* Vital Signs */}
-              <th className={cn(HDR, "min-w-[60px] md:min-w-[70px]")}>Cardiac Rhythm</th>
-              <th className={cn(HDR, "min-w-[50px]")}>Pulse</th>
-              <th className={cn(HDR, "min-w-[50px]")}>
+              <th rowSpan={2} className={cn(HDR, "min-w-[60px] md:min-w-[70px]")}>Cardiac Rhythm</th>
+              <th rowSpan={2} className={cn(HDR, "min-w-[50px]")}>Pulse</th>
+              <th rowSpan={2} className={cn(HDR, "min-w-[50px]")}>
                 <div>Resp.</div>
                 <div className="font-normal text-[10px] text-muted-foreground">A=assisted S=spont</div>
               </th>
-              <th className={cn(HDR, "min-w-[50px]")}>BP</th>
+              <th rowSpan={2} className={cn(HDR, "min-w-[50px]")}>BP</th>
               {/* Drugs */}
-              <th className={cn(HDR, "min-w-[50px] md:min-w-[60px]")}>Epinephrine</th>
-              <th className={cn(HDR, "min-w-[45px] md:min-w-[55px]")}>Atropine</th>
-              <th className={cn(HDR, "min-w-[45px] md:min-w-[55px]")}>Lidocaine</th>
-              <th className={cn(HDR, "min-w-[45px] md:min-w-[55px]")}>Other</th>
+              <th rowSpan={2} className={cn(HDR, "min-w-[50px] md:min-w-[60px]")}>Epinephrine</th>
+              <th rowSpan={2} className={cn(HDR, "min-w-[45px] md:min-w-[55px]")}>Atropine</th>
+              <th rowSpan={2} className={cn(HDR, "min-w-[45px] md:min-w-[55px]")}>Lidocaine</th>
+              <th rowSpan={2} className={cn(HDR, "min-w-[45px] md:min-w-[55px]")}>Other</th>
               {/* Defibrillation */}
-              <th className={cn(HDR, "min-w-[50px]")}>Joules</th>
-              <th className={cn(HDR, "min-w-[50px]")}>Pre</th>
-              <th className={cn(HDR, "min-w-[50px]")}>Post</th>
+              <th rowSpan={2} className={cn(HDR, "min-w-[50px]")}>Joules</th>
+              <th colSpan={2} className={cn(HDR)}>Rhythm</th>
               {/* IV Solutions */}
-              <th className={cn(HDR, "min-w-[55px] md:min-w-[70px]")}>
+              <th rowSpan={2} className={cn(HDR, "min-w-[55px] md:min-w-[70px]")}>
                 <div>Lidocaine</div>
                 <div className="font-normal text-[10px] text-muted-foreground">2gms/500cc</div>
               </th>
-              <th className={cn(HDR, "min-w-[55px] md:min-w-[70px]")}>
+              <th rowSpan={2} className={cn(HDR, "min-w-[55px] md:min-w-[70px]")}>
                 <div>Dopamine</div>
                 <div className="font-normal text-[10px] text-muted-foreground">400mg/500cc</div>
               </th>
-              <th className={cn(HDR, "min-w-[55px] md:min-w-[70px]")}>
+              <th rowSpan={2} className={cn(HDR, "min-w-[55px] md:min-w-[70px]")}>
                 <div>Dobut.</div>
                 <div className="font-normal text-[10px] text-muted-foreground">250mg/250cc</div>
               </th>
-              <th className={cn(HDR, "min-w-[45px] md:min-w-[55px]")}>Other</th>
+              <th rowSpan={2} className={cn(HDR, "min-w-[45px] md:min-w-[55px]")}>Other</th>
+            </tr>
+            {/* Row 3: Rhythm sub-headers (Pre / Post) */}
+            <tr>
+              <th className={cn(HDR, "min-w-[50px]")}>Pre</th>
+              <th className={cn(HDR, "min-w-[50px]")}>Post</th>
             </tr>
           </thead>
           <tbody>
@@ -449,166 +459,108 @@ export function CardiacArrestTable({ data, onChange, disabled, isDraft }: Cardia
 
   function renderFooter() {
     return (
-      <div className="space-y-3">
-        {/* Code terminated by / Date / Outcome / Time */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div>
-            <label className="text-xs font-semibold">Code Terminated By</label>
-            <Input
-              value={data.code_terminated_by}
-              onChange={(e) => updateField("code_terminated_by", e.target.value)}
-              disabled={disabled}
-              className="mt-1 h-7 text-xs"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold">Date</label>
-            <Input
-              value={data.termination_date}
-              onChange={(e) => updateField("termination_date", e.target.value)}
-              disabled={disabled}
-              className="mt-1 h-7 text-xs"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold">Patient Outcome</label>
-            <div className="mt-1.5 flex items-center gap-4">
-              <label className="flex items-center gap-1.5 text-xs">
-                <Checkbox
-                  checked={data.patient_outcome === "survived"}
-                  onCheckedChange={(v) => updateField("patient_outcome", v === true ? "survived" : "")}
-                  disabled={disabled}
-                />
-                Survived
-              </label>
-              <label className="flex items-center gap-1.5 text-xs">
-                <Checkbox
-                  checked={data.patient_outcome === "expired"}
-                  onCheckedChange={(v) => updateField("patient_outcome", v === true ? "expired" : "")}
-                  disabled={disabled}
-                />
-                Expired
-              </label>
-            </div>
-          </div>
-          <div>
-            <label className="text-xs font-semibold">Time</label>
-            <Input
-              value={data.termination_time}
-              onChange={(e) => updateField("termination_time", e.target.value)}
-              disabled={disabled}
-              className="mt-1 h-7 text-xs"
-            />
-          </div>
-        </div>
+      <div>
+        <table className="w-full border-collapse text-xs">
+          <tbody>
+            {/* Row 1: Code Terminated By / Date / Patient Outcome / Time */}
+            <tr>
+              <td className={cn(LBL)} colSpan={1}>Code Terminated By:</td>
+              <td className={cn(CELL)} colSpan={2}>
+                <Input value={data.code_terminated_by} onChange={(e) => updateField("code_terminated_by", e.target.value)} disabled={disabled} className={TXT} />
+              </td>
+              <td className={cn(LBL)} colSpan={1}>Date:</td>
+              <td className={cn(CELL)} colSpan={1}>
+                <Input value={data.termination_date} onChange={(e) => updateField("termination_date", e.target.value)} disabled={disabled} className={TXT} />
+              </td>
+              <td className={cn(LBL)} colSpan={1}>Patient:</td>
+              <td className={cn(CELL)} colSpan={3}>
+                <div className="flex items-center gap-3 px-1">
+                  <label className="flex items-center gap-1.5 text-xs">
+                    <Checkbox
+                      checked={data.patient_outcome === "survived"}
+                      onCheckedChange={(v) => updateField("patient_outcome", v === true ? "survived" : "")}
+                      disabled={disabled}
+                    />
+                    Survived
+                  </label>
+                  <label className="flex items-center gap-1.5 text-xs">
+                    <Checkbox
+                      checked={data.patient_outcome === "expired"}
+                      onCheckedChange={(v) => updateField("patient_outcome", v === true ? "expired" : "")}
+                      disabled={disabled}
+                    />
+                    Expired
+                  </label>
+                </div>
+              </td>
+              <td className={cn(LBL)} colSpan={1}>Time:</td>
+              <td className={cn(CELL)} colSpan={2}>
+                <Input value={data.termination_time} onChange={(e) => updateField("termination_time", e.target.value)} disabled={disabled} className={TXT} />
+              </td>
+            </tr>
 
-        {/* Transferred to */}
-        <div>
-          <label className="text-xs font-semibold">Transferred To</label>
-          <Input
-            value={data.transferred_to}
-            onChange={(e) => updateField("transferred_to", e.target.value)}
-            disabled={disabled}
-            className="mt-1 h-7 text-xs"
-          />
-        </div>
+            {/* Row 2: Transferred To / Signatures header */}
+            <tr>
+              <td className={cn(LBL)} colSpan={1}>Transferred To:</td>
+              <td className={cn(CELL)} colSpan={5}>
+                <Input value={data.transferred_to} onChange={(e) => updateField("transferred_to", e.target.value)} disabled={disabled} className={TXT} />
+              </td>
+              <td className={cn(CELL)} colSpan={1} />
+              <td className={cn(LBL, "text-center")} colSpan={5}>Signatures</td>
+            </tr>
 
-        {/* Neuro status */}
-        <div>
-          <label className="text-xs font-semibold">Neuro Status on Transfer</label>
-          <Input
-            value={data.neuro_status}
-            onChange={(e) => updateField("neuro_status", e.target.value)}
-            disabled={disabled}
-            className="mt-1 h-7 text-xs"
-          />
-        </div>
+            {/* Row 3: Neuro Status / Team Leader / Recording RN */}
+            <tr>
+              <td className={cn(LBL)} colSpan={1}>Neuro Status on Transfer:</td>
+              <td className={cn(CELL)} colSpan={5}>
+                <Input value={data.neuro_status} onChange={(e) => updateField("neuro_status", e.target.value)} disabled={disabled} className={TXT} />
+              </td>
+              <td className={cn(LBL)} colSpan={1}>Team Leader:</td>
+              <td className={cn(CELL)} colSpan={2}>
+                <Input value={data.team_leader} onChange={(e) => updateField("team_leader", e.target.value)} disabled={disabled} className={TXT} />
+              </td>
+              <td className={cn(LBL)} colSpan={1}>Recording RN:</td>
+              <td className={cn(CELL)} colSpan={2}>
+                <Input value={data.recording_rn} onChange={(e) => updateField("recording_rn", e.target.value)} disabled={disabled} className={TXT} />
+              </td>
+            </tr>
 
-        {/* Notification times */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs font-semibold">Time Family Notified</label>
-            <Input
-              value={data.time_family_notified}
-              onChange={(e) => updateField("time_family_notified", e.target.value)}
-              disabled={disabled}
-              className="mt-1 h-7 text-xs"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold">Time Attending MD / Service Notified</label>
-            <Input
-              value={data.time_md_notified}
-              onChange={(e) => updateField("time_md_notified", e.target.value)}
-              disabled={disabled}
-              className="mt-1 h-7 text-xs"
-            />
-          </div>
-        </div>
+            {/* Row 4: Time Family Notified / Time MD Notified / Respiratory Care / Other */}
+            <tr>
+              <td className={cn(LBL)} colSpan={1}>Time Family Notified:</td>
+              <td className={cn(CELL)} colSpan={2}>
+                <Input value={data.time_family_notified} onChange={(e) => updateField("time_family_notified", e.target.value)} disabled={disabled} className={TXT} />
+              </td>
+              <td className={cn(LBL)} colSpan={1}>Time Attending MD / Service Notified:</td>
+              <td className={cn(CELL)} colSpan={2}>
+                <Input value={data.time_md_notified} onChange={(e) => updateField("time_md_notified", e.target.value)} disabled={disabled} className={TXT} />
+              </td>
+              <td className={cn(LBL)} colSpan={1}>Respiratory Care Practitioner:</td>
+              <td className={cn(CELL)} colSpan={2}>
+                <Input value={data.respiratory_care} onChange={(e) => updateField("respiratory_care", e.target.value)} disabled={disabled} className={TXT} />
+              </td>
+              <td className={cn(LBL)} colSpan={1}>Other:</td>
+              <td className={cn(CELL)} colSpan={2}>
+                <Input value={data.other_sig_1} onChange={(e) => updateField("other_sig_1", e.target.value)} disabled={disabled} className={TXT} />
+              </td>
+            </tr>
 
-        {/* Signatures */}
-        <div>
-          <label className="text-xs font-semibold">Signatures</label>
-          <div className="mt-1.5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <div>
-              <label className="text-[10px] text-muted-foreground md:text-xs">Team Leader</label>
-              <Input
-                value={data.team_leader}
-                onChange={(e) => updateField("team_leader", e.target.value)}
-                disabled={disabled}
-                className="mt-0.5 h-7 text-xs"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] text-muted-foreground md:text-xs">Recording RN</label>
-              <Input
-                value={data.recording_rn}
-                onChange={(e) => updateField("recording_rn", e.target.value)}
-                disabled={disabled}
-                className="mt-0.5 h-7 text-xs"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] text-muted-foreground md:text-xs">Respiratory Care Practitioner</label>
-              <Input
-                value={data.respiratory_care}
-                onChange={(e) => updateField("respiratory_care", e.target.value)}
-                disabled={disabled}
-                className="mt-0.5 h-7 text-xs"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] text-muted-foreground md:text-xs">Medication RN</label>
-              <Input
-                value={data.medication_rn}
-                onChange={(e) => updateField("medication_rn", e.target.value)}
-                disabled={disabled}
-                className="mt-0.5 h-7 text-xs"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] text-muted-foreground md:text-xs">Other</label>
-              <Input
-                value={data.other_sig_1}
-                onChange={(e) => updateField("other_sig_1", e.target.value)}
-                disabled={disabled}
-                className="mt-0.5 h-7 text-xs"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] text-muted-foreground md:text-xs">Other</label>
-              <Input
-                value={data.other_sig_2}
-                onChange={(e) => updateField("other_sig_2", e.target.value)}
-                disabled={disabled}
-                className="mt-0.5 h-7 text-xs"
-              />
-            </div>
-          </div>
-        </div>
+            {/* Row 5: Medication RN / Other */}
+            <tr>
+              <td className={cn(CELL)} colSpan={6} />
+              <td className={cn(LBL)} colSpan={1}>Medication RN:</td>
+              <td className={cn(CELL)} colSpan={2}>
+                <Input value={data.medication_rn} onChange={(e) => updateField("medication_rn", e.target.value)} disabled={disabled} className={TXT} />
+              </td>
+              <td className={cn(LBL)} colSpan={1}>Other:</td>
+              <td className={cn(CELL)} colSpan={2}>
+                <Input value={data.other_sig_2} onChange={(e) => updateField("other_sig_2", e.target.value)} disabled={disabled} className={TXT} />
+              </td>
+            </tr>
+          </tbody>
+        </table>
 
-        {/* Note */}
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <p className="mt-3 text-xs font-bold uppercase tracking-wide text-center">
           Please save rhythm strips in chart
         </p>
       </div>
@@ -620,7 +572,7 @@ export function CardiacArrestTable({ data, onChange, disabled, isDraft }: Cardia
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-0">
       {renderHeader()}
       {renderTable()}
       {renderFooter()}
