@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo } from "react"
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { parseAsString, useQueryState } from "nuqs"
 
 import { AppSidebar } from "@/components/app-sidebar"
@@ -81,7 +81,7 @@ export function AppShell({ user, locations, binders, children, mustChangePasswor
     setLocationId(id)
   }
 
-  const searchParams = useSearchParams()
+  const [drugParam] = useQueryState("drug", parseAsString)
 
   // Build hierarchical breadcrumb segments from pathname
   const breadcrumbs = useMemo(() => {
@@ -103,7 +103,6 @@ export function AppShell({ user, locations, binders, children, mustChangePasswor
   }, [pathname])
 
   // Extra context from search params (e.g., drug name on inventory page)
-  const drugParam = searchParams.get("drug")
   const drugLabel = useMemo(() => {
     if (!drugParam || !pathname.startsWith("/logs/inventory")) return null
     // Check preset drugs
