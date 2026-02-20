@@ -103,9 +103,9 @@ export function CrashCartTable({
       <div className="mb-3 rounded border border-foreground/20 bg-muted/20 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
         <span className="font-semibold text-foreground">Instructions:</span>{" "}
         Each month identify how many of each item is in stock. Verify each item
-        is within the manufacturer's expiration or open medication is within 28
-        days. Initial on the last row of each month. Complete the name section
-        at the bottom.
+        is within the manufacturer&apos;s expiration or open medication is
+        within 28 days. Initial on the last row of each month. Complete the name
+        section at the bottom.
       </div>
       <table className="w-full border-collapse">
         <thead>
@@ -174,12 +174,7 @@ export function CrashCartTable({
             if (item.section) {
               return (
                 <tr key={item.key}>
-                  <td
-                    className={cn(
-                      SECTION,
-                      "sticky left-0 z-10 bg-muted",
-                    )}
-                  >
+                  <td className={cn(SECTION, "sticky left-0 z-10 bg-muted")}>
                     {item.label}
                   </td>
                   <td className={SECTION} colSpan={14} />
