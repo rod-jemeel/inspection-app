@@ -8,6 +8,7 @@ import {
   Plus,
   FileText,
   Calendar,
+  Clock3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +31,8 @@ interface CardiacArrestSummaryProps {
   /** YYYY-MM */
   currentMonth: string;
 }
+
+type SummaryScope = "all" | "month";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -97,6 +100,7 @@ export function CardiacArrestSummary({
 }: CardiacArrestSummaryProps) {
   const router = useRouter();
   const [, startTransition] = useTransition();
+  const [scope, setScope] = useState<SummaryScope>("all");
 
   // Local state for the date-picker input
   // Initialize to today if current month, else first of displayed month
@@ -119,7 +123,7 @@ export function CardiacArrestSummary({
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   // ---------------------------------------------------------------------------
-  // Fetch entries for current month
+  // Fetch entries (all or current month)
   // ---------------------------------------------------------------------------
   useEffect(() => {
     let cancelled = false;
@@ -127,12 +131,17 @@ export function CardiacArrestSummary({
     setFetchError(null);
     setEntries(null);
 
-    const from = `${currentMonth}-01`;
-    const to = lastDayOfMonth(currentMonth);
+    const params = new URLSearchParams({
+      log_type: "cardiac_arrest_record",
+      limit: "100",
+      offset: "0",
+    });
+    if (scope === "month") {
+      params.set("from", `${currentMonth}-01`);
+      params.set("to", lastDayOfMonth(currentMonth));
+    }
 
-    fetch(
-      `/api/locations/${locationId}/logs?log_type=cardiac_arrest_record&from=${from}&to=${to}&limit=100&offset=0`,
-    )
+    fetch(`/api/locations/${locationId}/logs?${params.toString()}`)
       .then((res) => {
         if (!res.ok) throw new Error("Failed to load records");
         return res.json();
@@ -150,7 +159,7 @@ export function CardiacArrestSummary({
     return () => {
       cancelled = true;
     };
-  }, [locationId, currentMonth]);
+  }, [locationId, currentMonth, scope]);
 
   // ---------------------------------------------------------------------------
   // Navigation helpers
@@ -168,6 +177,11 @@ export function CardiacArrestSummary({
         `/logs/cardiac-arrest?loc=${locationId}&id=${id}&month=${currentMonth}`,
       );
     });
+  }
+
+  function openNewestRecord() {
+    if (!entries || entries.length === 0) return;
+    openEntry(entries[0].id);
   }
 
   function openNewRecord() {
@@ -201,6 +215,7 @@ export function CardiacArrestSummary({
   // Derived: is this month in the future?
   // ---------------------------------------------------------------------------
   const isCurrentOrPast = currentMonth <= todayMonth();
+  const newestEntry = entries?.[0] ?? null;
 
   // ---------------------------------------------------------------------------
   // Render
@@ -211,31 +226,84 @@ export function CardiacArrestSummary({
       {/* Header + month nav */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h3 className="text-sm font-semibold">Cardiac Arrest Records</h3>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-7"
-            onClick={() => navigateMonth(prevMonth(currentMonth))}
-            title="Previous month"
-          >
-            <ChevronLeft className="size-3.5" />
-          </Button>
-          <span className="text-xs font-medium min-w-[120px] text-center tabular-nums">
-            {formatMonth(currentMonth)}
-          </span>
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-7"
-            onClick={() => navigateMonth(nextMonth(currentMonth))}
-            disabled={currentMonth >= todayMonth()}
-            title="Next month"
-          >
-            <ChevronRight className="size-3.5" />
-          </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="inline-flex items-center rounded-md border border-border p-0.5">
+            <Button
+              type="button"
+              size="sm"
+              variant={scope === "all" ? "secondary" : "ghost"}
+              className="h-7 text-[11px]"
+              onClick={() => setScope("all")}
+            >
+              All Records
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={scope === "month" ? "secondary" : "ghost"}
+              className="h-7 text-[11px]"
+              onClick={() => setScope("month")}
+            >
+              This Month
+            </Button>
+          </div>
+
+          {scope === "month" && (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-7"
+                onClick={() => navigateMonth(prevMonth(currentMonth))}
+                title="Previous month"
+              >
+                <ChevronLeft className="size-3.5" />
+              </Button>
+              <span className="text-xs font-medium min-w-[120px] text-center tabular-nums">
+                {formatMonth(currentMonth)}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-7"
+                onClick={() => navigateMonth(nextMonth(currentMonth))}
+                disabled={currentMonth >= todayMonth()}
+                title="Next month"
+              >
+                <ChevronRight className="size-3.5" />
+              </Button>
+            </div>
+          )}
         </div>
       </div>
+
+      {!loading && !fetchError && newestEntry && (
+        <div className="border border-border/50 rounded-sm p-3 flex flex-wrap items-center justify-between gap-2 bg-muted/10">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Newest Record
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-medium">{formatDate(newestEntry.log_date)}</p>
+              <Badge
+                variant={newestEntry.status === "complete" ? "default" : "secondary"}
+                className="text-[10px]"
+              >
+                {newestEntry.status}
+              </Badge>
+              {newestEntry.submitted_by_name && (
+                <span className="text-xs text-muted-foreground truncate">
+                  {newestEntry.submitted_by_name}
+                </span>
+              )}
+            </div>
+          </div>
+          <Button size="sm" className="h-8" onClick={openNewestRecord}>
+            <Clock3 className="size-3.5 mr-1" />
+            Open Newest
+          </Button>
+        </div>
+      )}
 
       {/* Record list */}
       <div className="border border-border/50 rounded-sm overflow-hidden">
@@ -255,7 +323,9 @@ export function CardiacArrestSummary({
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
             <Calendar className="size-8 opacity-30" />
             <p className="text-xs">
-              No records for {formatMonth(currentMonth)}
+              {scope === "month"
+                ? `No records for ${formatMonth(currentMonth)}`
+                : "No cardiac arrest records yet"}
             </p>
           </div>
         )}
@@ -302,7 +372,7 @@ export function CardiacArrestSummary({
                       onClick={() => openEntry(entry.id)}
                     >
                       <FileText className="size-3 mr-1" />
-                      View
+                      Open
                     </Button>
                   </td>
                 </tr>
@@ -316,6 +386,11 @@ export function CardiacArrestSummary({
       {isCurrentOrPast && (
         <div className="border border-border/50 rounded-sm p-3 space-y-2">
           <p className="text-xs font-semibold">Add New Record</p>
+          {scope === "all" && (
+            <p className="text-[11px] text-muted-foreground">
+              Choose a date to create a new record. Existing dates will open the saved record.
+            </p>
+          )}
           <div className="flex items-start gap-2 flex-wrap">
             <div className="flex flex-col gap-1 flex-1 min-w-[160px]">
               <Input
@@ -334,7 +409,7 @@ export function CardiacArrestSummary({
               )}
               {entries && entries.find((e) => e.log_date === newDate) && (
                 <p className="text-[11px] text-amber-600">
-                  A record already exists for this date — clicking Add will open
+                  A record already exists for this date - clicking Add will open
                   it.
                 </p>
               )}
