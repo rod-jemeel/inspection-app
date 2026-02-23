@@ -35,6 +35,7 @@ const TXT =
   "h-7 md:h-8 w-full text-center text-[11px] md:text-xs border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-ring rounded-none"
 const NOTES_TXT =
   "h-7 md:h-8 w-full text-left text-[11px] md:text-xs px-1 border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-ring rounded-none"
+const CHECKBOX_WRAP = "flex h-7 md:h-8 items-center justify-center"
 
 // ---------------------------------------------------------------------------
 // Days array 1..31
@@ -87,6 +88,10 @@ export function CrashCartDailyTable({
         [itemKey]: { ...(data.checks[itemKey] || {}), [day]: value },
       },
     })
+  }
+
+  function toggleCheck(itemKey: string, day: string, checked: boolean) {
+    updateCheck(itemKey, day, checked ? "✓" : "")
   }
 
   function updateNote(itemKey: string, value: string) {
@@ -162,14 +167,17 @@ export function CrashCartDailyTable({
               <th className={cn(HDR, "min-w-[180px] text-left sticky left-0 z-10 bg-muted")}>
                 Year:
               </th>
-              <th className={cn(HDR, "text-base font-bold")} colSpan={16}>
-                {data.year}
-              </th>
-              <th className={cn(HDR, "text-right font-semibold")} colSpan={1}>
-                Month:
-              </th>
-              <th className={cn(HDR, "text-base font-bold text-left")} colSpan={15}>
-                {data.month}
+              <th className={cn(HDR, "px-2")} colSpan={32}>
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs md:text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">Year</span>
+                    <span className="text-base font-bold leading-none">{data.year}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">Month</span>
+                    <span className="text-base font-bold leading-none">{data.month}</span>
+                  </div>
+                </div>
               </th>
             </tr>
             {/* Day numbers header row */}
@@ -200,14 +208,16 @@ export function CrashCartDailyTable({
                 </td>
                 {DAYS.map((d) => (
                   <td key={d} className={cn(CELL, isDraft && data.checks[item.key]?.[d] && "bg-yellow-50")}>
-                    <input
-                      type="text"
-                      value={data.checks[item.key]?.[d] || ""}
-                      onChange={(e) => updateCheck(item.key, d, e.target.value)}
-                      disabled={disabled}
-                      className={TXT}
-                      maxLength={3}
-                    />
+                    <div className={CHECKBOX_WRAP}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(data.checks[item.key]?.[d])}
+                        onChange={(e) => toggleCheck(item.key, d, e.target.checked)}
+                        disabled={disabled}
+                        aria-label={`${item.label} day ${d}`}
+                        className="size-4 cursor-pointer accent-foreground disabled:cursor-not-allowed"
+                      />
+                    </div>
                   </td>
                 ))}
                 <td className={cn(CELL, isDraft && data.notes[item.key] && "bg-yellow-50")}>
