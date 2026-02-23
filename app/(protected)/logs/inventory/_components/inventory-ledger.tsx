@@ -2,9 +2,8 @@
 
 import { useState, useCallback, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Save, CheckCircle2, RotateCcw, CalendarIcon } from "lucide-react"
-import { format } from "date-fns"
-import type { DateRange } from "react-day-picker"
+import { Save, CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react"
+import { addMonths, endOfMonth, format, startOfMonth } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
@@ -50,6 +49,39 @@ function countNonEmptyRows(rows: InventoryLogData["rows"]): number {
   return count
 }
 
+function parseInventoryRowDate(value: string): Date | undefined {
+  if (!value) return undefined
+
+  const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (iso) {
+    const [, y, m, d] = iso
+    const parsed = new Date(Number(y), Number(m) - 1, Number(d))
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed
+  }
+
+  const us = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (us) {
+    const [, m, d, y] = us
+    const parsed = new Date(Number(y), Number(m) - 1, Number(d))
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed
+  }
+
+  return undefined
+}
+
+function getInitialInventoryMonth(entry: EntryData | null): Date {
+  const parsedDates = entry?.data.rows
+    .map((row) => parseInventoryRowDate(row.date))
+    .filter((d): d is Date => Boolean(d))
+
+  if (!parsedDates || parsedDates.length === 0) {
+    return startOfMonth(new Date())
+  }
+
+  const latest = parsedDates.reduce((max, d) => (d > max ? d : max), parsedDates[0])
+  return startOfMonth(latest)
+}
+
 export function InventoryLedger({
   locationId,
   drugSlug,
@@ -72,9 +104,10 @@ export function InventoryLedger({
     }
     return empty
   })
-  const [status, setStatus] = useState<"draft" | "complete">(initialEntry?.status ?? "draft")
   const [dirty, setDirty] = useState(false)
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
+  const [selectedMonth, setSelectedMonth] = useState<Date>(
+    () => getInitialInventoryMonth(initialEntry),
+  )
 
   // Rows with index < lockedRowCount are read-only (already saved to DB)
   const [lockedRowCount, setLockedRowCount] = useState(
@@ -86,25 +119,11 @@ export function InventoryLedger({
     setDirty(true)
   }, [])
 
-  async function save(newStatus: "draft" | "complete") {
-    // Require signatures on rows with patient data when submitting as complete
-    if (newStatus === "complete") {
-      const missingRows = data.rows
-        .map((row, i) => ({ row, idx: i + 1 }))
-        .filter(({ row }) => row.patient_name.trim() || row.amt_used !== null || row.amt_ordered !== null)
-        .filter(({ row }) => !row.rn_sig)
-
-      if (missingRows.length > 0) {
-        const rowNums = missingRows.map((r) => r.idx).join(", ")
-        alert(`Row${missingRows.length > 1 ? "s" : ""} ${rowNums} ${missingRows.length > 1 ? "are" : "is"} missing RN signature. Signature is required for each transaction row.`)
-        return
-      }
-    }
-
+  async function save() {
     setSaving(true)
     try {
       // Auto-calculate running qty_in_stock (in vials) for each row
-      // Parse vial volume from size_qty (e.g., "2mL vials" → 2)
+      // Parse vial volume from size_qty (e.g., "2mL vials" -> 2)
       const vialMatch = data.size_qty.match(/([\d.]+)\s*m[lL]/i)
       const vialVol = vialMatch ? parseFloat(vialMatch[1]) : null
       const rows: typeof data.rows = []
@@ -127,7 +146,8 @@ export function InventoryLedger({
           log_key: drugSlug,
           log_date: "1970-01-01",
           data: { ...data, rows },
-          status: newStatus,
+          // Perpetual inventory should remain editable; persist as draft/ongoing.
+          status: "draft",
         }),
       })
 
@@ -137,7 +157,6 @@ export function InventoryLedger({
         return
       }
 
-      setStatus(newStatus)
       setDirty(false)
 
       // After save, lock all non-empty rows (they're now persisted)
@@ -151,70 +170,74 @@ export function InventoryLedger({
     }
   }
 
-  const isDisabled = status === "complete"
+  const isDisabled = false
+  const monthRange = {
+    from: startOfMonth(selectedMonth),
+    to: endOfMonth(selectedMonth),
+  }
 
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Badge variant={status === "complete" ? "default" : "secondary"} className="text-[10px]">
-            {status}
+          <Badge variant="outline" className="text-[10px]">
+            ongoing
           </Badge>
           {dirty && !isDisabled && (
             <span className="text-xs text-amber-600">Unsaved changes</span>
           )}
         </div>
 
-        {/* Date range filter */}
         <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 px-2"
+            onClick={() => setSelectedMonth((m) => addMonths(m, -1))}
+            aria-label="Previous month"
+          >
+            <ChevronLeft className="size-3.5" />
+          </Button>
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                className={cn(
-                  "h-8 justify-start text-left text-xs font-normal",
-                  !dateRange && "text-muted-foreground",
-                )}
+                className={cn("h-8 justify-start text-left text-xs font-normal")}
               >
                 <CalendarIcon className="mr-1.5 size-3" />
-                {dateRange?.from ? (
-                  dateRange.to ? (
-                    <>
-                      {format(dateRange.from, "LLL dd, y")} –{" "}
-                      {format(dateRange.to, "LLL dd, y")}
-                    </>
-                  ) : (
-                    format(dateRange.from, "LLL dd, y")
-                  )
-                ) : (
-                  "Filter by date range"
-                )}
+                {format(selectedMonth, "MMM yyyy")}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
               <Calendar
                 initialFocus
-                mode="range"
-                defaultMonth={dateRange?.from}
-                selected={dateRange}
-                onSelect={setDateRange}
-                numberOfMonths={2}
+                mode="single"
+                captionLayout="dropdown"
+                startMonth={new Date(2020, 0, 1)}
+                endMonth={new Date(2035, 11, 1)}
+                defaultMonth={selectedMonth}
+                selected={selectedMonth}
+                onSelect={(date) => {
+                  if (date) setSelectedMonth(startOfMonth(date))
+                }}
               />
             </PopoverContent>
           </Popover>
-          {dateRange?.from && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-8 px-2 text-xs"
-              onClick={() => setDateRange(undefined)}
-            >
-              Clear
-            </Button>
-          )}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 px-2"
+            onClick={() => setSelectedMonth((m) => addMonths(m, 1))}
+            aria-label="Next month"
+          >
+            <ChevronRight className="size-3.5" />
+          </Button>
         </div>
+
       </div>
 
       {/* Table */}
@@ -223,51 +246,21 @@ export function InventoryLedger({
         onChange={handleDataChange}
         locationId={locationId}
         disabled={isDisabled}
-        lockedRowCount={lockedRowCount}
-        dateRange={dateRange}
-        onDateRangeChange={setDateRange}
-        isDraft={status === "draft"}
+        lockedRowCount={isAdmin ? 0 : lockedRowCount}
+        dateRange={monthRange}
       />
 
       {/* Save actions */}
       <div className="sticky bottom-0 z-20 border-t border-border/50 bg-background/95 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 flex flex-wrap items-center gap-2">
-        {!isDisabled && (
-          <>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => save("draft")}
-              disabled={saving || !dirty}
-            >
-              <Save className="mr-1 size-3" />
-              {saving ? "Saving\u2026" : "Save Draft"}
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => save("complete")}
-              disabled={saving}
-            >
-              <CheckCircle2 className="mr-1 size-3" />
-              {saving ? "Saving\u2026" : "Submit as Complete"}
-            </Button>
-          </>
-        )}
-        {isDisabled && isAdmin && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => save("draft")}
-            disabled={saving}
-          >
-            <RotateCcw className="mr-1 size-3" />
-            {saving ? "Reverting\u2026" : "Revert to Draft"}
-          </Button>
-        )}
-        {isDisabled && !isAdmin && (
-          <p className="text-xs text-muted-foreground">
-            This inventory has been submitted as complete. Contact an admin to revert.
-          </p>
-        )}
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={save}
+          disabled={saving || !dirty}
+        >
+          <Save className="mr-1 size-3" />
+          {saving ? "Saving\u2026" : "Save Inventory"}
+        </Button>
       </div>
     </div>
   )
