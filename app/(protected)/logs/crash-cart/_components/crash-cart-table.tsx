@@ -1,7 +1,11 @@
 "use client";
 
+import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -38,6 +42,7 @@ const CELL = `${B} px-0 py-0`;
 const SECTION = `${B} bg-foreground/10 px-2 py-1.5 text-xs font-bold`;
 const TXT =
   "h-8 md:h-9 w-full text-center text-xs border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-ring";
+const CHECKBOX_WRAP = "flex h-8 md:h-9 items-center justify-center";
 
 // ---------------------------------------------------------------------------
 // Month display labels
@@ -58,6 +63,32 @@ const MONTH_LABELS = [
   "Dec",
 ] as const;
 
+function parseMonthValue(value: string | undefined): Date | undefined {
+  if (!value) return undefined;
+  const [yearStr, monthStr] = value.split("-");
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+    return undefined;
+  }
+  return new Date(year, month - 1, 1);
+}
+
+function toMonthValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function formatMonthLabel(value: string | undefined): string {
+  const date = parseMonthValue(value);
+  if (!date) return "Pick";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -72,7 +103,7 @@ export function CrashCartTable({
   // -- Update helpers -------------------------------------------------------
 
   function updatePar(key: string, value: string) {
-    onChange({ ...data, par: { ...data.par, [key]: value } });
+    onChange({ ...data, par: { ...data.par, [key]: value.replace(/[^\d]/g, "") } });
   }
 
   function updateExp(key: string, value: string) {
@@ -87,6 +118,10 @@ export function CrashCartTable({
         [month]: { ...data.months[month], [key]: value },
       },
     });
+  }
+
+  function toggleMonthCheck(month: MonthKey, key: string, checked: boolean) {
+    updateMonth(month, key, checked ? "✓" : "");
   }
 
   function updateCompletedBy(month: MonthKey, value: string) {
@@ -156,7 +191,7 @@ export function CrashCartTable({
               {" "}
             </th>
             <th className={cn(HDR, "w-[50px] xl:w-[80px]")}>Par</th>
-            <th className={cn(HDR, "w-[50px] xl:w-[100px]")}>Exp</th>
+            <th className={cn(HDR, "w-[88px] xl:w-[120px]")}>Exp</th>
             {MONTH_LABELS.map((label, i) => (
               <th
                 key={MONTH_KEYS[i]}
@@ -203,8 +238,10 @@ export function CrashCartTable({
                   )}
                 >
                   <Input
-                    type="text"
+                    type="number"
                     inputMode="numeric"
+                    min={0}
+                    step={1}
                     value={data.par[item.key] || ""}
                     onChange={(e) => updatePar(item.key, e.target.value)}
                     disabled={disabled}
@@ -220,14 +257,46 @@ export function CrashCartTable({
                     isDraft && data.exp[item.key] && "bg-yellow-50",
                   )}
                 >
-                  <Input
-                    type="text"
-                    value={data.exp[item.key] || ""}
-                    onChange={(e) => updateExp(item.key, e.target.value)}
-                    disabled={disabled}
-                    aria-label={`Exp for ${item.label}`}
-                    className={TXT}
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        disabled={disabled}
+                        aria-label={`Exp for ${item.label}`}
+                        className={cn(
+                          "h-8 md:h-9 w-full justify-between rounded-none border-0 px-1.5 text-[11px] font-normal shadow-none hover:bg-muted/30",
+                          !data.exp[item.key] && "text-muted-foreground",
+                        )}
+                      >
+                        <span className="truncate">{formatMonthLabel(data.exp[item.key])}</span>
+                        <CalendarIcon className="ml-1 size-3 shrink-0" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        captionLayout="dropdown"
+                        selected={parseMonthValue(data.exp[item.key])}
+                        defaultMonth={parseMonthValue(data.exp[item.key]) ?? new Date(data.year, 0, 1)}
+                        onSelect={(date) => updateExp(item.key, date ? toMonthValue(date) : "")}
+                        startMonth={new Date(2020, 0, 1)}
+                        endMonth={new Date(2035, 11, 1)}
+                      />
+                      <div className="border-t p-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-full text-xs"
+                          onClick={() => updateExp(item.key, "")}
+                          disabled={disabled || !data.exp[item.key]}
+                        >
+                          Clear month
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </td>
 
                 {/* 12 month cells */}
@@ -239,16 +308,18 @@ export function CrashCartTable({
                       isDraft && data.months[month][item.key] && "bg-yellow-50",
                     )}
                   >
-                    <input
-                      type="text"
-                      value={data.months[month][item.key] || ""}
-                      onChange={(e) =>
-                        updateMonth(month, item.key, e.target.value)
-                      }
-                      disabled={disabled}
-                      aria-label={`${item.label} ${month}`}
-                      className={cn(TXT, "rounded-none")}
-                    />
+                    <div className={CHECKBOX_WRAP}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(data.months[month][item.key])}
+                        onChange={(e) =>
+                          toggleMonthCheck(month, item.key, e.target.checked)
+                        }
+                        disabled={disabled}
+                        aria-label={`${item.label} ${month}`}
+                        className="size-4 cursor-pointer accent-foreground disabled:cursor-not-allowed"
+                      />
+                    </div>
                   </td>
                 ))}
               </tr>
