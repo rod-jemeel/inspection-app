@@ -13,6 +13,7 @@ export async function GET() {
     const { profile } = await requireSession()
 
     return Response.json({
+      profile_id: profile.id,
       name: profile.full_name,
       signature_image: profile.signature_image,
       default_initials: profile.default_initials,
