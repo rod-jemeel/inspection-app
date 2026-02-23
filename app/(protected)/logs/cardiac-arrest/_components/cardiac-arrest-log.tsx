@@ -75,8 +75,8 @@ export function CardiacArrestLog({
   async function save(newStatus: "draft" | "complete") {
     setSaving(true)
     try {
-      // Use entry ID as log_key for existing entries, empty string for new
-      const logKey = entryId ?? ""
+      // Keep a stable blank key for this date-based event log to avoid duplicates on edit.
+      const logKey = ""
 
       const res = await fetch(`/api/locations/${locationId}/logs`, {
         method: "POST",

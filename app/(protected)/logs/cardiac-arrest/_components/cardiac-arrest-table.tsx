@@ -211,6 +211,9 @@ export function CardiacArrestTable({ data, onChange, locationId, disabled, isDra
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
+                    captionLayout="dropdown"
+                    startMonth={new Date(2020, 0, 1)}
+                    endMonth={new Date(2035, 11, 1)}
                     selected={data.arrest_date ? new Date(data.arrest_date + "T00:00:00") : undefined}
                     onSelect={(d) => {
                       if (d) {
@@ -531,6 +534,9 @@ export function CardiacArrestTable({ data, onChange, locationId, disabled, isDra
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
+                      captionLayout="dropdown"
+                      startMonth={new Date(2020, 0, 1)}
+                      endMonth={new Date(2035, 11, 1)}
                       selected={data.termination_date ? new Date(data.termination_date + "T00:00:00") : undefined}
                       onSelect={(d) => {
                         if (d) {
