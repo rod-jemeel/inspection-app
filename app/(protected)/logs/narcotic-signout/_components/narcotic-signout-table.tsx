@@ -190,6 +190,9 @@ export function NarcoticSignoutTable({
                   <PopoverContent className="w-auto p-0" align="end">
                     <Calendar
                       mode="single"
+                      captionLayout="dropdown"
+                      startMonth={new Date(2020, 0, 1)}
+                      endMonth={new Date(2035, 11, 1)}
                       selected={new Date(date + "T00:00:00")}
                       onSelect={(d) => {
                         if (d) {
