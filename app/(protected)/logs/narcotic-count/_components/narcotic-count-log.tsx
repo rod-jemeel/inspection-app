@@ -2,14 +2,20 @@
 
 import { useState, useCallback, useTransition, useEffect, Fragment } from "react"
 import { useRouter } from "next/navigation"
-import { Save, CheckCircle2, RotateCcw, ChevronLeft, ChevronRight, Table2, ClipboardList } from "lucide-react"
+import { Save, CheckCircle2, RotateCcw, ChevronLeft, ChevronRight, Table2, ClipboardList, CalendarIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { NarcoticCountTable } from "./narcotic-count-table"
 import { SignatureIdentification } from "@/components/signature-identification"
-import { emptyDailyNarcoticCountLogData, NARCOTIC_COUNT_DRUGS } from "@/lib/validations/log-entry"
+import {
+  dailyNarcoticCountLogDataSchema,
+  emptyDailyNarcoticCountLogData,
+  NARCOTIC_COUNT_DRUGS,
+} from "@/lib/validations/log-entry"
 import { cn } from "@/lib/utils"
-import type { DailyNarcoticCountLogData } from "@/lib/validations/log-entry"
+import type { DailyNarcoticCountLogData, NarcoticCountEntry } from "@/lib/validations/log-entry"
 
 // ---------------------------------------------------------------------------
 // Shared cell style constants (for summary view)
@@ -45,6 +51,33 @@ interface NarcoticCountLogProps {
   isAdmin?: boolean
 }
 
+interface SummaryRow {
+  sheetKey: string
+  sheetLabel: string
+  status: "draft" | "complete" | null
+  row: NarcoticCountEntry
+}
+
+function collectSummaryRows(
+  data: DailyNarcoticCountLogData,
+  meta?: { sheetKey?: string; sheetLabel?: string; status?: "draft" | "complete" | null }
+): SummaryRow[] {
+  const sheetLabel =
+    meta?.sheetLabel ??
+    (data.month_label && data.year ? `${data.month_label} ${data.year}` : "Current")
+
+  const sheetKey = meta?.sheetKey ?? `${data.year}-${String((MONTH_NAMES.indexOf(data.month_label) ?? -1) + 1).padStart(2, "0")}`
+
+  return (data.entries ?? [])
+    .filter((e) => e.date.trim() !== "")
+    .map((row) => ({
+      sheetKey,
+      sheetLabel,
+      status: meta?.status ?? null,
+      row,
+    }))
+}
+
 // ---------------------------------------------------------------------------
 // Summary View (compact read-only table showing ALL entries)
 // ---------------------------------------------------------------------------
@@ -52,18 +85,23 @@ interface NarcoticCountLogProps {
 const S_HDR = `${B} bg-muted/30 px-1 py-1 text-[10px] font-semibold text-center whitespace-nowrap`
 const S_CELL = `${B} px-1 py-0.5 text-[10px] text-center tabular-nums`
 
-function NarcoticCountSummary({ data }: { data: DailyNarcoticCountLogData }) {
+function NarcoticCountSummary({
+  rows,
+  emptyMessage,
+  showSheetColumn = false,
+}: {
+  rows: SummaryRow[]
+  emptyMessage: string
+  showSheetColumn?: boolean
+}) {
   const drugKeys = NARCOTIC_COUNT_DRUGS.map((d) => d.key) as Array<
     "fentanyl" | "midazolam" | "ephedrine"
   >
 
-  // Filter to only entries that have a date filled in
-  const filledEntries = data.entries.filter((e) => e.date.trim() !== "")
-
-  if (filledEntries.length === 0) {
+  if (rows.length === 0) {
     return (
       <p className="text-xs text-muted-foreground py-4 text-center">
-        No entries with dates to display. Switch to Form view to add data.
+        {emptyMessage}
       </p>
     )
   }
@@ -74,7 +112,10 @@ function NarcoticCountSummary({ data }: { data: DailyNarcoticCountLogData }) {
         <thead>
           {/* Row 1: Date + Drug group headers + Initials */}
           <tr>
-            <th rowSpan={2} className={cn(S_HDR, "min-w-[52px]")}>Date</th>
+            {showSheetColumn && (
+              <th rowSpan={2} className={cn(S_HDR, "min-w-[112px]")}>Sheet</th>
+            )}
+            <th rowSpan={2} className={cn(S_HDR, "min-w-[72px]")}>Date</th>
             {NARCOTIC_COUNT_DRUGS.map((drug) => (
               <th key={drug.key} colSpan={3} className={S_HDR}>
                 {drug.label.split(",")[0]}
@@ -96,20 +137,25 @@ function NarcoticCountSummary({ data }: { data: DailyNarcoticCountLogData }) {
           </tr>
         </thead>
         <tbody>
-          {filledEntries.map((entry, i) => (
-            <tr key={i} className={i % 2 === 0 ? "" : "bg-muted/10"}>
-              <td className={cn(S_CELL, "font-medium")}>{entry.date}</td>
+          {rows.map((record, i) => (
+            <tr key={`${record.sheetKey}-${record.row.date}-${i}`} className={i % 2 === 0 ? "" : "bg-muted/10"}>
+              {showSheetColumn && (
+                <td className={cn(S_CELL, "font-medium whitespace-nowrap")}>
+                  {record.sheetLabel}
+                </td>
+              )}
+              <td className={cn(S_CELL, "font-medium whitespace-nowrap")}>{record.row.date}</td>
               {drugKeys.map((dk) => (
                 <Fragment key={dk}>
-                  <td className={S_CELL}>{entry[dk].am || "-"}</td>
-                  <td className={S_CELL}>{entry[dk].rcvd || "-"}</td>
-                  <td className={S_CELL}>{entry[dk].pm || "-"}</td>
+                  <td className={S_CELL}>{record.row[dk].am || "-"}</td>
+                  <td className={S_CELL}>{record.row[dk].rcvd || "-"}</td>
+                  <td className={S_CELL}>{record.row[dk].pm || "-"}</td>
                 </Fragment>
               ))}
-              <td className={cn(S_CELL, "font-medium")}>{entry.initials_am || "-"}</td>
-              <td className={cn(S_CELL, "font-medium")}>{entry.initials_am_2 || "-"}</td>
-              <td className={cn(S_CELL, "font-medium")}>{entry.initials_pm || "-"}</td>
-              <td className={cn(S_CELL, "font-medium")}>{entry.initials_pm_2 || "-"}</td>
+              <td className={cn(S_CELL, "font-medium")}>{record.row.initials_am || "-"}</td>
+              <td className={cn(S_CELL, "font-medium")}>{record.row.initials_am_2 || "-"}</td>
+              <td className={cn(S_CELL, "font-medium")}>{record.row.initials_pm || "-"}</td>
+              <td className={cn(S_CELL, "font-medium")}>{record.row.initials_pm_2 || "-"}</td>
             </tr>
           ))}
         </tbody>
@@ -134,12 +180,16 @@ export function NarcoticCountLog({
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(false)
   const [viewMode, setViewMode] = useState<"form" | "summary">("form")
+  const [summaryScope, setSummaryScope] = useState<"current" | "all">("current")
+  const [allSummaryRows, setAllSummaryRows] = useState<SummaryRow[] | null>(null)
+  const [allSummaryLoading, setAllSummaryLoading] = useState(false)
+  const [allSummaryError, setAllSummaryError] = useState<string | null>(null)
 
   const [currentYear, setCurrentYear] = useState(year)
   const [currentMonth, setCurrentMonth] = useState(month)
 
   const [data, setData] = useState<DailyNarcoticCountLogData>(() => {
-    if (initialEntry?.data) return initialEntry.data
+    if (initialEntry?.data) return dailyNarcoticCountLogDataSchema.parse(initialEntry.data)
     const empty = emptyDailyNarcoticCountLogData()
     empty.month_label = MONTH_NAMES[month - 1] ?? ""
     empty.year = year
@@ -169,18 +219,8 @@ export function NarcoticCountLog({
   // Month navigation - client-side fetch, no page reload
   // ---------------------------------------------------------------------------
 
-  const navigateMonth = useCallback(
-    async (offset: number) => {
-      let newMonth = currentMonth + offset
-      let newYear = currentYear
-      if (newMonth < 1) {
-        newMonth = 12
-        newYear -= 1
-      } else if (newMonth > 12) {
-        newMonth = 1
-        newYear += 1
-      }
-
+  const loadMonth = useCallback(
+    async (newYear: number, newMonth: number) => {
       if (newYear === currentYear && newMonth === currentMonth) return
 
       if (dirty) {
@@ -204,7 +244,7 @@ export function NarcoticCountLog({
           const json = await res.json()
           const entry = json.entries?.[0] ?? null
           if (entry?.data) {
-            setData(entry.data)
+            setData(dailyNarcoticCountLogDataSchema.parse(entry.data))
           } else {
             const empty = emptyDailyNarcoticCountLogData()
             empty.month_label = MONTH_NAMES[newMonth - 1] ?? ""
@@ -234,6 +274,17 @@ export function NarcoticCountLog({
     [currentMonth, currentYear, dirty, locationId]
   )
 
+  const navigateMonth = useCallback(
+    async (offset: number) => {
+      let nextMonthIndex = currentMonth - 1 + offset
+      const newYear = currentYear + Math.floor(nextMonthIndex / 12)
+      nextMonthIndex = ((nextMonthIndex % 12) + 12) % 12
+      const newMonth = nextMonthIndex + 1
+      await loadMonth(newYear, newMonth)
+    },
+    [currentMonth, currentYear, loadMonth]
+  )
+
   // ---------------------------------------------------------------------------
   // Data change
   // ---------------------------------------------------------------------------
@@ -242,6 +293,83 @@ export function NarcoticCountLog({
     setData(newData)
     setDirty(true)
   }, [])
+
+  const loadAllSummary = useCallback(async () => {
+    setAllSummaryLoading(true)
+    setAllSummaryError(null)
+    try {
+      const collected: SummaryRow[] = []
+      let offset = 0
+      let total = 1
+
+      while (offset < total) {
+        const params = new URLSearchParams({
+          log_type: "daily_narcotic_count",
+          limit: "100",
+          offset: String(offset),
+        })
+        const res = await fetch(`/api/locations/${locationId}/logs?${params.toString()}`)
+        if (!res.ok) {
+          throw new Error("Failed to load summary data")
+        }
+
+        const json = await res.json() as {
+          entries?: Array<{
+            log_key: string
+            status?: "draft" | "complete"
+            data?: DailyNarcoticCountLogData
+          }>
+          total?: number
+        }
+
+        const entries = json.entries ?? []
+        total = json.total ?? entries.length
+
+        for (const entry of entries) {
+          const sheetData = entry.data
+          if (!sheetData) continue
+          const parsedSheetData = dailyNarcoticCountLogDataSchema.parse(sheetData)
+
+          const sheetLabel =
+            parsedSheetData.month_label && parsedSheetData.year
+              ? `${parsedSheetData.month_label} ${parsedSheetData.year}`
+              : entry.log_key
+
+          collected.push(
+            ...collectSummaryRows(parsedSheetData, {
+              sheetKey: entry.log_key,
+              sheetLabel,
+              status: entry.status ?? null,
+            })
+          )
+        }
+
+        if (entries.length === 0) break
+        offset += entries.length
+      }
+
+      collected.sort((a, b) => {
+        const aDate = a.row.date
+        const bDate = b.row.date
+        if (aDate !== bDate) return aDate < bDate ? 1 : -1
+        if (a.sheetKey !== b.sheetKey) return a.sheetKey < b.sheetKey ? 1 : -1
+        return 0
+      })
+
+      setAllSummaryRows(collected)
+    } catch (error) {
+      setAllSummaryError(error instanceof Error ? error.message : "Failed to load summary data")
+    } finally {
+      setAllSummaryLoading(false)
+    }
+  }, [locationId])
+
+  useEffect(() => {
+    if (viewMode !== "summary" || summaryScope !== "all" || allSummaryRows !== null || allSummaryLoading) {
+      return
+    }
+    void loadAllSummary()
+  }, [viewMode, summaryScope, allSummaryRows, allSummaryLoading, loadAllSummary])
 
   // ---------------------------------------------------------------------------
   // Save
@@ -271,6 +399,8 @@ export function NarcoticCountLog({
 
       setStatus(newStatus)
       setDirty(false)
+      setAllSummaryRows(null)
+      setAllSummaryError(null)
 
       startTransition(() => {
         router.refresh()
@@ -281,6 +411,11 @@ export function NarcoticCountLog({
   }
 
   const isDisabled = status === "complete"
+  const currentSummaryRows = collectSummaryRows(data, {
+    sheetKey: `${currentYear}-${String(currentMonth).padStart(2, "0")}`,
+    sheetLabel: `${MONTH_NAMES[currentMonth - 1]} ${currentYear}`,
+    status,
+  })
 
   return (
     <div className="space-y-6 overflow-hidden max-w-full">
@@ -298,9 +433,34 @@ export function NarcoticCountLog({
           >
             <ChevronLeft className="size-4" />
           </Button>
-          <h3 className="text-sm font-semibold tabular-nums whitespace-nowrap">
-            {MONTH_NAMES[currentMonth - 1]} {currentYear}
-          </h3>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5 px-2 text-xs font-normal tabular-nums whitespace-nowrap"
+                disabled={loading}
+              >
+                <CalendarIcon className="size-3.5" />
+                {MONTH_NAMES[currentMonth - 1]} {currentYear}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                initialFocus
+                mode="single"
+                captionLayout="dropdown"
+                startMonth={new Date(2020, 0, 1)}
+                endMonth={new Date(2035, 11, 1)}
+                defaultMonth={new Date(currentYear, currentMonth - 1, 1)}
+                selected={new Date(currentYear, currentMonth - 1, 1)}
+                onSelect={(date) => {
+                  if (!date) return
+                  void loadMonth(date.getFullYear(), date.getMonth() + 1)
+                }}
+              />
+            </PopoverContent>
+          </Popover>
           <Button
             variant="ghost"
             size="icon"
@@ -349,6 +509,8 @@ export function NarcoticCountLog({
             onChange={handleDataChange}
             disabled={isDisabled}
             isDraft={status === "draft"}
+            sheetYear={currentYear}
+            sheetMonth={currentMonth}
           />
 
           {/* Signature Identification — only shown in form view */}
@@ -362,7 +524,72 @@ export function NarcoticCountLog({
           />
         </>
       ) : (
-        <NarcoticCountSummary data={data} />
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="inline-flex items-center rounded-md border border-border p-0.5">
+              <Button
+                type="button"
+                size="sm"
+                variant={summaryScope === "current" ? "secondary" : "ghost"}
+                className="h-7 text-[11px]"
+                onClick={() => setSummaryScope("current")}
+              >
+                Current Month
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={summaryScope === "all" ? "secondary" : "ghost"}
+                className="h-7 text-[11px]"
+                onClick={() => {
+                  setSummaryScope("all")
+                  if (allSummaryRows === null && !allSummaryLoading) {
+                    void loadAllSummary()
+                  }
+                }}
+              >
+                All Saved Data
+              </Button>
+            </div>
+
+            {summaryScope === "all" && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 text-[11px]"
+                onClick={() => void loadAllSummary()}
+                disabled={allSummaryLoading}
+              >
+                {allSummaryLoading ? "Loading..." : "Refresh Summary"}
+              </Button>
+            )}
+          </div>
+
+          {summaryScope === "all" && dirty && (
+            <p className="text-xs text-amber-600">
+              Unsaved changes in the current month are not included in &quot;All Saved Data&quot;.
+            </p>
+          )}
+
+          {summaryScope === "all" && allSummaryError ? (
+            <p className="text-xs text-destructive">{allSummaryError}</p>
+          ) : summaryScope === "all" && allSummaryLoading && allSummaryRows === null ? (
+            <p className="text-xs text-muted-foreground py-4 text-center">
+              Loading saved narcotic count logs...
+            </p>
+          ) : (
+            <NarcoticCountSummary
+              rows={summaryScope === "all" ? (allSummaryRows ?? []) : currentSummaryRows}
+              showSheetColumn={summaryScope === "all"}
+              emptyMessage={
+                summaryScope === "all"
+                  ? "No saved narcotic count entries found yet."
+                  : "No entries with dates to display. Switch to Form view to add data."
+              }
+            />
+          )}
+        </div>
       )}
 
       {/* Save actions */}

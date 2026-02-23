@@ -1,16 +1,25 @@
 "use client"
 
-import { Fragment, useState } from "react"
-import { format, parse } from "date-fns"
+import { Fragment } from "react"
+import { format } from "date-fns"
 import { Plus, Trash2, CalendarIcon } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { InitialsStampCell, type InitialsStampResult } from "@/components/initials-stamp-cell"
+import type { SignatureEntry } from "@/components/signature-identification"
+import { useMySignature } from "@/hooks/use-my-signature"
+import { upsertSignerInSignatureIdentification } from "@/lib/signature-identification-utils"
 import { cn } from "@/lib/utils"
 import { NARCOTIC_COUNT_DRUGS } from "@/lib/validations/log-entry"
-import type { DailyNarcoticCountLogData, NarcoticCountEntry } from "@/lib/validations/log-entry"
-import type { DateRange } from "react-day-picker"
+import type {
+  DailyNarcoticCountLogData,
+  InitialsAudit,
+  NarcoticCountEntry,
+  NarcoticCountInitialsAudits,
+} from "@/lib/validations/log-entry"
 
 // ---------------------------------------------------------------------------
 // Props
@@ -21,6 +30,8 @@ interface NarcoticCountTableProps {
   onChange: (data: DailyNarcoticCountLogData) => void
   disabled?: boolean
   isDraft?: boolean
+  sheetYear?: number
+  sheetMonth?: number
 }
 
 // ---------------------------------------------------------------------------
@@ -51,6 +62,46 @@ function emptyEntry(): NarcoticCountEntry {
     initials_am_2: "",
     initials_pm: "",
     initials_pm_2: "",
+    initials_audits: { am_1: null, am_2: null, pm_1: null, pm_2: null },
+  }
+}
+
+function parseIsoDate(value: string): Date | undefined {
+  if (!value) return undefined
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!match) return undefined
+  const [, y, m, d] = match
+  const parsed = new Date(Number(y), Number(m) - 1, Number(d))
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed
+}
+
+function toIsoDate(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, "0")
+  const d = String(date.getDate()).padStart(2, "0")
+  return `${y}-${m}-${d}`
+}
+
+type NarcoticCountInitialsSlot = "am_1" | "am_2" | "pm_1" | "pm_2"
+
+const SLOT_TO_FIELD: Record<NarcoticCountInitialsSlot, keyof Pick<
+  NarcoticCountEntry,
+  "initials_am" | "initials_am_2" | "initials_pm" | "initials_pm_2"
+>> = {
+  am_1: "initials_am",
+  am_2: "initials_am_2",
+  pm_1: "initials_pm",
+  pm_2: "initials_pm_2",
+}
+
+function emptyInitialsAudits(): NarcoticCountInitialsAudits {
+  return { am_1: null, am_2: null, pm_1: null, pm_2: null }
+}
+
+function getInitialsAudits(entry: NarcoticCountEntry): NarcoticCountInitialsAudits {
+  return {
+    ...emptyInitialsAudits(),
+    ...(entry.initials_audits ?? {}),
   }
 }
 
@@ -116,177 +167,33 @@ function DiagonalCell({
 }
 
 // ---------------------------------------------------------------------------
-// Empty diagonal cell (used in initials rows for the Rcvd/Used column)
-// ---------------------------------------------------------------------------
-
-function EmptyDiagonalCell() {
-  return (
-    <td className={cn(CELL, "relative p-0")}>
-      <div className="relative flex h-8 md:h-9 w-full items-center justify-center overflow-hidden">
-        <div className="pointer-events-none absolute inset-0 z-0">
-          <svg className="h-full w-full" preserveAspectRatio="none">
-            <line
-              x1="100%"
-              y1="0"
-              x2="0"
-              y2="100%"
-              stroke="currentColor"
-              className="text-foreground/20"
-              strokeWidth="1"
-            />
-          </svg>
-        </div>
-      </div>
-    </td>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Initials select dropdown
-// ---------------------------------------------------------------------------
-
-function InitialsSelect({
-  value,
-  onChange,
-  options,
-  disabled,
-  isDraft,
-}: {
-  value: string
-  onChange: (v: string) => void
-  options: string[]
-  disabled?: boolean
-  isDraft?: boolean
-}) {
-  if (options.length === 0) {
-    // Fallback to text input when no signatures have initials yet
-    return (
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        className={cn(
-          TXT,
-          "text-center",
-          isDraft && value && "bg-yellow-50"
-        )}
-        placeholder=""
-      />
-    )
-  }
-
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      disabled={disabled}
-      className={cn(
-        TXT,
-        "appearance-none cursor-pointer bg-[length:12px] bg-[right_2px_center] bg-no-repeat pr-4",
-        "bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2371717a%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')]",
-        isDraft && value && "bg-yellow-50"
-      )}
-    >
-      <option value=""></option>
-      {options.map((opt) => (
-        <option key={opt} value={opt}>
-          {opt}
-        </option>
-      ))}
-    </select>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Date range picker (From date / To date)
-// ---------------------------------------------------------------------------
-
-function DateRangePicker({
-  fromDate,
-  toDate,
-  onFromChange,
-  onToChange,
-  disabled,
-}: {
-  fromDate: string
-  toDate: string
-  onFromChange: (v: string) => void
-  onToChange: (v: string) => void
-  disabled?: boolean
-}) {
-  const [open, setOpen] = useState(false)
-
-  // Parse stored strings (YYYY-MM-DD) to Date objects
-  const from = fromDate ? parse(fromDate, "yyyy-MM-dd", new Date()) : undefined
-  const to = toDate ? parse(toDate, "yyyy-MM-dd", new Date()) : undefined
-  const selected: DateRange = { from, to }
-
-  function handleSelect(range: DateRange | undefined) {
-    if (range?.from) {
-      onFromChange(format(range.from, "yyyy-MM-dd"))
-    } else {
-      onFromChange("")
-    }
-    if (range?.to) {
-      onToChange(format(range.to, "yyyy-MM-dd"))
-    } else {
-      onToChange("")
-    }
-  }
-
-  // Display text
-  const label =
-    from && to
-      ? `${format(from, "MMM d, yyyy")} - ${format(to, "MMM d, yyyy")}`
-      : from
-        ? `${format(from, "MMM d, yyyy")} - ...`
-        : "Select date range"
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className={cn(
-            "h-7 justify-start text-xs font-normal gap-1.5",
-            !from && "text-muted-foreground"
-          )}
-          disabled={disabled}
-        >
-          <CalendarIcon className="size-3" />
-          {label}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar
-          mode="range"
-          selected={selected}
-          onSelect={handleSelect}
-          numberOfMonths={2}
-          defaultMonth={from}
-        />
-      </PopoverContent>
-    </Popover>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export function NarcoticCountTable({ data, onChange, disabled, isDraft }: NarcoticCountTableProps) {
-  // Build initials options from signatures
-  const initialsOptions = data.signatures
-    .map((s) => s.initials)
-    .filter((v): v is string => !!v && v.trim() !== "")
-    .filter((v, i, arr) => arr.indexOf(v) === i) // unique
+export function NarcoticCountTable({
+  data,
+  onChange,
+  disabled,
+  isDraft,
+  sheetYear,
+  sheetMonth,
+}: NarcoticCountTableProps) {
+  const { profile: myProfile } = useMySignature()
 
   function updateEntry(index: number, updates: Partial<NarcoticCountEntry>) {
     const entries = [...data.entries]
     entries[index] = { ...entries[index], ...updates }
     onChange({ ...data, entries })
+  }
+
+  function updateEntryWithSignatures(
+    entryIndex: number,
+    entryUpdates: Partial<NarcoticCountEntry>,
+    signatures: SignatureEntry[],
+  ) {
+    const entries = [...data.entries]
+    entries[entryIndex] = { ...entries[entryIndex], ...entryUpdates }
+    onChange({ ...data, entries, signatures })
   }
 
   function updateDrugField(
@@ -313,9 +220,42 @@ export function NarcoticCountTable({ data, onChange, disabled, isDraft }: Narcot
     onChange({ ...data, entries: data.entries.filter((_, i) => i !== index) })
   }
 
-  const drugKeys = NARCOTIC_COUNT_DRUGS.map((d) => d.key) as Array<
-    "fentanyl" | "midazolam" | "ephedrine"
-  >
+  function updateInitialsSlot(
+    entryIndex: number,
+    slot: NarcoticCountInitialsSlot,
+    value: string,
+    audit: InitialsAudit | null,
+    signer?: InitialsStampResult["signer"],
+  ) {
+    const entry = data.entries[entryIndex]
+    if (!entry) return
+
+    const field = SLOT_TO_FIELD[slot]
+    const initialsAudits = {
+      ...getInitialsAudits(entry),
+      [slot]: audit,
+    }
+
+    let nextSignatures = data.signatures
+    if (signer) {
+      const upserted = upsertSignerInSignatureIdentification(data.signatures, {
+        name: signer.name,
+        initials: signer.initials,
+        signature: signer.signature,
+      })
+
+      nextSignatures = upserted.signatures
+
+      if (upserted.status === "full") {
+        toast.warning("Initials stamped, but Signature Identification is full. Add signer manually if needed.")
+      }
+    }
+
+    updateEntryWithSignatures(entryIndex, {
+      [field]: value,
+      initials_audits: initialsAudits,
+    } as Partial<NarcoticCountEntry>, nextSignatures)
+  }
 
   // Chunk entries into sets of COLS_PER_SET
   const chunks: NarcoticCountEntry[][] = []
@@ -323,17 +263,18 @@ export function NarcoticCountTable({ data, onChange, disabled, isDraft }: Narcot
     chunks.push(data.entries.slice(i, i + COLS_PER_SET))
   }
 
+  const pickerMonthStart =
+    sheetYear && sheetMonth ? new Date(sheetYear, sheetMonth - 1, 1) : new Date(2020, 0, 1)
+  const pickerMonthEnd =
+    sheetYear && sheetMonth ? new Date(sheetYear, sheetMonth - 1, 1) : new Date(2035, 11, 1)
+
   return (
     <div className="space-y-3">
-      {/* Header fields: Date range picker + Add Date */}
-      <div className="flex flex-wrap items-center gap-4 text-xs">
-        <DateRangePicker
-          fromDate={data.from_date}
-          toDate={data.to_date}
-          onFromChange={(v) => onChange({ ...data, from_date: v })}
-          onToChange={(v) => onChange({ ...data, to_date: v })}
-          disabled={disabled}
-        />
+      {/* Table actions */}
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+        <p className="text-muted-foreground">
+          Set exact days in each column. Month selection is above.
+        </p>
         {!disabled && data.entries.length < 31 && (
           <Button
             variant="outline"
@@ -342,7 +283,7 @@ export function NarcoticCountTable({ data, onChange, disabled, isDraft }: Narcot
             onClick={addColumn}
           >
             <Plus className="size-3" />
-            Add Date
+            Add Day
           </Button>
         )}
       </div>
@@ -368,6 +309,10 @@ export function NarcoticCountTable({ data, onChange, disabled, isDraft }: Narcot
                   </th>
                   {chunk.map((entry, li) => {
                     const gi = globalOffset + li
+                    const selectedDate = parseIsoDate(entry.date)
+                    const dateLabel = selectedDate
+                      ? format(selectedDate, "MMM d")
+                      : (entry.date || "Date")
                     return (
                       <th
                         key={gi}
@@ -375,13 +320,37 @@ export function NarcoticCountTable({ data, onChange, disabled, isDraft }: Narcot
                         className={cn(HDR, "relative min-w-[120px] md:min-w-[140px]")}
                       >
                         <div className="flex items-center justify-center gap-1">
-                          <Input
-                            value={entry.date}
-                            onChange={(e) => updateEntry(gi, { date: e.target.value })}
-                            disabled={disabled}
-                            className="h-6 w-24 text-center text-[11px] border-0 bg-transparent shadow-none focus-visible:ring-1"
-                            placeholder="Date"
-                          />
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={disabled}
+                                className={cn(
+                                  "h-6 px-1.5 gap-1 text-[11px] font-medium",
+                                  !entry.date && "text-muted-foreground"
+                                )}
+                              >
+                                <CalendarIcon className="size-3" />
+                                <span className="tabular-nums">{dateLabel}</span>
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="center">
+                              <Calendar
+                                mode="single"
+                                captionLayout="dropdown"
+                                startMonth={pickerMonthStart}
+                                endMonth={pickerMonthEnd}
+                                defaultMonth={selectedDate ?? pickerMonthStart}
+                                selected={selectedDate}
+                                onSelect={(date) => {
+                                  if (!date) return
+                                  updateEntry(gi, { date: toIsoDate(date) })
+                                }}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
                           {!disabled && data.entries.length > 1 && (
                             <Button
                               variant="ghost"
@@ -496,6 +465,7 @@ export function NarcoticCountTable({ data, onChange, disabled, isDraft }: Narcot
                   </td>
                   {chunk.map((entry, li) => {
                     const gi = globalOffset + li
+                    const audits = getInitialsAudits(entry)
                     return (
                       <Fragment key={gi}>
                         {/* AM: 2 initials stacked with labels */}
@@ -503,22 +473,30 @@ export function NarcoticCountTable({ data, onChange, disabled, isDraft }: Narcot
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-1">
                               <span className="text-[9px] text-muted-foreground shrink-0">1</span>
-                              <InitialsSelect
+                              <InitialsStampCell
                                 value={entry.initials_am ?? ""}
-                                onChange={(v) => updateEntry(gi, { initials_am: v })}
-                                options={initialsOptions}
+                                audit={audits.am_1}
                                 disabled={disabled}
-                                isDraft={isDraft}
+                                profile={myProfile}
+                                slotLabel={`${entry.date || `Column ${gi + 1}`} AM #1`}
+                                onStamp={(stamp) =>
+                                  updateInitialsSlot(gi, "am_1", stamp.initials, stamp.audit, stamp.signer)
+                                }
+                                onClear={() => updateInitialsSlot(gi, "am_1", "", null)}
                               />
                             </div>
                             <div className="flex items-center gap-1">
                               <span className="text-[9px] text-muted-foreground shrink-0">2</span>
-                              <InitialsSelect
+                              <InitialsStampCell
                                 value={entry.initials_am_2 ?? ""}
-                                onChange={(v) => updateEntry(gi, { initials_am_2: v })}
-                                options={initialsOptions}
+                                audit={audits.am_2}
                                 disabled={disabled}
-                                isDraft={isDraft}
+                                profile={myProfile}
+                                slotLabel={`${entry.date || `Column ${gi + 1}`} AM #2`}
+                                onStamp={(stamp) =>
+                                  updateInitialsSlot(gi, "am_2", stamp.initials, stamp.audit, stamp.signer)
+                                }
+                                onClear={() => updateInitialsSlot(gi, "am_2", "", null)}
                               />
                             </div>
                           </div>
@@ -530,22 +508,30 @@ export function NarcoticCountTable({ data, onChange, disabled, isDraft }: Narcot
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-1">
                               <span className="text-[9px] text-muted-foreground shrink-0">1</span>
-                              <InitialsSelect
+                              <InitialsStampCell
                                 value={entry.initials_pm ?? ""}
-                                onChange={(v) => updateEntry(gi, { initials_pm: v })}
-                                options={initialsOptions}
+                                audit={audits.pm_1}
                                 disabled={disabled}
-                                isDraft={isDraft}
+                                profile={myProfile}
+                                slotLabel={`${entry.date || `Column ${gi + 1}`} PM #1`}
+                                onStamp={(stamp) =>
+                                  updateInitialsSlot(gi, "pm_1", stamp.initials, stamp.audit, stamp.signer)
+                                }
+                                onClear={() => updateInitialsSlot(gi, "pm_1", "", null)}
                               />
                             </div>
                             <div className="flex items-center gap-1">
                               <span className="text-[9px] text-muted-foreground shrink-0">2</span>
-                              <InitialsSelect
+                              <InitialsStampCell
                                 value={entry.initials_pm_2 ?? ""}
-                                onChange={(v) => updateEntry(gi, { initials_pm_2: v })}
-                                options={initialsOptions}
+                                audit={audits.pm_2}
                                 disabled={disabled}
-                                isDraft={isDraft}
+                                profile={myProfile}
+                                slotLabel={`${entry.date || `Column ${gi + 1}`} PM #2`}
+                                onStamp={(stamp) =>
+                                  updateInitialsSlot(gi, "pm_2", stamp.initials, stamp.audit, stamp.signer)
+                                }
+                                onClear={() => updateInitialsSlot(gi, "pm_2", "", null)}
                               />
                             </div>
                           </div>

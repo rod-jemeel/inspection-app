@@ -511,6 +511,34 @@ export const NARCOTIC_COUNT_DRUGS = [
   { key: "ephedrine", label: "Ephedrine 50mg/ml,", detail: "1 ml ampoules" },
 ] as const
 
+/** Audit record stored alongside each compact initials stamp */
+export const initialsAuditSchema = z.object({
+  /** Base64 PNG of the drawn signature */
+  sig: z.string(),
+  /** ISO 8601 timestamp of when the signature was drawn */
+  signed_at: z.string(),
+  /** Full name entered in the signature pad */
+  signer_name: z.string().default(""),
+  /** Optional profile id to strengthen provenance */
+  signer_profile_id: z.string().optional(),
+})
+
+export type InitialsAudit = z.infer<typeof initialsAuditSchema>
+
+const narcoticCountInitialsAuditsSchema = z.object({
+  am_1: initialsAuditSchema.nullable().default(null),
+  am_2: initialsAuditSchema.nullable().default(null),
+  pm_1: initialsAuditSchema.nullable().default(null),
+  pm_2: initialsAuditSchema.nullable().default(null),
+}).default({
+  am_1: null,
+  am_2: null,
+  pm_1: null,
+  pm_2: null,
+})
+
+export type NarcoticCountInitialsAudits = z.infer<typeof narcoticCountInitialsAuditsSchema>
+
 const narcoticCountEntrySchema = z.object({
   date: z.string().default(""),
   fentanyl: z.object({ am: z.string().default(""), rcvd: z.string().default(""), used: z.string().default(""), pm: z.string().default("") }).default({ am: "", rcvd: "", used: "", pm: "" }),
@@ -521,6 +549,7 @@ const narcoticCountEntrySchema = z.object({
   initials_am_2: z.string().default(""),
   initials_pm: z.string().default(""),
   initials_pm_2: z.string().default(""),
+  initials_audits: narcoticCountInitialsAuditsSchema,
 })
 
 export type NarcoticCountEntry = z.infer<typeof narcoticCountEntrySchema>
@@ -547,6 +576,7 @@ export const dailyNarcoticCountLogDataSchema = z.object({
       initials_am_2: "",
       initials_pm: "",
       initials_pm_2: "",
+      initials_audits: { am_1: null, am_2: null, pm_1: null, pm_2: null },
     }))
   ),
   signatures: z.array(narcoticCountSigSchema).default(
@@ -572,6 +602,7 @@ export function emptyDailyNarcoticCountLogData(): DailyNarcoticCountLogData {
       initials_am_2: "",
       initials_pm: "",
       initials_pm_2: "",
+      initials_audits: { am_1: null, am_2: null, pm_1: null, pm_2: null },
     })),
     signatures: Array.from({ length: 8 }, () => ({ name: "", signature: null, initials: "" })),
   }
@@ -689,18 +720,6 @@ const crashCartDailySigSchema = z.object({
   signature: z.string().nullable().default(null),
   initials: z.string().default(""),
 })
-
-/** Audit record stored alongside each per-day initial stamp */
-const initialsAuditSchema = z.object({
-  /** Base64 PNG of the drawn signature */
-  sig: z.string(),
-  /** ISO 8601 timestamp of when the signature was drawn */
-  signed_at: z.string(),
-  /** Full name entered in the signature pad */
-  signer_name: z.string().default(""),
-})
-
-export type InitialsAudit = z.infer<typeof initialsAuditSchema>
 
 export const crashCartDailyLogDataSchema = z.object({
   year: z.number(),

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
 export interface MySignatureProfile {
+  profile_id?: string
   name: string
   signature_image: string | null
   default_initials: string
@@ -48,6 +49,7 @@ export function useMySignature() {
 
         const data = await res.json()
         const p: MySignatureProfile = {
+          profile_id: data.profile_id ?? undefined,
           name: data.name || "",
           signature_image: data.signature_image ?? null,
           default_initials: data.default_initials || "",
