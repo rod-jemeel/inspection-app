@@ -37,6 +37,42 @@ interface DrugSelectorProps {
   isAdmin?: boolean
 }
 
+function parseInventoryDate(value: string | null): Date | null {
+  if (!value) return null
+
+  // Supports both `YYYY-MM-DD` and `MM/DD/YYYY` formats present in ledger rows.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [y, m, d] = value.split("-").map(Number)
+    return new Date(y, m - 1, d)
+  }
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+    const [m, d, y] = value.split("/").map(Number)
+    return new Date(y, m - 1, d)
+  }
+
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function formatInventoryDate(value: string | null): string | null {
+  const parsed = parseInventoryDate(value)
+  if (!parsed) return value
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(parsed)
+}
+
+function formatInventoryMonth(value: string | null): string | null {
+  const parsed = parseInventoryDate(value)
+  if (!parsed) return null
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    year: "numeric",
+  }).format(parsed)
+}
+
 export function DrugSelector({ locationId, stockInfo, isAdmin }: DrugSelectorProps) {
   const router = useRouter()
   const [showCustom, setShowCustom] = useState(false)
@@ -119,8 +155,8 @@ export function DrugSelector({ locationId, stockInfo, isAdmin }: DrugSelectorPro
                     <Pill className="size-4 text-muted-foreground" aria-hidden="true" />
                     <CardTitle className="text-sm">{drug.drug_name}</CardTitle>
                     {info && (
-                      <Badge variant={info.status === "complete" ? "default" : "secondary"} className="text-[10px]">
-                        {info.status}
+                      <Badge variant="outline" className="text-[10px] capitalize">
+                        ongoing
                       </Badge>
                     )}
                   </div>
@@ -130,15 +166,20 @@ export function DrugSelector({ locationId, stockInfo, isAdmin }: DrugSelectorPro
                     {drug.strength} &middot; {drug.size_qty}
                   </p>
                   {info && (
-                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
-                      {info.currentStock !== null && (
-                        <span>Stock: <span className="font-medium text-foreground">{info.currentStock}</span> units</span>
-                      )}
-                      {info.rowCount > 0 && (
-                        <span>{info.rowCount} entries</span>
-                      )}
+                    <div className="mt-2 space-y-1 text-[10px] text-muted-foreground">
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                        {info.currentStock !== null && (
+                          <span>
+                            Stock: <span className="font-medium text-foreground">{info.currentStock}</span> units
+                          </span>
+                        )}
+                        {info.rowCount > 0 && <span>{info.rowCount} entries</span>}
+                      </div>
                       {info.lastDate && (
-                        <span>Last: {info.lastDate}</span>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[9px] leading-tight text-muted-foreground/90">
+                          <span>Active month: {formatInventoryMonth(info.lastDate)}</span>
+                          <span>Last updated: {formatInventoryDate(info.lastDate)}</span>
+                        </div>
                       )}
                     </div>
                   )}
@@ -179,8 +220,8 @@ export function DrugSelector({ locationId, stockInfo, isAdmin }: DrugSelectorPro
                 <div className="flex items-center gap-2">
                   <Pill className="size-4 text-muted-foreground" aria-hidden="true" />
                   <CardTitle className="text-sm">{drug.drugName}</CardTitle>
-                  <Badge variant={drug.status === "complete" ? "default" : "secondary"} className="text-[10px]">
-                    {drug.status}
+                  <Badge variant="outline" className="text-[10px] capitalize">
+                    ongoing
                   </Badge>
                 </div>
               </CardHeader>
@@ -188,15 +229,20 @@ export function DrugSelector({ locationId, stockInfo, isAdmin }: DrugSelectorPro
                 <p className="text-xs text-muted-foreground">
                   {drug.strength || "No strength"} &middot; {drug.sizeQty || "No size"}
                 </p>
-                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
-                  {drug.currentStock !== null && (
-                    <span>Stock: <span className="font-medium text-foreground">{drug.currentStock}</span> units</span>
-                  )}
-                  {drug.rowCount > 0 && (
-                    <span>{drug.rowCount} entries</span>
-                  )}
+                <div className="mt-2 space-y-1 text-[10px] text-muted-foreground">
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                    {drug.currentStock !== null && (
+                      <span>
+                        Stock: <span className="font-medium text-foreground">{drug.currentStock}</span> units
+                      </span>
+                    )}
+                    {drug.rowCount > 0 && <span>{drug.rowCount} entries</span>}
+                  </div>
                   {drug.lastDate && (
-                    <span>Last: {drug.lastDate}</span>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[9px] leading-tight text-muted-foreground/90">
+                      <span>Active month: {formatInventoryMonth(drug.lastDate)}</span>
+                      <span>Last updated: {formatInventoryDate(drug.lastDate)}</span>
+                    </div>
                   )}
                 </div>
               </CardContent>

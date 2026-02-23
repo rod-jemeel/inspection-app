@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { useMySignature } from "@/hooks/use-my-signature";
 import { Plus, Trash2, CalendarIcon, Lock } from "lucide-react";
 import type { DateRange } from "react-day-picker";
@@ -25,6 +25,26 @@ function toDateStr(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+function parseInventoryRowDate(value: string): Date | undefined {
+  if (!value) return undefined;
+
+  const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) {
+    const [, y, m, d] = iso;
+    const parsed = new Date(Number(y), Number(m) - 1, Number(d));
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+  }
+
+  const us = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (us) {
+    const [, m, d, y] = us;
+    const parsed = new Date(Number(y), Number(m) - 1, Number(d));
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+  }
+
+  return undefined;
 }
 
 interface InventoryTableProps {
@@ -108,6 +128,19 @@ export function InventoryTable({
   isDraft,
 }: InventoryTableProps) {
   const { profile: myProfile } = useMySignature()
+  const rowRenderKeysRef = useRef<string[]>([]);
+  const nextRowRenderKeyRef = useRef(0);
+
+  const makeRowRenderKey = () => `inventory-row-${nextRowRenderKeyRef.current++}`;
+
+  if (rowRenderKeysRef.current.length < data.rows.length) {
+    while (rowRenderKeysRef.current.length < data.rows.length) {
+      rowRenderKeysRef.current.push(makeRowRenderKey());
+    }
+  } else if (rowRenderKeysRef.current.length > data.rows.length) {
+    rowRenderKeysRef.current = rowRenderKeysRef.current.slice(0, data.rows.length);
+  }
+
   const vialVolume = useMemo(
     () => parseVialVolume(data.size_qty),
     [data.size_qty],
@@ -143,12 +176,14 @@ export function InventoryTable({
 
   function addRow() {
     if (data.rows.length >= 200) return;
+    rowRenderKeysRef.current = [...rowRenderKeysRef.current, makeRowRenderKey()];
     onChange({ ...data, rows: [...data.rows, emptyRow()] });
   }
 
   function removeRow(index: number) {
     if (data.rows.length <= 1) return;
     if (index < lockedRowCount) return; // can't delete saved rows
+    rowRenderKeysRef.current = rowRenderKeysRef.current.filter((_, i) => i !== index);
     const rows = data.rows.filter((_, i) => i !== index);
     onChange({ ...data, rows });
   }
@@ -187,8 +222,14 @@ export function InventoryTable({
         indices.push(i);
         continue;
       }
-      if (dateFrom && rowDate < dateFrom) continue;
-      if (dateTo && rowDate > dateTo) continue;
+      const normalizedRowDate = parseInventoryRowDate(rowDate);
+      if (!normalizedRowDate) {
+        indices.push(i);
+        continue;
+      }
+      const rowDateIso = toDateStr(normalizedRowDate);
+      if (dateFrom && rowDateIso < dateFrom) continue;
+      if (dateTo && rowDateIso > dateTo) continue;
       indices.push(i);
     }
     return indices;
@@ -254,7 +295,10 @@ export function InventoryTable({
               const row = data.rows[i];
               const isLocked = disabled || i < lockedRowCount;
               return (
-                <tr key={i} className={cn(i % 2 === 1 ? "bg-muted/5" : "", isLocked && !disabled && "bg-muted/10")}>
+                <tr
+                  key={rowRenderKeysRef.current[i] ?? `inventory-row-fallback-${i}`}
+                  className={cn(i % 2 === 1 ? "bg-muted/5" : "", isLocked && !disabled && "bg-muted/10")}
+                >
                 {/* Date */}
                 <td className={cn(CELL, isDraft && row.date && "bg-yellow-50")}>
                   <Popover>
@@ -277,10 +321,11 @@ export function InventoryTable({
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
+                        captionLayout="dropdown"
+                        startMonth={new Date(2020, 0, 1)}
+                        endMonth={new Date(2035, 11, 1)}
                         selected={
-                          row.date
-                            ? new Date(row.date + "T00:00:00")
-                            : undefined
+                          row.date ? parseInventoryRowDate(row.date) : undefined
                         }
                         onSelect={(d) => {
                           if (d) {

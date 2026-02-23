@@ -259,6 +259,9 @@ export function InventorySummary({ locationId }: InventorySummaryProps) {
             <Calendar
               initialFocus
               mode="range"
+              captionLayout="dropdown"
+              startMonth={new Date(2020, 0, 1)}
+              endMonth={new Date(2035, 11, 1)}
               defaultMonth={dateRange?.from}
               selected={dateRange}
               onSelect={setDateRange}
@@ -374,7 +377,7 @@ export function InventorySummary({ locationId }: InventorySummaryProps) {
               <tr className="border-b bg-muted/50">
                 <th className="px-3 py-2 text-left font-medium">Drug</th>
                 <th className="px-3 py-2 text-left font-medium">Strength</th>
-                <th className="px-3 py-2 text-center font-medium">Status</th>
+                <th className="px-3 py-2 text-center font-medium">Ledger</th>
                 <th className="px-3 py-2 text-center font-medium">
                   Current Stock
                 </th>
@@ -432,12 +435,10 @@ export function InventorySummary({ locationId }: InventorySummaryProps) {
                     </td>
                     <td className="px-3 py-2 text-center">
                       <Badge
-                        variant={
-                          drug.status === "complete" ? "default" : "secondary"
-                        }
+                        variant="outline"
                         className="text-[10px]"
                       >
-                        {drug.status}
+                        ongoing
                       </Badge>
                     </td>
                     <td className="px-3 py-2 text-center tabular-nums font-semibold">
