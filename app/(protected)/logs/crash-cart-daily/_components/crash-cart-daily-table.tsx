@@ -171,11 +171,15 @@ export function CrashCartDailyTable({
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs md:text-sm">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold">Year</span>
-                    <span className="text-base font-bold leading-none">{data.year}</span>
+                    <span className="text-xs md:text-sm font-semibold leading-none tabular-nums">
+                      {data.year}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-semibold">Month</span>
-                    <span className="text-base font-bold leading-none">{data.month}</span>
+                    <span className="text-xs md:text-sm font-semibold leading-none">
+                      {data.month}
+                    </span>
                   </div>
                 </div>
               </th>
