@@ -209,24 +209,34 @@ export function NarcoticSignoutTable({
           </tr>
 
           {/* =============================================================
-              ROW: Anesthesia MD + Print Name (same person)
+              ROW: Anesthesia MD + Print Name
               ============================================================= */}
           <tr>
             <td colSpan={2} className={cn(HDR, "sticky left-0 z-10 bg-muted/30 text-left")}>
               Anesthesia MD:
             </td>
             <td colSpan={DRUG_COUNT} className={cn(CELL)}>
-              <div className="flex items-center gap-3">
-                <Input
-                  value={data.anesthesia_md}
-                  onChange={(e) => {
-                    updateTop("anesthesia_md", e.target.value)
-                    updateTop("print_name", e.target.value)
-                  }}
-                  disabled={disabled}
-                  className={TXT}
-                  placeholder="Print name"
-                />
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={data.anesthesia_md}
+                    onChange={(e) => updateTop("anesthesia_md", e.target.value)}
+                    disabled={disabled}
+                    className={TXT}
+                    placeholder="Print Name"
+                    aria-label="Anesthesia MD"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={data.print_name}
+                    onChange={(e) => updateTop("print_name", e.target.value)}
+                    disabled={disabled}
+                    className={TXT}
+                    placeholder="Printed name"
+                    aria-label="Print Name"
+                  />
+                </div>
               </div>
             </td>
           </tr>
