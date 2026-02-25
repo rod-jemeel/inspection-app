@@ -11,7 +11,6 @@ import {
   Package,
   ShieldCheck,
   CalendarIcon,
-  DollarSign,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -47,9 +46,6 @@ function parseVialVolume(sizeQty: string): number | null {
   const match = sizeQty.match(/([\d.]+)\s*m[lL]/i)
   return match ? parseFloat(match[1]) : null
 }
-
-// Estimated average cost per mL for controlled substances
-const COST_PER_ML = 15
 
 interface DrugStats {
   slug: string
@@ -201,7 +197,6 @@ export function InventorySummary({ locationId }: InventorySummaryProps) {
     }
 
     const wasteRate = totalUsed > 0 ? ((totalWasted / (totalUsed + totalWasted)) * 100) : 0
-    const revenueLoss = totalWasted * COST_PER_ML
     const complianceRaw = totalRows > 0
       ? ((totalRows - totalUnsigned - totalDiscrepancies) / totalRows) * 100
       : 100
@@ -216,7 +211,6 @@ export function InventorySummary({ locationId }: InventorySummaryProps) {
       totalDiscrepancies,
       totalRows,
       wasteRate,
-      revenueLoss,
       complianceScore,
     }
   }, [drugStats])
@@ -284,7 +278,7 @@ export function InventorySummary({ locationId }: InventorySummaryProps) {
       {/* Loading */}
       {loading && (
         <div className="py-8 text-center text-xs text-muted-foreground">
-          Loading\u2026
+          Loading...
         </div>
       )}
 
@@ -299,25 +293,6 @@ export function InventorySummary({ locationId }: InventorySummaryProps) {
             </div>
             <p className="mt-1 text-sm font-semibold tabular-nums">
               {totals.drugCount}
-            </p>
-          </div>
-
-          {/* Revenue Loss Estimation */}
-          <div className="border bg-card p-3">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <DollarSign className="size-3.5" />
-              <span>Est. Revenue Loss</span>
-            </div>
-            <p
-              className={cn(
-                "mt-1 text-sm font-semibold tabular-nums",
-                totals.revenueLoss > 0 && "text-destructive",
-              )}
-            >
-              ${totals.revenueLoss.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-            </p>
-            <p className="text-[10px] text-muted-foreground">
-              {totals.totalWasted} mL wasted @ ${COST_PER_ML}/mL
             </p>
           </div>
 
