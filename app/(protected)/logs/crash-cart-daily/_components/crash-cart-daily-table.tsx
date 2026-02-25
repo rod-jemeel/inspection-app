@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { UserPen, PenLine, Eye, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
@@ -77,6 +77,38 @@ export function CrashCartDailyTable({
   const [signingDay, setSigningDay] = useState<string | null>(null)
   /** Day whose audit trail is being viewed (null = dialog closed) */
   const [viewingDay, setViewingDay] = useState<string | null>(null)
+  const [auditPreviewUrl, setAuditPreviewUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const audit = viewingDay ? data.initials_signatures?.[viewingDay] : null
+
+    async function resolveAuditPreview() {
+      if (!audit?.sig) {
+        setAuditPreviewUrl(null)
+        return
+      }
+      if (audit.sig.startsWith("data:")) {
+        setAuditPreviewUrl(audit.sig)
+        return
+      }
+      try {
+        const res = await fetch(
+          `/api/locations/${locationId}/logs/signature-url?path=${encodeURIComponent(audit.sig)}`
+        )
+        if (!res.ok) throw new Error("Failed to resolve signature URL")
+        const json = (await res.json()) as { url?: string }
+        if (!cancelled) setAuditPreviewUrl(json.url ?? null)
+      } catch {
+        if (!cancelled) setAuditPreviewUrl(null)
+      }
+    }
+
+    void resolveAuditPreview()
+    return () => {
+      cancelled = true
+    }
+  }, [viewingDay, data.initials_signatures, locationId])
 
   // -- Update helpers -------------------------------------------------------
 
@@ -142,7 +174,7 @@ export function CrashCartDailyTable({
 
   function updateSignatureFields(
     index: number,
-    fields: Partial<{ name: string; signature: string | null; initials: string }>
+    fields: Partial<{ name: string; signature: string | null; initials: string; signed_at: string }>
   ) {
     const newSigs = data.signatures.map((s, i) =>
       i === index ? { ...s, ...fields } : s
@@ -518,14 +550,18 @@ export function CrashCartDailyTable({
                             disabled={disabled}
                             defaultSignerName={myProfile?.name}
                             hideSignerName
-                            onNameChange={(name) => {
-                              if (name) {
+                            signerName={sig.name}
+                            signedAt={sig.signed_at ?? ""}
+                            onSignedMetaChange={(meta) => {
+                              if (meta) {
                                 updateSignatureFields(idx, {
-                                  name,
+                                  name: meta.signerName,
+                                  signature: meta.signatureBase64 ?? null,
                                   initials: myProfile?.default_initials ?? "",
+                                  signed_at: meta.signedAt,
                                 })
                               } else {
-                                updateSignatureFields(idx, { name: "", initials: "" })
+                                updateSignatureFields(idx, { name: "", signature: null, initials: "", signed_at: "" })
                               }
                             }}
                           />
@@ -635,7 +671,7 @@ export function CrashCartDailyTable({
                   <div className="border border-border rounded p-2 bg-muted/10 flex items-center justify-center min-h-[80px]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={audit.sig}
+                      src={auditPreviewUrl ?? audit.sig}
                       alt="Drawn signature"
                       className="max-h-28 w-auto object-contain"
                     />

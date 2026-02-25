@@ -530,6 +530,7 @@ export function NarcoticCountLog({
           <NarcoticCountTable
             data={data}
             onChange={handleDataChange}
+            locationId={locationId}
             disabled={isDisabled}
             isDraft={status === "draft"}
             sheetYear={currentYear}

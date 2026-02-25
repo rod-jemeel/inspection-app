@@ -1,10 +1,6 @@
 "use client"
 
-import { ChevronLeft, ChevronRight } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { SignatureCell } from "../../narcotic/_components/signature-cell"
 import { useMySignature } from "@/hooks/use-my-signature"
 import { cn } from "@/lib/utils"
@@ -17,9 +13,6 @@ interface NarcoticSignoutTableProps {
   locationId: string
   disabled?: boolean
   date: string
-  onNavigateDate: (offset: number) => void
-  onGoToDate: (date: string) => void
-  isPending: boolean
   isDraft?: boolean
 }
 
@@ -43,9 +36,6 @@ export function NarcoticSignoutTable({
   locationId,
   disabled,
   date,
-  onNavigateDate,
-  onGoToDate,
-  isPending,
   isDraft,
 }: NarcoticSignoutTableProps) {
   const { profile: myProfile } = useMySignature()
@@ -62,13 +52,60 @@ export function NarcoticSignoutTable({
 
   function updateDrugHeader(
     drugKey: string,
-    field: "anesthesiologist_sig" | "nurse_sig" | "qty_dispensed",
+    field:
+      | "anesthesiologist_sig"
+      | "anesthesiologist_sig_signer_name"
+      | "anesthesiologist_sig_signed_at"
+      | "nurse_sig"
+      | "nurse_sig_signer_name"
+      | "nurse_sig_signed_at"
+      | "qty_dispensed",
     value: string | null
   ) {
     const headers = { ...data.drug_headers }
     headers[drugKey] = {
-      ...(headers[drugKey] ?? { anesthesiologist_sig: null, nurse_sig: null, qty_dispensed: "" }),
+      ...(headers[drugKey] ?? {
+        anesthesiologist_sig: null,
+        anesthesiologist_sig_signer_name: "",
+        anesthesiologist_sig_signed_at: "",
+        nurse_sig: null,
+        nurse_sig_signer_name: "",
+        nurse_sig_signed_at: "",
+        qty_dispensed: "",
+      }),
       [field]: value,
+    }
+    onChange({ ...data, drug_headers: headers })
+  }
+
+  function updateDrugHeaderMeta(
+    drugKey: string,
+    role: "anesthesiologist" | "nurse",
+    meta: { signerName: string; signedAt: string; signatureBase64?: string } | null
+  ) {
+    const headers = { ...data.drug_headers }
+    const current = headers[drugKey] ?? {
+      anesthesiologist_sig: null,
+      anesthesiologist_sig_signer_name: "",
+      anesthesiologist_sig_signed_at: "",
+      nurse_sig: null,
+      nurse_sig_signer_name: "",
+      nurse_sig_signed_at: "",
+      qty_dispensed: "",
+    }
+    headers[drugKey] = {
+      ...current,
+      ...(role === "anesthesiologist"
+        ? {
+            anesthesiologist_sig: meta?.signatureBase64 ?? null,
+            anesthesiologist_sig_signer_name: meta?.signerName ?? "",
+            anesthesiologist_sig_signed_at: meta?.signedAt ?? "",
+          }
+        : {
+            nurse_sig: meta?.signatureBase64 ?? null,
+            nurse_sig_signer_name: meta?.signerName ?? "",
+            nurse_sig_signed_at: meta?.signedAt ?? "",
+          }),
     }
     onChange({ ...data, drug_headers: headers })
   }
@@ -135,17 +172,7 @@ export function NarcoticSignoutTable({
               Date:
             </td>
             <td colSpan={DRUG_COUNT} className={cn(B, "bg-background px-3 py-2")}>
-              <div className="flex items-center gap-1.5">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-7 shrink-0"
-                  onClick={() => onNavigateDate(-1)}
-                  disabled={isPending}
-                  aria-label="Previous day"
-                >
-                  <ChevronLeft className="size-4" />
-                </Button>
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-sm font-medium whitespace-nowrap">
                   {new Date(date + "T00:00:00").toLocaleDateString("en-US", {
                     weekday: "long",
@@ -154,56 +181,7 @@ export function NarcoticSignoutTable({
                     day: "numeric",
                   })}
                 </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-7 shrink-0"
-                  onClick={() => onNavigateDate(1)}
-                  disabled={isPending}
-                  aria-label="Next day"
-                >
-                  <ChevronRight className="size-4" />
-                </Button>
-                {date !== new Date().toISOString().split("T")[0] && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 text-[11px]"
-                    onClick={() => onGoToDate(new Date().toISOString().split("T")[0])}
-                    disabled={isPending}
-                  >
-                    Today
-                  </Button>
-                )}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="ml-auto h-7 gap-1.5 text-xs font-normal"
-                      disabled={isPending}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
-                      Pick date
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="end">
-                    <Calendar
-                      mode="single"
-                      captionLayout="dropdown"
-                      startMonth={new Date(2020, 0, 1)}
-                      endMonth={new Date(2035, 11, 1)}
-                      selected={new Date(date + "T00:00:00")}
-                      onSelect={(d) => {
-                        if (d) {
-                          const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
-                          onGoToDate(iso)
-                        }
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <span className="text-[11px] text-muted-foreground">Change date in toolbar</span>
               </div>
             </td>
           </tr>
@@ -278,6 +256,10 @@ export function NarcoticSignoutTable({
                   locationId={locationId}
                   disabled={disabled}
                   defaultSignerName={myProfile?.name}
+                  signerName={data.drug_headers[drug.key]?.anesthesiologist_sig_signer_name ?? ""}
+                  signedAt={data.drug_headers[drug.key]?.anesthesiologist_sig_signed_at ?? ""}
+                  onSignedMetaChange={(meta) => updateDrugHeaderMeta(drug.key, "anesthesiologist", meta)}
+                  emptyLabel="Add"
                 />
               </td>
             ))}
@@ -298,6 +280,10 @@ export function NarcoticSignoutTable({
                   locationId={locationId}
                   disabled={disabled}
                   defaultSignerName={myProfile?.name}
+                  signerName={data.drug_headers[drug.key]?.nurse_sig_signer_name ?? ""}
+                  signedAt={data.drug_headers[drug.key]?.nurse_sig_signed_at ?? ""}
+                  onSignedMetaChange={(meta) => updateDrugHeaderMeta(drug.key, "nurse", meta)}
+                  emptyLabel="Add"
                 />
               </td>
             ))}
@@ -392,6 +378,17 @@ export function NarcoticSignoutTable({
                   locationId={locationId}
                   disabled={disabled}
                   defaultSignerName={myProfile?.name}
+                  signerName={data.rn_signature_signer_name}
+                  signedAt={data.rn_signature_signed_at}
+                  onSignedMetaChange={(meta) =>
+                    onChange({
+                      ...data,
+                      rn_signature: meta?.signatureBase64 ?? null,
+                      rn_signature_signer_name: meta?.signerName ?? "",
+                      rn_signature_signed_at: meta?.signedAt ?? "",
+                    })
+                  }
+                  emptyLabel="Add Signature"
                 />
               </div>
             </td>
@@ -520,6 +517,16 @@ function CaseBlock({
               locationId={locationId}
               disabled={disabled}
               defaultSignerName={defaultSignerName}
+              signerName={caseData.co_signature_signer_name}
+              signedAt={caseData.co_signature_signed_at}
+              onSignedMetaChange={(meta) =>
+                onUpdateCase(caseIdx, {
+                  co_signature: meta?.signatureBase64 ?? null,
+                  co_signature_signer_name: meta?.signerName ?? "",
+                  co_signature_signed_at: meta?.signedAt ?? "",
+                })
+              }
+              emptyLabel="Add Signature"
             />
           </div>
         </td>

@@ -3,6 +3,13 @@
 import { useState, useEffect } from "react"
 import { PenLine, X } from "lucide-react"
 import { FullscreenSignaturePad } from "@/components/fullscreen-signature-pad"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 
 interface SignatureCellProps {
@@ -19,6 +26,16 @@ interface SignatureCellProps {
   defaultSignerName?: string
   /** When true, suppresses the name text shown below the signature (use when a dedicated Name column is present in the table) */
   hideSignerName?: boolean
+  /** Optional ISO timestamp for preview metadata */
+  signedAt?: string | null
+  /** Callback to persist signer metadata when a signature is created/cleared */
+  onSignedMetaChange?: (meta: {
+    signerName: string
+    signedAt: string
+    signatureBase64?: string
+  } | null) => void
+  /** More obvious empty-state label for blank signature cells */
+  emptyLabel?: string
 }
 
 export function SignatureCell({
@@ -31,8 +48,12 @@ export function SignatureCell({
   onNameChange,
   defaultSignerName,
   hideSignerName,
+  signedAt,
+  onSignedMetaChange,
+  emptyLabel = "Sign",
 }: SignatureCellProps) {
   const [showPad, setShowPad] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [localBase64, setLocalBase64] = useState<string | null>(null)
 
@@ -64,11 +85,17 @@ export function SignatureCell({
     const reader = new FileReader()
     reader.onloadend = () => {
       const base64 = reader.result as string
+      const signer = result.signerName.trim()
+      const stampedAt = new Date().toISOString()
       setLocalBase64(base64)
       setPreviewUrl(base64)
-      onChange(null, base64)
-      if (onNameChange && result.signerName) {
-        onNameChange(result.signerName)
+      if (onSignedMetaChange) {
+        onSignedMetaChange({ signerName: signer, signedAt: stampedAt, signatureBase64: base64 })
+      } else {
+        onChange(null, base64)
+        if (onNameChange && signer) {
+          onNameChange(signer)
+        }
       }
     }
     reader.readAsDataURL(result.imageBlob)
@@ -78,11 +105,28 @@ export function SignatureCell({
   const handleClear = () => {
     setLocalBase64(null)
     setPreviewUrl(null)
-    onChange(null, null)
-    if (onNameChange) onNameChange("")
+    if (onSignedMetaChange) {
+      onSignedMetaChange(null)
+    } else {
+      onChange(null, null)
+      if (onNameChange) onNameChange("")
+    }
   }
 
   const displayUrl = localBase64 || previewUrl
+  const formattedSignedAt = (() => {
+    const raw = signedAt?.trim()
+    if (!raw) return null
+    const parsed = new Date(raw)
+    if (Number.isNaN(parsed.getTime())) return null
+    return parsed.toLocaleString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    })
+  })()
 
   return (
     <>
@@ -91,11 +135,18 @@ export function SignatureCell({
           className={cn(
             "group/sig relative flex w-full items-center justify-center rounded-sm border border-border/60 bg-background transition-colors",
             signerName !== undefined && !hideSignerName ? "h-7" : "h-8",
-            !disabled && !displayUrl && "cursor-pointer hover:border-border hover:bg-muted/30",
+            !displayUrl && !disabled && "cursor-pointer hover:border-border hover:bg-muted/30",
+            displayUrl && "cursor-zoom-in hover:border-border",
             disabled && "opacity-50",
             className
           )}
-          onClick={!disabled && !displayUrl ? () => setShowPad(true) : undefined}
+          onClick={() => {
+            if (displayUrl) {
+              setShowPreview(true)
+              return
+            }
+            if (!disabled) setShowPad(true)
+          }}
         >
           {displayUrl ? (
             <>
@@ -119,7 +170,10 @@ export function SignatureCell({
               )}
             </>
           ) : (
-            <PenLine className="size-3.5 text-muted-foreground/40" />
+            <div className="flex items-center gap-1 text-muted-foreground/60">
+              <PenLine className="size-3.5" />
+              <span className="text-[10px] font-medium uppercase tracking-wide">{emptyLabel}</span>
+            </div>
           )}
         </div>
         {signerName !== undefined && !hideSignerName && (
@@ -138,6 +192,43 @@ export function SignatureCell({
           description="Sign as licensed staff to verify this log entry."
           defaultSignerName={defaultSignerName}
         />
+      )}
+
+      {showPreview && displayUrl && (
+        <Dialog open={showPreview} onOpenChange={setShowPreview}>
+          <DialogContent className="max-w-2xl p-4 sm:p-6">
+            <DialogHeader>
+              <DialogTitle>Signature Preview</DialogTitle>
+              <DialogDescription>
+                {signerName?.trim() || "Signer not recorded"}
+                {formattedSignedAt
+                  ? ` • ${formattedSignedAt}`
+                  : " • Timestamp not recorded"}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="rounded-md border bg-white p-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={displayUrl}
+                alt={`Signature${signerName ? ` by ${signerName}` : ""}`}
+                className="mx-auto max-h-[60vh] w-full object-contain"
+              />
+            </div>
+            {(signerName || signedAt) && (
+              <div className="grid gap-1 text-sm">
+                {signerName && (
+                  <div>
+                    <span className="font-medium">Signed by:</span> {signerName}
+                  </div>
+                )}
+                <div>
+                  <span className="font-medium">Timestamp:</span>{" "}
+                  {formattedSignedAt ?? "Not recorded for this signature"}
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       )}
     </>
   )
