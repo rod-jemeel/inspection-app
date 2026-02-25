@@ -1,11 +1,9 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react"
+import { Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { SignatureCell } from "./signature-cell"
 import { useMySignature } from "@/hooks/use-my-signature"
 import { cn } from "@/lib/utils"
@@ -17,9 +15,6 @@ interface NarcoticTableProps {
   locationId: string
   disabled?: boolean
   date: string
-  onNavigateDate: (offset: number) => void
-  onGoToDate: (date: string) => void
-  isPending: boolean
   isDraft?: boolean
 }
 
@@ -66,7 +61,7 @@ const TXT =
 
 const SIG_LABEL = "text-[10px] md:text-xs leading-tight font-semibold"
 
-export function NarcoticTable({ data, onChange, locationId, disabled, date, onNavigateDate, onGoToDate, isPending, isDraft }: NarcoticTableProps) {
+export function NarcoticTable({ data, onChange, locationId, disabled, date, isDraft }: NarcoticTableProps) {
   const { profile: myProfile } = useMySignature()
   const [signerNames, setSignerNames] = useState<Record<string, string>>({})
 
@@ -160,16 +155,7 @@ export function NarcoticTable({ data, onChange, locationId, disabled, date, onNa
           <tr>
             <td className={cn(HDR, "sticky left-0 z-10 bg-muted/30")}>Date:</td>
             <td colSpan={6} className={cn(B, "bg-background px-3 py-2")}>
-              <div className="flex items-center gap-1.5">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-7 shrink-0"
-                  onClick={() => onNavigateDate(-1)}
-                  disabled={isPending}
-                >
-                  <ChevronLeft className="size-4" />
-                </Button>
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-sm font-medium whitespace-nowrap">
                   {new Date(date + "T00:00:00").toLocaleDateString("en-US", {
                     weekday: "long",
@@ -178,55 +164,7 @@ export function NarcoticTable({ data, onChange, locationId, disabled, date, onNa
                     day: "numeric",
                   })}
                 </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-7 shrink-0"
-                  onClick={() => onNavigateDate(1)}
-                  disabled={isPending}
-                >
-                  <ChevronRight className="size-4" />
-                </Button>
-                {date !== new Date().toISOString().split("T")[0] && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 text-[11px]"
-                    onClick={() => onGoToDate(new Date().toISOString().split("T")[0])}
-                    disabled={isPending}
-                  >
-                    Today
-                  </Button>
-                )}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="ml-auto h-7 gap-1.5 text-xs font-normal"
-                      disabled={isPending}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
-                      Pick date
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="end">
-                    <Calendar
-                      mode="single"
-                      captionLayout="dropdown"
-                      startMonth={new Date(2020, 0, 1)}
-                      endMonth={new Date(2035, 11, 1)}
-                      selected={new Date(date + "T00:00:00")}
-                      onSelect={(d) => {
-                        if (d) {
-                          const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
-                          onGoToDate(iso)
-                        }
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <span className="text-[11px] text-muted-foreground">Change date in toolbar</span>
               </div>
             </td>
             <td colSpan={2} className={cn(B, "bg-background px-2 py-2 text-center")}>
