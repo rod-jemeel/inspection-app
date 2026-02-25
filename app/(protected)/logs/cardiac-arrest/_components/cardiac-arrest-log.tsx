@@ -2,10 +2,11 @@
 
 import { useState, useCallback, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Save, CheckCircle2, RotateCcw, ChevronLeft } from "lucide-react"
+import { ChevronLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
+import { LogActionBar } from "../../_components/log-action-bar"
+import { LogFormLayout } from "../../_components/log-form-layout"
 import { CardiacArrestTable } from "./cardiac-arrest-table"
 import { emptyCardiacArrestRecordData } from "@/lib/validations/log-entry"
 import type { CardiacArrestRecordData } from "@/lib/validations/log-entry"
@@ -45,12 +46,12 @@ export function CardiacArrestLog({
       const d = { ...initialEntry.data } as CardiacArrestRecordData & Record<string, unknown>
       if (d.team_leader !== undefined && !d.signatures) {
         d.signatures = [
-          { role: "Team Leader", name: String(d.team_leader ?? ""), signature: null, initials: "" },
-          { role: "Recording RN", name: String(d.recording_rn ?? ""), signature: null, initials: "" },
-          { role: "Respiratory Care Practitioner", name: String(d.respiratory_care ?? ""), signature: null, initials: "" },
-          { role: "Medication RN", name: String(d.medication_rn ?? ""), signature: null, initials: "" },
-          { role: "Other", name: String(d.other_sig_1 ?? ""), signature: null, initials: "" },
-          { role: "Other", name: String(d.other_sig_2 ?? ""), signature: null, initials: "" },
+          { role: "Team Leader", name: String(d.team_leader ?? ""), signature: null, initials: "", signed_at: "" },
+          { role: "Recording RN", name: String(d.recording_rn ?? ""), signature: null, initials: "", signed_at: "" },
+          { role: "Respiratory Care Practitioner", name: String(d.respiratory_care ?? ""), signature: null, initials: "", signed_at: "" },
+          { role: "Medication RN", name: String(d.medication_rn ?? ""), signature: null, initials: "", signed_at: "" },
+          { role: "Other", name: String(d.other_sig_1 ?? ""), signature: null, initials: "", signed_at: "" },
+          { role: "Other", name: String(d.other_sig_2 ?? ""), signature: null, initials: "", signed_at: "" },
         ]
         delete d.team_leader
         delete d.recording_rn
@@ -140,77 +141,52 @@ export function CardiacArrestLog({
         </Button>
       )}
 
-      {/* Header */}
-      <div className="flex flex-wrap items-center gap-2">
-        <h3 className="text-sm font-semibold">Cardiac Arrest Record</h3>
-        <Badge variant={status === "complete" ? "default" : "secondary"} className="text-[10px]">
-          {status}
-        </Badge>
-        {dirty && !isDisabled && (
-          <span className="text-xs text-amber-600">Unsaved changes</span>
-        )}
-        {entryId && (
-          <LogPdfExportDialog
-            locationId={locationId}
-            logType="cardiac_arrest_record"
-            rangeKind="date"
-            defaultRange={{ dateFrom: data.arrest_date || initialDate, dateTo: data.arrest_date || initialDate }}
-            availableDateValues={availableDateValues}
-            hasUnsavedChanges={dirty}
-            triggerLabel="Export This Record"
-          />
-        )}
-      </div>
-
-      {/* Table */}
-      <CardiacArrestTable
-        data={data}
-        onChange={handleDataChange}
-        locationId={locationId}
-        disabled={isDisabled}
-        isDraft={status === "draft"}
-      />
-
-      {/* Save actions */}
-      <div className="sticky bottom-0 z-20 border-t border-border/50 bg-background/95 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 flex flex-wrap items-center gap-2">
-        {!isDisabled && (
+      <LogFormLayout
+        title="Cardiac Arrest Record"
+        status={status}
+        dirty={dirty}
+        secondaryToolbar={
           <>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => save("draft")}
-              disabled={saving || !dirty}
-            >
-              <Save className="mr-1 size-3" />
-              {saving ? "Saving\u2026" : "Save Draft"}
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => save("complete")}
-              disabled={saving}
-            >
-              <CheckCircle2 className="mr-1 size-3" />
-              {saving ? "Saving\u2026" : "Submit as Complete"}
-            </Button>
+            <div />
+            {entryId ? (
+              <LogPdfExportDialog
+                locationId={locationId}
+                logType="cardiac_arrest_record"
+                rangeKind="date"
+                defaultRange={{
+                  dateFrom: data.arrest_date || initialDate,
+                  dateTo: data.arrest_date || initialDate,
+                }}
+                availableDateValues={availableDateValues}
+                hasUnsavedChanges={dirty}
+                triggerLabel="Export This Record"
+              />
+            ) : (
+              <div />
+            )}
           </>
-        )}
-        {isDisabled && isAdmin && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => save("draft")}
-            disabled={saving}
-          >
-            <RotateCcw className="mr-1 size-3" />
-            {saving ? "Reverting\u2026" : "Revert to Draft"}
-          </Button>
-        )}
-        {isDisabled && !isAdmin && (
-          <p className="text-xs text-muted-foreground">
-            This record has been submitted as complete. Contact an admin to revert.
-          </p>
-        )}
-      </div>
+        }
+        footerActions={
+          <LogActionBar
+            status={status}
+            dirty={dirty}
+            saving={saving}
+            isAdmin={isAdmin}
+            entityLabel="record"
+            onSaveDraft={() => save("draft")}
+            onSaveComplete={() => save("complete")}
+            onRevertToDraft={() => save("draft")}
+          />
+        }
+      >
+        <CardiacArrestTable
+          data={data}
+          onChange={handleDataChange}
+          locationId={locationId}
+          disabled={isDisabled}
+          isDraft={status === "draft"}
+        />
+      </LogFormLayout>
     </div>
   )
 }

@@ -365,6 +365,7 @@ const crashCartSignatureSchema = z.object({
   name: z.string().default(""),
   signature: z.string().nullable().default(null),
   initials: z.string().default(""),
+  signed_at: z.string().default(""),
 })
 
 export const crashCartLogDataSchema = z.object({
@@ -391,7 +392,7 @@ export const crashCartLogDataSchema = z.object({
   completed_by: z.record(z.string(), z.string().default("")).default({}),
   top_of_cart: z.record(z.string(), z.boolean().default(false)).default({}),
   signatures: z.array(crashCartSignatureSchema).default(
-    Array.from({ length: 6 }, () => ({ name: "", signature: null, initials: "" }))
+    Array.from({ length: 6 }, () => ({ name: "", signature: null, initials: "", signed_at: "" }))
   ),
 })
 
@@ -412,7 +413,7 @@ export function emptyCrashCartLogData(year?: number): CrashCartLogData {
     },
     completed_by: {},
     top_of_cart: {},
-    signatures: Array.from({ length: 6 }, () => ({ name: "", signature: null, initials: "" })),
+    signatures: Array.from({ length: 6 }, () => ({ name: "", signature: null, initials: "", signed_at: "" })),
   }
 }
 
@@ -432,7 +433,11 @@ export type SignoutDrugKey = typeof SIGNOUT_DRUGS[number]["key"]
 
 const signoutDrugHeaderSchema = z.object({
   anesthesiologist_sig: z.string().nullable().default(null),
+  anesthesiologist_sig_signer_name: z.string().default(""),
+  anesthesiologist_sig_signed_at: z.string().default(""),
   nurse_sig: z.string().nullable().default(null),
+  nurse_sig_signer_name: z.string().default(""),
+  nurse_sig_signed_at: z.string().default(""),
   qty_dispensed: z.string().default(""),
 })
 
@@ -443,6 +448,8 @@ const signoutCaseSchema = z.object({
     wasted: z.string().default(""),
   })).default({}),
   co_signature: z.string().nullable().default(null),
+  co_signature_signer_name: z.string().default(""),
+  co_signature_signed_at: z.string().default(""),
 })
 
 export const narcoticSignoutLogDataSchema = z.object({
@@ -455,11 +462,15 @@ export const narcoticSignoutLogDataSchema = z.object({
       patient_name: "",
       amounts: {},
       co_signature: null,
+      co_signature_signer_name: "",
+      co_signature_signed_at: "",
     }))
   ),
   total_qty_used: z.record(z.string(), z.string().default("")).default({}),
   end_balance: z.record(z.string(), z.string().default("")).default({}),
   rn_signature: z.string().nullable().default(null),
+  rn_signature_signer_name: z.string().default(""),
+  rn_signature_signed_at: z.string().default(""),
 })
 
 export type NarcoticSignoutLogData = z.infer<typeof narcoticSignoutLogDataSchema>
@@ -471,7 +482,15 @@ export type NarcoticSignoutLogData = z.infer<typeof narcoticSignoutLogDataSchema
 function emptyDrugHeaders(): NarcoticSignoutLogData["drug_headers"] {
   const h: NarcoticSignoutLogData["drug_headers"] = {}
   for (const d of SIGNOUT_DRUGS) {
-    h[d.key] = { anesthesiologist_sig: null, nurse_sig: null, qty_dispensed: "" }
+    h[d.key] = {
+      anesthesiologist_sig: null,
+      anesthesiologist_sig_signer_name: "",
+      anesthesiologist_sig_signed_at: "",
+      nurse_sig: null,
+      nurse_sig_signer_name: "",
+      nurse_sig_signed_at: "",
+      qty_dispensed: "",
+    }
   }
   return h
 }
@@ -494,10 +513,14 @@ export function emptyNarcoticSignoutLogData(): NarcoticSignoutLogData {
       patient_name: "",
       amounts: emptyAmounts(),
       co_signature: null,
+      co_signature_signer_name: "",
+      co_signature_signed_at: "",
     })),
     total_qty_used: Object.fromEntries(SIGNOUT_DRUGS.map((d) => [d.key, ""])),
     end_balance: Object.fromEntries(SIGNOUT_DRUGS.map((d) => [d.key, ""])),
     rn_signature: null,
+    rn_signature_signer_name: "",
+    rn_signature_signed_at: "",
   }
 }
 
@@ -558,6 +581,7 @@ const narcoticCountSigSchema = z.object({
   name: z.string().default(""),
   signature: z.string().nullable().default(null),
   initials: z.string().default(""),
+  signed_at: z.string().default(""),
 })
 
 export const dailyNarcoticCountLogDataSchema = z.object({
@@ -580,7 +604,7 @@ export const dailyNarcoticCountLogDataSchema = z.object({
     }))
   ),
   signatures: z.array(narcoticCountSigSchema).default(
-    Array.from({ length: 8 }, () => ({ name: "", signature: null, initials: "" }))
+    Array.from({ length: 8 }, () => ({ name: "", signature: null, initials: "", signed_at: "" }))
   ),
 })
 
@@ -604,7 +628,7 @@ export function emptyDailyNarcoticCountLogData(): DailyNarcoticCountLogData {
       initials_pm_2: "",
       initials_audits: { am_1: null, am_2: null, pm_1: null, pm_2: null },
     })),
-    signatures: Array.from({ length: 8 }, () => ({ name: "", signature: null, initials: "" })),
+    signatures: Array.from({ length: 8 }, () => ({ name: "", signature: null, initials: "", signed_at: "" })),
   }
 }
 
@@ -680,13 +704,14 @@ export const cardiacArrestRecordDataSchema = z.object({
     name: z.string().default(""),
     signature: z.string().nullable().default(null),
     initials: z.string().default(""),
+    signed_at: z.string().default(""),
   })).default([
-    { role: "Team Leader", name: "", signature: null, initials: "" },
-    { role: "Recording RN", name: "", signature: null, initials: "" },
-    { role: "Respiratory Care Practitioner", name: "", signature: null, initials: "" },
-    { role: "Medication RN", name: "", signature: null, initials: "" },
-    { role: "Other", name: "", signature: null, initials: "" },
-    { role: "Other", name: "", signature: null, initials: "" },
+    { role: "Team Leader", name: "", signature: null, initials: "", signed_at: "" },
+    { role: "Recording RN", name: "", signature: null, initials: "", signed_at: "" },
+    { role: "Respiratory Care Practitioner", name: "", signature: null, initials: "", signed_at: "" },
+    { role: "Medication RN", name: "", signature: null, initials: "", signed_at: "" },
+    { role: "Other", name: "", signature: null, initials: "", signed_at: "" },
+    { role: "Other", name: "", signature: null, initials: "", signed_at: "" },
   ]),
 })
 
@@ -719,6 +744,7 @@ const crashCartDailySigSchema = z.object({
   name: z.string().default(""),
   signature: z.string().nullable().default(null),
   initials: z.string().default(""),
+  signed_at: z.string().default(""),
 })
 
 export const crashCartDailyLogDataSchema = z.object({
@@ -738,7 +764,7 @@ export const crashCartDailyLogDataSchema = z.object({
     Array.from({ length: 4 }, () => ({ date_reason: "", new_lock: "" }))
   ),
   signatures: z.array(crashCartDailySigSchema).default(
-    Array.from({ length: 4 }, () => ({ name: "", signature: null, initials: "" }))
+    Array.from({ length: 4 }, () => ({ name: "", signature: null, initials: "", signed_at: "" }))
   ),
   bottom_notes: z.string().default(""),
 })
@@ -755,7 +781,7 @@ export function emptyCrashCartDailyLogData(year?: number, month?: string): Crash
     initials_signatures: {},
     notes: {},
     lock_changes: Array.from({ length: 4 }, () => ({ date_reason: "", new_lock: "" })),
-    signatures: Array.from({ length: 4 }, () => ({ name: "", signature: null, initials: "" })),
+    signatures: Array.from({ length: 4 }, () => ({ name: "", signature: null, initials: "", signed_at: "" })),
     bottom_notes: "",
   }
 }

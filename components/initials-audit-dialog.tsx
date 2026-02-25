@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -13,6 +14,7 @@ interface InitialsAuditDialogProps {
   onOpenChange: (open: boolean) => void
   audit: InitialsAudit | null | undefined
   title?: string
+  locationId?: string
 }
 
 export function InitialsAuditDialog({
@@ -20,7 +22,47 @@ export function InitialsAuditDialog({
   onOpenChange,
   audit,
   title = "Initials Signature Audit",
+  locationId,
 }: InitialsAuditDialogProps) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function resolvePreview() {
+      if (!audit?.sig) {
+        setPreviewUrl(null)
+        return
+      }
+
+      if (audit.sig.startsWith("data:")) {
+        setPreviewUrl(audit.sig)
+        return
+      }
+
+      if (!locationId) {
+        setPreviewUrl(audit.sig)
+        return
+      }
+
+      try {
+        const res = await fetch(
+          `/api/locations/${locationId}/logs/signature-url?path=${encodeURIComponent(audit.sig)}`
+        )
+        if (!res.ok) throw new Error("Failed to resolve signature URL")
+        const json = (await res.json()) as { url?: string }
+        if (!cancelled) setPreviewUrl(json.url ?? null)
+      } catch {
+        if (!cancelled) setPreviewUrl(null)
+      }
+    }
+
+    void resolvePreview()
+    return () => {
+      cancelled = true
+    }
+  }, [audit?.sig, locationId])
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
@@ -37,7 +79,7 @@ export function InitialsAuditDialog({
             <div className="border border-border rounded p-2 bg-muted/10 flex items-center justify-center min-h-[80px]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={audit.sig}
+                src={previewUrl ?? audit.sig}
                 alt="Drawn signature"
                 className="max-h-28 w-auto object-contain"
               />
@@ -69,4 +111,3 @@ export function InitialsAuditDialog({
     </Dialog>
   )
 }
-

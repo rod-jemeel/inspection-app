@@ -15,6 +15,7 @@ export interface SignatureEntry {
   name: string
   signature: string | null
   initials: string
+  signed_at: string
 }
 
 interface SignatureIdentificationProps {
@@ -154,7 +155,22 @@ export function SignatureIdentification({
                         disabled={disabled}
                         defaultSignerName={myProfile?.name}
                         hideSignerName
-                        onNameChange={(name) => handleSignatureSaved(globalIndex, name)}
+                        signerName={sig.name}
+                        signedAt={sig.signed_at ?? ""}
+                        onSignedMetaChange={(meta) => {
+                          const updated = [...signatures]
+                          updated[globalIndex] = {
+                            ...updated[globalIndex],
+                            name: meta?.signerName ?? "",
+                            signature: meta?.signatureBase64 ?? null,
+                            initials:
+                              meta?.signerName && myProfile && meta.signerName === myProfile.name
+                                ? myProfile.default_initials
+                                : updated[globalIndex].initials,
+                            signed_at: meta?.signedAt ?? "",
+                          }
+                          onChange(updated)
+                        }}
                       />
                     </td>
 

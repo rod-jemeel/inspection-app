@@ -68,11 +68,20 @@ export function CardiacArrestTable({ data, onChange, locationId, disabled, isDra
 
   function updateSignature(
     index: number,
-    field: "name" | "signature" | "initials",
+    field: "name" | "signature" | "initials" | "signed_at",
     value: string | null,
   ) {
     const sigs = [...data.signatures]
     sigs[index] = { ...sigs[index], [field]: value ?? "" }
+    onChange({ ...data, signatures: sigs })
+  }
+
+  function updateSignatureFields(
+    index: number,
+    fields: Partial<CardiacArrestRecordData["signatures"][number]>
+  ) {
+    const sigs = [...data.signatures]
+    sigs[index] = { ...sigs[index], ...fields }
     onChange({ ...data, signatures: sigs })
   }
 
@@ -602,7 +611,14 @@ export function CardiacArrestTable({ data, onChange, locationId, disabled, isDra
                   disabled={disabled}
                   defaultSignerName={myProfile?.name}
                   signerName={data.signatures[0]?.name ?? ""}
-                  onNameChange={(name) => updateSignature(0, "name", name)}
+                  signedAt={data.signatures[0]?.signed_at ?? ""}
+                  onSignedMetaChange={(meta) =>
+                    updateSignatureFields(0, {
+                      signature: meta?.signatureBase64 ?? null,
+                      name: meta?.signerName ?? "",
+                      signed_at: meta?.signedAt ?? "",
+                    })
+                  }
                 />
               </td>
               <td className={cn(LBL)} colSpan={1}>Recording RN:</td>
@@ -614,7 +630,14 @@ export function CardiacArrestTable({ data, onChange, locationId, disabled, isDra
                   disabled={disabled}
                   defaultSignerName={myProfile?.name}
                   signerName={data.signatures[1]?.name ?? ""}
-                  onNameChange={(name) => updateSignature(1, "name", name)}
+                  signedAt={data.signatures[1]?.signed_at ?? ""}
+                  onSignedMetaChange={(meta) =>
+                    updateSignatureFields(1, {
+                      signature: meta?.signatureBase64 ?? null,
+                      name: meta?.signerName ?? "",
+                      signed_at: meta?.signedAt ?? "",
+                    })
+                  }
                 />
               </td>
             </tr>
@@ -638,7 +661,14 @@ export function CardiacArrestTable({ data, onChange, locationId, disabled, isDra
                   disabled={disabled}
                   defaultSignerName={myProfile?.name}
                   signerName={data.signatures[2]?.name ?? ""}
-                  onNameChange={(name) => updateSignature(2, "name", name)}
+                  signedAt={data.signatures[2]?.signed_at ?? ""}
+                  onSignedMetaChange={(meta) =>
+                    updateSignatureFields(2, {
+                      signature: meta?.signatureBase64 ?? null,
+                      name: meta?.signerName ?? "",
+                      signed_at: meta?.signedAt ?? "",
+                    })
+                  }
                 />
               </td>
               <td className={cn(LBL)} colSpan={1}>Other:</td>
@@ -650,7 +680,14 @@ export function CardiacArrestTable({ data, onChange, locationId, disabled, isDra
                   disabled={disabled}
                   defaultSignerName={myProfile?.name}
                   signerName={data.signatures[4]?.name ?? ""}
-                  onNameChange={(name) => updateSignature(4, "name", name)}
+                  signedAt={data.signatures[4]?.signed_at ?? ""}
+                  onSignedMetaChange={(meta) =>
+                    updateSignatureFields(4, {
+                      signature: meta?.signatureBase64 ?? null,
+                      name: meta?.signerName ?? "",
+                      signed_at: meta?.signedAt ?? "",
+                    })
+                  }
                 />
               </td>
             </tr>
@@ -667,7 +704,14 @@ export function CardiacArrestTable({ data, onChange, locationId, disabled, isDra
                   disabled={disabled}
                   defaultSignerName={myProfile?.name}
                   signerName={data.signatures[3]?.name ?? ""}
-                  onNameChange={(name) => updateSignature(3, "name", name)}
+                  signedAt={data.signatures[3]?.signed_at ?? ""}
+                  onSignedMetaChange={(meta) =>
+                    updateSignatureFields(3, {
+                      signature: meta?.signatureBase64 ?? null,
+                      name: meta?.signerName ?? "",
+                      signed_at: meta?.signedAt ?? "",
+                    })
+                  }
                 />
               </td>
               <td className={cn(LBL)} colSpan={1}>Other:</td>
@@ -679,7 +723,14 @@ export function CardiacArrestTable({ data, onChange, locationId, disabled, isDra
                   disabled={disabled}
                   defaultSignerName={myProfile?.name}
                   signerName={data.signatures[5]?.name ?? ""}
-                  onNameChange={(name) => updateSignature(5, "name", name)}
+                  signedAt={data.signatures[5]?.signed_at ?? ""}
+                  onSignedMetaChange={(meta) =>
+                    updateSignatureFields(5, {
+                      signature: meta?.signatureBase64 ?? null,
+                      name: meta?.signerName ?? "",
+                      signed_at: meta?.signedAt ?? "",
+                    })
+                  }
                 />
               </td>
             </tr>

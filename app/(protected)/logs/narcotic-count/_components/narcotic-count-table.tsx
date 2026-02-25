@@ -28,6 +28,7 @@ import type {
 interface NarcoticCountTableProps {
   data: DailyNarcoticCountLogData
   onChange: (data: DailyNarcoticCountLogData) => void
+  locationId: string
   disabled?: boolean
   isDraft?: boolean
   sheetYear?: number
@@ -173,6 +174,7 @@ function DiagonalCell({
 export function NarcoticCountTable({
   data,
   onChange,
+  locationId,
   disabled,
   isDraft,
   sheetYear,
@@ -476,6 +478,7 @@ export function NarcoticCountTable({
                               <InitialsStampCell
                                 value={entry.initials_am ?? ""}
                                 audit={audits.am_1}
+                                locationId={locationId}
                                 disabled={disabled}
                                 profile={myProfile}
                                 slotLabel={`${entry.date || `Column ${gi + 1}`} AM #1`}
@@ -490,6 +493,7 @@ export function NarcoticCountTable({
                               <InitialsStampCell
                                 value={entry.initials_am_2 ?? ""}
                                 audit={audits.am_2}
+                                locationId={locationId}
                                 disabled={disabled}
                                 profile={myProfile}
                                 slotLabel={`${entry.date || `Column ${gi + 1}`} AM #2`}
@@ -511,6 +515,7 @@ export function NarcoticCountTable({
                               <InitialsStampCell
                                 value={entry.initials_pm ?? ""}
                                 audit={audits.pm_1}
+                                locationId={locationId}
                                 disabled={disabled}
                                 profile={myProfile}
                                 slotLabel={`${entry.date || `Column ${gi + 1}`} PM #1`}
@@ -525,6 +530,7 @@ export function NarcoticCountTable({
                               <InitialsStampCell
                                 value={entry.initials_pm_2 ?? ""}
                                 audit={audits.pm_2}
+                                locationId={locationId}
                                 disabled={disabled}
                                 profile={myProfile}
                                 slotLabel={`${entry.date || `Column ${gi + 1}`} PM #2`}

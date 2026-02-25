@@ -23,6 +23,7 @@ export interface InitialsStampResult {
 interface InitialsStampCellProps {
   value: string
   audit?: InitialsAudit | null
+  locationId?: string
   disabled?: boolean
   className?: string
   slotLabel?: string
@@ -34,6 +35,7 @@ interface InitialsStampCellProps {
 export function InitialsStampCell({
   value,
   audit,
+  locationId,
   disabled,
   className,
   slotLabel = "Initials",
@@ -155,6 +157,7 @@ export function InitialsStampCell({
         onOpenChange={setViewingAudit}
         audit={audit}
         title={`${slotLabel} Audit`}
+        locationId={locationId}
       />
 
       {signing && (

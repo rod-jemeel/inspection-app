@@ -1,6 +1,10 @@
 "use client";
 
+import { toast } from "sonner";
 import { CalendarIcon } from "lucide-react";
+import { InitialsStampCell, type InitialsStampResult } from "@/components/initials-stamp-cell";
+import { useMySignature } from "@/hooks/use-my-signature";
+import { upsertSignerInSignatureIdentification } from "@/lib/signature-identification-utils";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -100,6 +104,7 @@ export function CrashCartTable({
   onYearChange,
   isDraft,
 }: CrashCartTableProps) {
+  const { profile: myProfile } = useMySignature();
   // -- Update helpers -------------------------------------------------------
 
   function updatePar(key: string, value: string) {
@@ -128,6 +133,29 @@ export function CrashCartTable({
     onChange({
       ...data,
       completed_by: { ...data.completed_by, [month]: value },
+    });
+  }
+
+  function stampCompletedBy(month: MonthKey, stamp: InitialsStampResult) {
+    const nextCompletedBy = { ...data.completed_by, [month]: stamp.initials };
+
+    const upserted = upsertSignerInSignatureIdentification(
+      data.signatures ?? Array.from({ length: 6 }, () => ({ name: "", signature: null, initials: "" })),
+      {
+        name: stamp.signer.name,
+        initials: stamp.signer.initials,
+        signature: stamp.signer.signature,
+      }
+    );
+
+    if (upserted.status === "full") {
+      toast.warning("Initials stamped, but Signature Identification is full. Add signer manually below.");
+    }
+
+    onChange({
+      ...data,
+      completed_by: nextCompletedBy,
+      signatures: upserted.signatures,
     });
   }
 
@@ -340,13 +368,13 @@ export function CrashCartTable({
                   isDraft && data.completed_by[month] && "bg-yellow-50",
                 )}
               >
-                <input
-                  type="text"
+                <InitialsStampCell
                   value={data.completed_by[month] || ""}
-                  onChange={(e) => updateCompletedBy(month, e.target.value)}
                   disabled={disabled}
-                  aria-label={`Completed by ${month}`}
-                  className={cn(TXT, "rounded-none")}
+                  profile={myProfile}
+                  slotLabel={`Completed by ${month.toUpperCase()}`}
+                  onStamp={(stamp) => stampCompletedBy(month, stamp)}
+                  onClear={() => updateCompletedBy(month, "")}
                 />
               </td>
             ))}

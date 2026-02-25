@@ -55,7 +55,7 @@ export function CrashCartTop({
 
   function updateSignatureFields(
     index: number,
-    fields: Partial<{ name: string; signature: string | null; initials: string }>,
+    fields: Partial<{ name: string; signature: string | null; initials: string; signed_at: string }>,
   ) {
     const next = [...data.signatures];
     next[index] = { ...next[index], ...fields };
@@ -167,14 +167,18 @@ export function CrashCartTop({
                         disabled={disabled}
                         defaultSignerName={myProfile?.name}
                         hideSignerName
-                        onNameChange={(name) => {
-                          if (name) {
+                        signerName={data.signatures[idx]?.name ?? ""}
+                        signedAt={data.signatures[idx]?.signed_at ?? ""}
+                        onSignedMetaChange={(meta) => {
+                          if (meta) {
                             updateSignatureFields(idx, {
-                              name,
+                              name: meta.signerName,
+                              signature: meta.signatureBase64 ?? null,
                               initials: myProfile?.default_initials ?? "",
+                              signed_at: meta.signedAt,
                             });
                           } else {
-                            updateSignatureFields(idx, { name: "", initials: "" });
+                            updateSignatureFields(idx, { name: "", signature: null, initials: "", signed_at: "" });
                           }
                         }}
                       />
