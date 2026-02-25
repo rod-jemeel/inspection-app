@@ -11,10 +11,11 @@ import {
   Clock3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { LoadingSpinner } from "@/components/loading-spinner";
 import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog";
+import { LogStatusBadge } from "../../_components/log-status-badge";
+import { LogSummaryPager } from "../../_components/log-summary-pager";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -34,6 +35,7 @@ interface CardiacArrestSummaryProps {
 }
 
 type SummaryScope = "all" | "month";
+const PAGE_SIZE = 25;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -120,8 +122,14 @@ export function CardiacArrestSummary({
 
   // Fetch state
   const [entries, setEntries] = useState<SummaryEntry[] | null>(null);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setOffset(0);
+  }, [currentMonth, scope]);
 
   // ---------------------------------------------------------------------------
   // Fetch entries (all or current month)
@@ -134,8 +142,8 @@ export function CardiacArrestSummary({
 
     const params = new URLSearchParams({
       log_type: "cardiac_arrest_record",
-      limit: "100",
-      offset: "0",
+      limit: String(PAGE_SIZE),
+      offset: String(offset),
     });
     if (scope === "month") {
       params.set("from", `${currentMonth}-01`);
@@ -147,8 +155,11 @@ export function CardiacArrestSummary({
         if (!res.ok) throw new Error("Failed to load records");
         return res.json();
       })
-      .then((json: { entries: SummaryEntry[] }) => {
-        if (!cancelled) setEntries(json.entries ?? []);
+      .then((json: { entries?: SummaryEntry[]; total?: number }) => {
+        if (!cancelled) {
+          setEntries(json.entries ?? []);
+          setTotal(json.total ?? (json.entries?.length ?? 0));
+        }
       })
       .catch((err: Error) => {
         if (!cancelled) setFetchError(err.message);
@@ -160,7 +171,7 @@ export function CardiacArrestSummary({
     return () => {
       cancelled = true;
     };
-  }, [locationId, currentMonth, scope]);
+  }, [locationId, currentMonth, scope, offset]);
 
   // ---------------------------------------------------------------------------
   // Navigation helpers
@@ -216,7 +227,7 @@ export function CardiacArrestSummary({
   // Derived: is this month in the future?
   // ---------------------------------------------------------------------------
   const isCurrentOrPast = currentMonth <= todayMonth();
-  const newestEntry = entries?.[0] ?? null;
+  const newestEntry = offset === 0 ? (entries?.[0] ?? null) : null;
   const availableDateValues = (entries ?? [])
     .map((e) => e.log_date)
     .filter((v) => /^\d{4}-\d{2}-\d{2}$/.test(v))
@@ -300,12 +311,7 @@ export function CardiacArrestSummary({
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-sm font-medium">{formatDate(newestEntry.log_date)}</p>
-              <Badge
-                variant={newestEntry.status === "complete" ? "default" : "secondary"}
-                className="text-[10px]"
-              >
-                {newestEntry.status}
-              </Badge>
+              <LogStatusBadge status={newestEntry.status} />
               {newestEntry.submitted_by_name && (
                 <span className="text-xs text-muted-foreground truncate">
                   {newestEntry.submitted_by_name}
@@ -370,14 +376,7 @@ export function CardiacArrestSummary({
                     {entry.submitted_by_name ?? "—"}
                   </td>
                   <td className="px-3 py-2.5 text-center">
-                    <Badge
-                      variant={
-                        entry.status === "complete" ? "default" : "secondary"
-                      }
-                      className="text-[10px]"
-                    >
-                      {entry.status}
-                    </Badge>
+                    <LogStatusBadge status={entry.status} />
                   </td>
                   <td className="px-3 py-2.5 text-right">
                     <Button
@@ -396,6 +395,15 @@ export function CardiacArrestSummary({
           </table>
         )}
       </div>
+
+      {!loading && !fetchError && total > PAGE_SIZE && (
+        <LogSummaryPager
+          total={total}
+          limit={PAGE_SIZE}
+          offset={offset}
+          onOffsetChange={setOffset}
+        />
+      )}
 
       {/* Add new record */}
       {isCurrentOrPast && (

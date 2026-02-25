@@ -2,10 +2,10 @@
 
 import { useState, useCallback, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Save, CheckCircle2, RotateCcw } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
+import { LogActionBar } from "../../_components/log-action-bar"
+import { LogFormLayout } from "../../_components/log-form-layout"
+import { LogPeriodNavigator } from "../../_components/log-period-navigator"
 import { NarcoticSignoutTable } from "./narcotic-signout-table"
 import { emptyNarcoticSignoutLogData } from "@/lib/validations/log-entry"
 import type { NarcoticSignoutLogData } from "@/lib/validations/log-entry"
@@ -127,6 +127,10 @@ export function NarcoticSignoutLog({
     [fetchDateEntry]
   )
 
+  const goToToday = useCallback(() => {
+    fetchDateEntry(new Date().toISOString().split("T")[0])
+  }, [fetchDateEntry])
+
   // ---------------------------------------------------------------------------
   // Data change
   // ---------------------------------------------------------------------------
@@ -175,87 +179,55 @@ export function NarcoticSignoutLog({
   const isDisabled = status === "complete"
 
   return (
-    <div className="space-y-4 overflow-hidden max-w-full">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold">Narcotic Sign-out</h3>
-          <Badge
-            variant={status === "complete" ? "default" : "secondary"}
-            className="text-[10px]"
-          >
-            {status}
-          </Badge>
-          {dirty && !isDisabled && (
-            <span className="text-xs text-amber-600">Unsaved changes</span>
-          )}
-          {loading && (
-            <span className="text-xs text-muted-foreground">Loading...</span>
-          )}
-        </div>
-        <LogPdfExportDialog
-          locationId={locationId}
-          logType="narcotic_signout"
-          rangeKind="date"
-          defaultRange={{ dateFrom: currentDate, dateTo: currentDate }}
-          availableDateValues={availableDateValues}
-          hasUnsavedChanges={dirty}
+    <LogFormLayout
+      title="Narcotic Sign-out"
+      status={status}
+      dirty={dirty}
+      loading={loading}
+      topToolbar={
+        <LogPeriodNavigator
+          kind="date"
+          value={currentDate}
+          onNavigate={navigateDate}
+          onChange={goToDate}
+          onToday={goToToday}
+          disabled={loading}
         />
-      </div>
-
-      {/* Table */}
+      }
+      secondaryToolbar={
+        <>
+          <div />
+          <LogPdfExportDialog
+            locationId={locationId}
+            logType="narcotic_signout"
+            rangeKind="date"
+            defaultRange={{ dateFrom: currentDate, dateTo: currentDate }}
+            availableDateValues={availableDateValues}
+            hasUnsavedChanges={dirty}
+          />
+        </>
+      }
+      footerActions={
+        <LogActionBar
+          status={status}
+          dirty={dirty}
+          saving={saving}
+          isAdmin={isAdmin}
+          entityLabel="log"
+          onSaveDraft={() => save("draft")}
+          onSaveComplete={() => save("complete")}
+          onRevertToDraft={() => save("draft")}
+        />
+      }
+    >
       <NarcoticSignoutTable
         data={data}
         onChange={handleDataChange}
         locationId={locationId}
         disabled={isDisabled}
         date={currentDate}
-        onNavigateDate={navigateDate}
-        onGoToDate={goToDate}
-        isPending={loading}
         isDraft={status === "draft"}
       />
-
-      {/* Save actions */}
-      <div className="sticky bottom-0 z-20 border-t border-border/50 bg-background/95 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 flex flex-wrap items-center gap-2">
-        {!isDisabled && (
-          <>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => save("draft")}
-              disabled={saving || !dirty}
-            >
-              <Save className="mr-1 size-3" />
-              {saving ? "Saving\u2026" : "Save Draft"}
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => save("complete")}
-              disabled={saving}
-            >
-              <CheckCircle2 className="mr-1 size-3" />
-              {saving ? "Saving\u2026" : "Submit as Complete"}
-            </Button>
-          </>
-        )}
-        {isDisabled && isAdmin && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => save("draft")}
-            disabled={saving}
-          >
-            <RotateCcw className="mr-1 size-3" />
-            {saving ? "Reverting\u2026" : "Revert to Draft"}
-          </Button>
-        )}
-        {isDisabled && !isAdmin && (
-          <p className="text-xs text-muted-foreground">
-            This log has been submitted as complete. Contact an admin to revert.
-          </p>
-        )}
-      </div>
-    </div>
+    </LogFormLayout>
   )
 }

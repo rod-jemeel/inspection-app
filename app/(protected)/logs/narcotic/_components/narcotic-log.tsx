@@ -2,11 +2,11 @@
 
 import { useState, useCallback, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Save, CheckCircle2, RotateCcw } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
+import { LogActionBar } from "../../_components/log-action-bar"
+import { LogFormLayout } from "../../_components/log-form-layout"
+import { LogPeriodNavigator } from "../../_components/log-period-navigator"
 import { NarcoticTable } from "./narcotic-table"
 import { NarcoticSummary } from "./narcotic-summary"
 import { emptyNarcoticLogData } from "@/lib/validations/log-entry"
@@ -33,6 +33,7 @@ export function NarcoticLog({ locationId, initialDate, initialEntry, isAdmin = f
   const [, startTransition] = useTransition()
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState<"fill" | "summary">("fill")
 
   const [currentDate, setCurrentDate] = useState(initialDate)
   const [data, setData] = useState<NarcoticLogData>(
@@ -121,6 +122,10 @@ export function NarcoticLog({ locationId, initialDate, initialEntry, isAdmin = f
     [fetchDateEntry]
   )
 
+  const goToToday = useCallback(() => {
+    fetchDateEntry(new Date().toISOString().split("T")[0])
+  }, [fetchDateEntry])
+
   // ---------------------------------------------------------------------------
   // Data change
   // ---------------------------------------------------------------------------
@@ -197,98 +202,72 @@ export function NarcoticLog({ locationId, initialDate, initialEntry, isAdmin = f
   const isDisabled = status === "complete"
 
   return (
-    <Tabs defaultValue="fill" className="space-y-4 overflow-hidden max-w-full">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold">Narcotic Log</h3>
-          <Badge variant={status === "complete" ? "default" : "secondary"} className="text-[10px]">
-            {status}
-          </Badge>
-          {dirty && !isDisabled && (
-            <span className="text-xs text-amber-600">Unsaved changes</span>
-          )}
-          {loading && (
-            <span className="text-xs text-muted-foreground">Loading...</span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <LogPdfExportDialog
-            locationId={locationId}
-            logType="narcotic_log"
-            rangeKind="date"
-            defaultRange={{ dateFrom: currentDate, dateTo: currentDate }}
-            availableDateValues={availableDateValues}
-            hasUnsavedChanges={dirty}
+    <Tabs
+      value={activeTab}
+      onValueChange={(value) => setActiveTab(value as "fill" | "summary")}
+      className="max-w-full space-y-4 overflow-hidden"
+    >
+      <LogFormLayout
+        title="Narcotic Log"
+        status={status}
+        dirty={dirty}
+        loading={loading}
+        topToolbar={
+          <LogPeriodNavigator
+            kind="date"
+            value={currentDate}
+            onNavigate={navigateDate}
+            onChange={goToDate}
+            onToday={goToToday}
+            disabled={loading}
           />
-          <TabsList>
-            <TabsTrigger value="fill" className="text-xs">Fill</TabsTrigger>
-            <TabsTrigger value="summary" className="text-xs">Summary</TabsTrigger>
-          </TabsList>
-        </div>
-      </div>
+        }
+        secondaryToolbar={
+          <>
+            <TabsList>
+              <TabsTrigger value="fill" className="text-xs">Fill</TabsTrigger>
+              <TabsTrigger value="summary" className="text-xs">Summary</TabsTrigger>
+            </TabsList>
+            <LogPdfExportDialog
+              locationId={locationId}
+              logType="narcotic_log"
+              rangeKind="date"
+              defaultRange={{ dateFrom: currentDate, dateTo: currentDate }}
+              availableDateValues={availableDateValues}
+              hasUnsavedChanges={dirty}
+            />
+          </>
+        }
+        footerActions={
+          activeTab === "fill" ? (
+            <LogActionBar
+              status={status}
+              dirty={dirty}
+              saving={saving}
+              isAdmin={isAdmin}
+              entityLabel="log"
+              onSaveDraft={() => save("draft")}
+              onSaveComplete={() => save("complete")}
+              onRevertToDraft={() => save("draft")}
+            />
+          ) : undefined
+        }
+      >
+        <TabsContent value="fill" className="space-y-4">
+          <NarcoticTable
+            data={data}
+            onChange={handleDataChange}
+            locationId={locationId}
+            disabled={isDisabled}
+            date={currentDate}
+            isDraft={status === "draft"}
+          />
+        </TabsContent>
 
-      {/* Fill tab */}
-      <TabsContent value="fill" className="space-y-4">
-        <NarcoticTable
-          data={data}
-          onChange={handleDataChange}
-          locationId={locationId}
-          disabled={isDisabled}
-          date={currentDate}
-          onNavigateDate={navigateDate}
-          onGoToDate={goToDate}
-          isPending={loading}
-          isDraft={status === "draft"}
-        />
-
-        {/* Save actions */}
-        <div className="sticky bottom-0 z-20 border-t border-border/50 bg-background/95 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 flex flex-wrap items-center gap-2">
-          {!isDisabled && (
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => save("draft")}
-                disabled={saving || !dirty}
-              >
-                <Save className="mr-1 size-3" />
-                {saving ? "Saving\u2026" : "Save Draft"}
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => save("complete")}
-                disabled={saving}
-              >
-                <CheckCircle2 className="mr-1 size-3" />
-                {saving ? "Saving\u2026" : "Submit as Complete"}
-              </Button>
-            </>
-          )}
-          {isDisabled && isAdmin && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => save("draft")}
-              disabled={saving}
-            >
-              <RotateCcw className="mr-1 size-3" />
-              {saving ? "Reverting\u2026" : "Revert to Draft"}
-            </Button>
-          )}
-          {isDisabled && !isAdmin && (
-            <p className="text-xs text-muted-foreground">
-              This log has been submitted as complete. Contact an admin to revert.
-            </p>
-          )}
-        </div>
-      </TabsContent>
-
-      {/* Summary tab */}
-      <TabsContent value="summary">
-        <NarcoticSummary locationId={locationId} />
-      </TabsContent>
+        <TabsContent value="summary">
+          <NarcoticSummary locationId={locationId} />
+        </TabsContent>
+      </LogFormLayout>
     </Tabs>
   )
 }

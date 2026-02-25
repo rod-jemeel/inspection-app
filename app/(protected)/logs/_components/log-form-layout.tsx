@@ -1,84 +1,91 @@
 "use client"
 
-import { Save, CheckCircle2, RotateCcw } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
+import { LogActionBar } from "./log-action-bar"
+import { LogStatusBadge, type LogStatus } from "./log-status-badge"
 
 interface LogFormLayoutProps {
   children: React.ReactNode
-  title: string
-  status: "draft" | "complete"
-  dirty: boolean
-  saving: boolean
-  isAdmin: boolean
-  onSave: (status: "draft" | "complete") => void
-  /** Custom label for the "submitted as complete" message. Defaults to "log" */
+  title?: string
+  status?: LogStatus
+  dirty?: boolean
+  saving?: boolean
+  loading?: boolean
+  isAdmin?: boolean
+  onSave?: (status: "draft" | "complete") => void
   entityLabel?: string
-  /** Optional header content (nav controls, tabs, etc.) rendered after title row */
   headerContent?: React.ReactNode
+  topToolbar?: React.ReactNode
+  secondaryToolbar?: React.ReactNode
+  topMeta?: React.ReactNode
+  footerActions?: React.ReactNode
+  className?: string
 }
 
 export function LogFormLayout({
   children,
   title,
   status,
-  dirty,
-  saving,
-  isAdmin,
+  dirty = false,
+  saving = false,
+  loading = false,
+  isAdmin = false,
   onSave,
   entityLabel = "log",
   headerContent,
+  topToolbar,
+  secondaryToolbar,
+  topMeta,
+  footerActions,
+  className,
 }: LogFormLayoutProps) {
-  const isComplete = status === "complete"
+  const canRenderLegacyFooter =
+    status && status !== "ongoing" && typeof onSave === "function"
 
   return (
-    <div className="space-y-4 overflow-hidden max-w-full">
-      {/* Header row: title + badge + dirty indicator */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold">{title}</h3>
-          <Badge variant={status === "complete" ? "default" : "secondary"} className="text-[10px]">
-            {status}
-          </Badge>
-          {dirty && !isComplete && (
-            <span className="text-xs text-amber-600">Unsaved changes</span>
-          )}
-        </div>
-        {headerContent}
-      </div>
+    <div className={cn("max-w-full space-y-4 overflow-hidden", className)}>
+      {topMeta ??
+        (title || status ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              {title && <h3 className="text-sm font-semibold">{title}</h3>}
+              {status && <LogStatusBadge status={status} />}
+              {dirty && status !== "complete" && (
+                <span className="text-xs text-amber-600">Unsaved changes</span>
+              )}
+              {loading && (
+                <span className="text-xs text-muted-foreground">Loading...</span>
+              )}
+            </div>
+            {topToolbar ?? headerContent}
+          </div>
+        ) : null)}
 
-      {/* Form content */}
+      {secondaryToolbar && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {secondaryToolbar}
+        </div>
+      )}
+
       {children}
 
-      {/* Sticky footer */}
-      <div className="sticky bottom-0 z-20 border-t border-border/50 bg-background/95 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 flex flex-wrap items-center gap-2">
-        {/* When editable: Save Draft + Submit as Complete */}
-        {!isComplete && (
-          <>
-            <Button size="sm" variant="outline" onClick={() => onSave("draft")} disabled={saving || !dirty}>
-              <Save className="mr-1 size-3" />
-              {saving ? "Saving…" : "Save Draft"}
-            </Button>
-            <Button size="sm" onClick={() => onSave("complete")} disabled={saving}>
-              <CheckCircle2 className="mr-1 size-3" />
-              {saving ? "Saving…" : "Submit as Complete"}
-            </Button>
-          </>
-        )}
-        {/* Admin can revert */}
-        {isComplete && isAdmin && (
-          <Button size="sm" variant="outline" onClick={() => onSave("draft")} disabled={saving}>
-            <RotateCcw className="mr-1 size-3" />
-            {saving ? "Reverting…" : "Revert to Draft"}
-          </Button>
-        )}
-        {/* Non-admin sees message */}
-        {isComplete && !isAdmin && (
-          <p className="text-xs text-muted-foreground">
-            This {entityLabel} has been submitted as complete. Contact an admin to revert.
-          </p>
-        )}
-      </div>
+      {(footerActions || canRenderLegacyFooter) && (
+        <div className="sticky bottom-0 z-20 flex flex-wrap items-center gap-2 border-t border-border/50 bg-background/95 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          {footerActions}
+          {!footerActions && canRenderLegacyFooter && (
+            <LogActionBar
+              status={status}
+              dirty={dirty}
+              saving={saving}
+              isAdmin={isAdmin}
+              entityLabel={entityLabel}
+              onSaveDraft={() => onSave("draft")}
+              onSaveComplete={() => onSave("complete")}
+              onRevertToDraft={() => onSave("draft")}
+            />
+          )}
+        </div>
+      )}
     </div>
   )
 }

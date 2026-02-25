@@ -2,10 +2,11 @@
 
 import { useState, useCallback, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Save, CheckCircle2, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
+import { LogActionBar } from "../../_components/log-action-bar"
+import { LogFormLayout } from "../../_components/log-form-layout"
 import {
   Select,
   SelectContent,
@@ -209,62 +210,58 @@ export function CrashCartDailyLog({
   const isDisabled = status === "complete"
 
   return (
-    <div className="space-y-4 overflow-hidden max-w-full">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold">Crash Cart Daily Checklist</h3>
-          {/* Year navigation */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7"
-            onClick={() => navigateYear(-1)}
-            disabled={loading}
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-          <h3 className="text-sm font-semibold tabular-nums">{currentYear}</h3>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7"
-            onClick={() => navigateYear(1)}
-            disabled={loading}
-          >
-            <ChevronRight className="size-4" />
-          </Button>
+    <LogFormLayout
+      title="Crash Cart Daily Checklist"
+      status={status}
+      dirty={dirty}
+      loading={loading}
+      secondaryToolbar={
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                onClick={() => navigateYear(-1)}
+                disabled={loading}
+                aria-label="Previous year"
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <span className="min-w-[52px] text-center text-sm font-semibold tabular-nums">
+                {currentYear}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                onClick={() => navigateYear(1)}
+                disabled={loading}
+                aria-label="Next year"
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
 
-          {/* Month dropdown */}
-          <Select
-            value={String(currentMonth)}
-            onValueChange={handleMonthChange}
-            disabled={loading}
-          >
-            <SelectTrigger className="h-7 w-[130px] text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {MONTH_NAMES.map((name, i) => (
-                <SelectItem key={i + 1} value={String(i + 1)} className="text-xs">
-                  {name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select
+              value={String(currentMonth)}
+              onValueChange={handleMonthChange}
+              disabled={loading}
+            >
+              <SelectTrigger className="h-8 w-[150px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTH_NAMES.map((name, i) => (
+                  <SelectItem key={i + 1} value={String(i + 1)} className="text-xs">
+                    {name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-          <Badge
-            variant={status === "complete" ? "default" : "secondary"}
-            className="text-[10px]"
-          >
-            {status}
-          </Badge>
-          {dirty && !isDisabled && (
-            <span className="text-xs text-amber-600">Unsaved changes</span>
-          )}
-          {loading && (
-            <span className="text-xs text-muted-foreground">Loading...</span>
-          )}
           <LogPdfExportDialog
             locationId={locationId}
             logType="crash_cart_daily"
@@ -277,10 +274,21 @@ export function CrashCartDailyLog({
             availableMonthValues={availableMonthValues}
             hasUnsavedChanges={dirty}
           />
-        </div>
-      </div>
-
-      {/* Table */}
+        </>
+      }
+      footerActions={
+        <LogActionBar
+          status={status}
+          dirty={dirty}
+          saving={saving}
+          isAdmin={isAdmin}
+          entityLabel="checklist"
+          onSaveDraft={() => save("draft")}
+          onSaveComplete={() => save("complete")}
+          onRevertToDraft={() => save("draft")}
+        />
+      }
+    >
       <CrashCartDailyTable
         data={data}
         onChange={handleDataChange}
@@ -288,48 +296,6 @@ export function CrashCartDailyLog({
         disabled={isDisabled}
         isDraft={status === "draft"}
       />
-
-      {/* Save actions */}
-      <div className="sticky bottom-0 z-20 border-t border-border/50 bg-background/95 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 flex flex-wrap items-center gap-2">
-        {!isDisabled && (
-          <>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => save("draft")}
-              disabled={saving || !dirty}
-            >
-              <Save className="mr-1 size-3" />
-              {saving ? "Saving\u2026" : "Save Draft"}
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => save("complete")}
-              disabled={saving}
-            >
-              <CheckCircle2 className="mr-1 size-3" />
-              {saving ? "Saving\u2026" : "Submit as Complete"}
-            </Button>
-          </>
-        )}
-        {isDisabled && isAdmin && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => save("draft")}
-            disabled={saving}
-          >
-            <RotateCcw className="mr-1 size-3" />
-            {saving ? "Reverting\u2026" : "Revert to Draft"}
-          </Button>
-        )}
-        {isDisabled && !isAdmin && (
-          <p className="text-xs text-muted-foreground">
-            This checklist has been submitted as complete. Contact an admin to
-            revert.
-          </p>
-        )}
-      </div>
-    </div>
+    </LogFormLayout>
   )
 }

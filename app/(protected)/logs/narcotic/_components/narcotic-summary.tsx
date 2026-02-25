@@ -4,8 +4,10 @@ import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Search, AlertTriangle, TrendingDown, Users, CalendarX } from "lucide-react"
+import { LogFilterBar } from "../../_components/log-filter-bar"
+import { LogStatusBadge } from "../../_components/log-status-badge"
+import { LogSummaryPager } from "../../_components/log-summary-pager"
 import { cn } from "@/lib/utils"
 import type { NarcoticLogData } from "@/lib/validations/log-entry"
 
@@ -23,6 +25,7 @@ interface NarcoticSummaryProps {
 
 export function NarcoticSummary({ locationId }: NarcoticSummaryProps) {
   const router = useRouter()
+  const TABLE_PAGE_SIZE = 25
 
   // Default range: last 30 days
   const today = new Date().toISOString().split("T")[0]
@@ -31,6 +34,7 @@ export function NarcoticSummary({ locationId }: NarcoticSummaryProps) {
   const [from, setFrom] = useState(thirtyDaysAgo)
   const [to, setTo] = useState(today)
   const [entries, setEntries] = useState<LogEntrySummary[]>([])
+  const [tableOffset, setTableOffset] = useState(0)
   const [loading, setLoading] = useState(false)
 
   async function fetchEntries() {
@@ -58,6 +62,7 @@ export function NarcoticSummary({ locationId }: NarcoticSummaryProps) {
   }, [locationId])
 
   function handleSearch() {
+    setTableOffset(0)
     fetchEntries()
   }
 
@@ -160,10 +165,14 @@ export function NarcoticSummary({ locationId }: NarcoticSummaryProps) {
     return entries.find((e) => e.data.drug3_name?.trim())?.data.drug3_name || "Drug 3"
   }, [entries])
 
+  const pagedEntries = useMemo(() => {
+    return entries.slice(tableOffset, tableOffset + TABLE_PAGE_SIZE)
+  }, [entries, tableOffset, TABLE_PAGE_SIZE])
+
   return (
     <div className="space-y-4">
       {/* Date range filter */}
-      <div className="flex flex-wrap items-end gap-3">
+      <LogFilterBar>
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">From</label>
           <Input
@@ -186,7 +195,7 @@ export function NarcoticSummary({ locationId }: NarcoticSummaryProps) {
           <Search className="mr-1 size-3" />
           Search
         </Button>
-      </div>
+      </LogFilterBar>
 
       {/* Stats cards */}
       {stats && !loading && (
@@ -327,7 +336,7 @@ export function NarcoticSummary({ locationId }: NarcoticSummaryProps) {
               </tr>
             )}
             {!loading &&
-              entries.map((entry) => {
+              pagedEntries.map((entry) => {
                 const d = entry.data
                 const patientCount = d.rows?.filter((r) => r.patient?.trim()).length ?? 0
                 const versedUsed = d.rows?.reduce((s, r) => s + ((r.versed as number | null) ?? 0), 0) ?? 0
@@ -355,12 +364,7 @@ export function NarcoticSummary({ locationId }: NarcoticSummaryProps) {
                       })}
                     </td>
                     <td className="px-3 py-2">
-                      <Badge
-                        variant={entry.status === "complete" ? "default" : "secondary"}
-                        className="text-[10px]"
-                      >
-                        {entry.status}
-                      </Badge>
+                      <LogStatusBadge status={entry.status} />
                     </td>
                     <td className="px-3 py-2 text-center tabular-nums">{d.beginning_count?.versed ?? "-"}</td>
                     <td className="px-3 py-2 text-center tabular-nums">{d.beginning_count?.fentanyl ?? "-"}</td>
@@ -388,10 +392,19 @@ export function NarcoticSummary({ locationId }: NarcoticSummaryProps) {
         </table>
       </div>
 
+      {!loading && entries.length > TABLE_PAGE_SIZE && (
+        <LogSummaryPager
+          total={entries.length}
+          limit={TABLE_PAGE_SIZE}
+          offset={tableOffset}
+          onOffsetChange={setTableOffset}
+        />
+      )}
+
       {/* Entry count */}
       {!loading && entries.length > 0 && (
         <p className="text-[11px] text-muted-foreground">
-          Showing {entries.length} entr{entries.length === 1 ? "y" : "ies"} &middot;{" "}
+          Showing {pagedEntries.length} of {entries.length} entr{entries.length === 1 ? "y" : "ies"} &middot;{" "}
           {stats?.completedCount} complete, {stats?.draftCount} draft
         </p>
       )}
