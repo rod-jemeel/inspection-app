@@ -1,7 +1,7 @@
 import { Suspense } from "react"
 import type { Metadata } from "next"
 import { requireLocationAccess } from "@/lib/server/auth-helpers"
-import { getLogEntryByKey } from "@/lib/server/services/log-entries"
+import { getLogEntryByKey, listLogEntries } from "@/lib/server/services/log-entries"
 import { LoadingSpinner } from "@/components/loading-spinner"
 import { CrashCartLog } from "./_components/crash-cart-log"
 import type { CrashCartLogData } from "@/lib/validations/log-entry"
@@ -20,6 +20,11 @@ async function CrashCartLoader({
   const { profile } = await requireLocationAccess(loc)
 
   const entry = await getLogEntryByKey(loc, "crash_cart_checklist", String(year))
+  const { entries: allEntries } = await listLogEntries(loc, {
+    log_type: "crash_cart_checklist",
+    limit: 500,
+    offset: 0,
+  })
 
   const initialEntry = entry
     ? {
@@ -31,6 +36,10 @@ async function CrashCartLoader({
     : null
 
   const isAdmin = profile.role === "admin" || profile.role === "owner"
+  const availableYearValues = allEntries
+    .map((e) => Number.parseInt(e.log_key ?? "", 10))
+    .filter((v) => Number.isFinite(v))
+    .sort((a, b) => a - b)
 
   return (
     <CrashCartLog
@@ -38,6 +47,7 @@ async function CrashCartLoader({
       year={year}
       initialEntry={initialEntry}
       isAdmin={isAdmin}
+      availableYearValues={availableYearValues}
     />
   )
 }

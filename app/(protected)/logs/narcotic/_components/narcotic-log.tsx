@@ -6,6 +6,7 @@ import { Save, CheckCircle2, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
 import { NarcoticTable } from "./narcotic-table"
 import { NarcoticSummary } from "./narcotic-summary"
 import { emptyNarcoticLogData } from "@/lib/validations/log-entry"
@@ -24,9 +25,10 @@ interface NarcoticLogProps {
   initialDate: string
   initialEntry: LogEntryData | null
   isAdmin?: boolean
+  availableDateValues?: string[]
 }
 
-export function NarcoticLog({ locationId, initialDate, initialEntry, isAdmin = false }: NarcoticLogProps) {
+export function NarcoticLog({ locationId, initialDate, initialEntry, isAdmin = false, availableDateValues }: NarcoticLogProps) {
   const router = useRouter()
   const [, startTransition] = useTransition()
   const [saving, setSaving] = useState(false)
@@ -211,10 +213,20 @@ export function NarcoticLog({ locationId, initialDate, initialEntry, isAdmin = f
           )}
         </div>
 
-        <TabsList>
-          <TabsTrigger value="fill" className="text-xs">Fill</TabsTrigger>
-          <TabsTrigger value="summary" className="text-xs">Summary</TabsTrigger>
-        </TabsList>
+        <div className="flex items-center gap-2">
+          <LogPdfExportDialog
+            locationId={locationId}
+            logType="narcotic_log"
+            rangeKind="date"
+            defaultRange={{ dateFrom: currentDate, dateTo: currentDate }}
+            availableDateValues={availableDateValues}
+            hasUnsavedChanges={dirty}
+          />
+          <TabsList>
+            <TabsTrigger value="fill" className="text-xs">Fill</TabsTrigger>
+            <TabsTrigger value="summary" className="text-xs">Summary</TabsTrigger>
+          </TabsList>
+        </div>
       </div>
 
       {/* Fill tab */}

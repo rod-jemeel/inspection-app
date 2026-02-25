@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { LoadingSpinner } from "@/components/loading-spinner";
+import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -216,6 +217,10 @@ export function CardiacArrestSummary({
   // ---------------------------------------------------------------------------
   const isCurrentOrPast = currentMonth <= todayMonth();
   const newestEntry = entries?.[0] ?? null;
+  const availableDateValues = (entries ?? [])
+    .map((e) => e.log_date)
+    .filter((v) => /^\d{4}-\d{2}-\d{2}$/.test(v))
+    .sort();
 
   // ---------------------------------------------------------------------------
   // Render
@@ -274,6 +279,16 @@ export function CardiacArrestSummary({
               </Button>
             </div>
           )}
+          <LogPdfExportDialog
+            locationId={locationId}
+            logType="cardiac_arrest_record"
+            rangeKind="date"
+            defaultRange={{
+              dateFrom: scope === "month" ? `${currentMonth}-01` : `${todayMonth()}-01`,
+              dateTo: scope === "month" ? lastDayOfMonth(currentMonth) : todayDate(),
+            }}
+            availableDateValues={availableDateValues}
+          />
         </div>
       </div>
 

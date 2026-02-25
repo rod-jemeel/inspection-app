@@ -1,7 +1,7 @@
 import { Suspense } from "react"
 import type { Metadata } from "next"
 import { requireLocationAccess } from "@/lib/server/auth-helpers"
-import { getLogEntry } from "@/lib/server/services/log-entries"
+import { getLogEntry, listLogEntries } from "@/lib/server/services/log-entries"
 import { LoadingSpinner } from "@/components/loading-spinner"
 import { CardiacArrestLog } from "./_components/cardiac-arrest-log"
 import { CardiacArrestSummary } from "./_components/cardiac-arrest-summary"
@@ -41,6 +41,11 @@ async function CardiacArrestLoader({
     status: "draft" | "complete"
     submitted_by_name: string | null
   } | null = null
+  const { entries: allEntries } = await listLogEntries(loc, {
+    log_type: "cardiac_arrest_record",
+    limit: 500,
+    offset: 0,
+  })
 
   if (id) {
     const entry = await getLogEntry(loc, id)
@@ -51,6 +56,10 @@ async function CardiacArrestLoader({
       submitted_by_name: entry.submitted_by_name ?? null,
     }
   }
+  const availableDateValues = allEntries
+    .map((e) => e.log_date)
+    .filter((v): v is string => /^\d{4}-\d{2}-\d{2}$/.test(v))
+    .sort()
 
   return (
     <CardiacArrestLog
@@ -59,6 +68,7 @@ async function CardiacArrestLoader({
       initialDate={date}
       backMonth={month}
       isAdmin={isAdmin}
+      availableDateValues={availableDateValues}
     />
   )
 }

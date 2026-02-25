@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Save, CheckCircle2, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
 import { NarcoticSignoutTable } from "./narcotic-signout-table"
 import { emptyNarcoticSignoutLogData } from "@/lib/validations/log-entry"
 import type { NarcoticSignoutLogData } from "@/lib/validations/log-entry"
@@ -22,6 +23,7 @@ interface NarcoticSignoutLogProps {
   initialDate: string
   initialEntry: LogEntryData | null
   isAdmin?: boolean
+  availableDateValues?: string[]
 }
 
 export function NarcoticSignoutLog({
@@ -29,6 +31,7 @@ export function NarcoticSignoutLog({
   initialDate,
   initialEntry,
   isAdmin = false,
+  availableDateValues,
 }: NarcoticSignoutLogProps) {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -190,6 +193,14 @@ export function NarcoticSignoutLog({
             <span className="text-xs text-muted-foreground">Loading...</span>
           )}
         </div>
+        <LogPdfExportDialog
+          locationId={locationId}
+          logType="narcotic_signout"
+          rangeKind="date"
+          defaultRange={{ dateFrom: currentDate, dateTo: currentDate }}
+          availableDateValues={availableDateValues}
+          hasUnsavedChanges={dirty}
+        />
       </div>
 
       {/* Table */}

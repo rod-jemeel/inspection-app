@@ -1,7 +1,7 @@
 import { Suspense } from "react"
 import type { Metadata } from "next"
 import { requireLocationAccess } from "@/lib/server/auth-helpers"
-import { getLogEntryByDate } from "@/lib/server/services/log-entries"
+import { getLogEntryByDate, listLogEntries } from "@/lib/server/services/log-entries"
 import { LoadingSpinner } from "@/components/loading-spinner"
 import { NarcoticLog } from "./_components/narcotic-log"
 import type { NarcoticLogData as NarcoticLogDataType } from "@/lib/validations/log-entry"
@@ -20,6 +20,11 @@ async function NarcoticLogLoader({
   const { profile } = await requireLocationAccess(loc)
 
   const entry = await getLogEntryByDate(loc, "narcotic_log", date)
+  const { entries: allEntries } = await listLogEntries(loc, {
+    log_type: "narcotic_log",
+    limit: 500,
+    offset: 0,
+  })
 
   const initialEntry = entry
     ? {
@@ -32,6 +37,10 @@ async function NarcoticLogLoader({
     : null
 
   const isAdmin = profile.role === "admin" || profile.role === "owner"
+  const availableDateValues = allEntries
+    .map((e) => e.log_date)
+    .filter((v): v is string => /^\d{4}-\d{2}-\d{2}$/.test(v))
+    .sort()
 
   return (
     <NarcoticLog
@@ -39,6 +48,7 @@ async function NarcoticLogLoader({
       initialDate={date}
       initialEntry={initialEntry}
       isAdmin={isAdmin}
+      availableDateValues={availableDateValues}
     />
   )
 }

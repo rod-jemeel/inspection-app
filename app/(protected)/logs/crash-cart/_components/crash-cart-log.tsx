@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Save, CheckCircle2, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
 import { CrashCartTable } from "./crash-cart-table"
 import { CrashCartTop } from "./crash-cart-top"
 import { emptyCrashCartLogData } from "@/lib/validations/log-entry"
@@ -26,6 +27,7 @@ interface CrashCartLogProps {
   year: number
   initialEntry: EntryData | null
   isAdmin?: boolean
+  availableYearValues?: number[]
 }
 
 // ---------------------------------------------------------------------------
@@ -37,6 +39,7 @@ export function CrashCartLog({
   year,
   initialEntry,
   isAdmin = false,
+  availableYearValues,
 }: CrashCartLogProps) {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -182,6 +185,14 @@ export function CrashCartLog({
           )}
         </div>
         <div className="flex items-center gap-1">
+          <LogPdfExportDialog
+            locationId={locationId}
+            logType="crash_cart_checklist"
+            rangeKind="year"
+            defaultRange={{ yearFrom: currentYear, yearTo: currentYear }}
+            availableYearValues={availableYearValues}
+            hasUnsavedChanges={dirty}
+          />
           <Button
             variant="outline"
             size="sm"

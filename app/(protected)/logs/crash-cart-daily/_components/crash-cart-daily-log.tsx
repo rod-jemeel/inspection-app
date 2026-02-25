@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Save, CheckCircle2, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
 import {
   Select,
   SelectContent,
@@ -25,6 +26,10 @@ const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December",
 ] as const
 
+function monthKey(year: number, month: number): string {
+  return `${year}-${String(month).padStart(2, "0")}`
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -42,6 +47,11 @@ interface CrashCartDailyLogProps {
   month: number // 1-12
   initialEntry: EntryData | null
   isAdmin?: boolean
+  availableMonthRange?: {
+    from?: string | null
+    to?: string | null
+  }
+  availableMonthValues?: string[]
 }
 
 // ---------------------------------------------------------------------------
@@ -54,6 +64,8 @@ export function CrashCartDailyLog({
   month,
   initialEntry,
   isAdmin = false,
+  availableMonthRange,
+  availableMonthValues,
 }: CrashCartDailyLogProps) {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -253,6 +265,18 @@ export function CrashCartDailyLog({
           {loading && (
             <span className="text-xs text-muted-foreground">Loading...</span>
           )}
+          <LogPdfExportDialog
+            locationId={locationId}
+            logType="crash_cart_daily"
+            rangeKind="month"
+            defaultRange={{
+              monthFrom: monthKey(currentYear, currentMonth),
+              monthTo: monthKey(currentYear, currentMonth),
+            }}
+            availableMonthRange={availableMonthRange}
+            availableMonthValues={availableMonthValues}
+            hasUnsavedChanges={dirty}
+          />
         </div>
       </div>
 
