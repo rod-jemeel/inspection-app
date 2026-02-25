@@ -9,6 +9,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { NarcoticCountTable } from "./narcotic-count-table"
 import { SignatureIdentification } from "@/components/signature-identification"
+import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
 import {
   dailyNarcoticCountLogDataSchema,
   emptyDailyNarcoticCountLogData,
@@ -32,6 +33,10 @@ const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December",
 ]
 
+function monthKey(year: number, month: number) {
+  return `${year}-${String(month).padStart(2, "0")}`
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -49,6 +54,8 @@ interface NarcoticCountLogProps {
   month: number
   initialEntry: EntryData | null
   isAdmin?: boolean
+  availableMonthValues?: string[]
+  availableDateValues?: string[]
 }
 
 interface SummaryRow {
@@ -174,6 +181,8 @@ export function NarcoticCountLog({
   month,
   initialEntry,
   isAdmin = false,
+  availableMonthValues,
+  availableDateValues,
 }: NarcoticCountLogProps) {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -485,20 +494,34 @@ export function NarcoticCountLog({
           )}
         </div>
 
-        {/* View mode toggle */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-7 text-[11px] gap-1.5"
-          onClick={() => setViewMode((v) => (v === "form" ? "summary" : "form"))}
-        >
-          {viewMode === "form" ? (
-            <Table2 className="size-3.5" />
-          ) : (
-            <ClipboardList className="size-3.5" />
-          )}
-          {viewMode === "form" ? "Summary" : "Form"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <LogPdfExportDialog
+            locationId={locationId}
+            logType="daily_narcotic_count"
+            rangeKind="month"
+            defaultRange={{
+              monthFrom: monthKey(currentYear, currentMonth),
+              monthTo: monthKey(currentYear, currentMonth),
+            }}
+            availableMonthValues={availableMonthValues}
+            availableDateValues={availableDateValues}
+            hasUnsavedChanges={dirty}
+          />
+          {/* View mode toggle */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-[11px] gap-1.5"
+            onClick={() => setViewMode((v) => (v === "form" ? "summary" : "form"))}
+          >
+            {viewMode === "form" ? (
+              <Table2 className="size-3.5" />
+            ) : (
+              <ClipboardList className="size-3.5" />
+            )}
+            {viewMode === "form" ? "Summary" : "Form"}
+          </Button>
+        </div>
       </div>
 
       {/* Count table or Summary view */}

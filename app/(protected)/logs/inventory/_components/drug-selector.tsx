@@ -17,6 +17,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
 import { PRESET_DRUGS } from "@/lib/validations/log-entry"
 import { InventorySummary } from "./inventory-summary"
 
@@ -24,7 +25,9 @@ interface StockEntry {
   id: string
   currentStock: number | null
   rowCount: number
+  firstDate: string | null
   lastDate: string | null
+  rowDates?: string[]
   drugName: string
   strength: string
   sizeQty: string
@@ -185,17 +188,61 @@ export function DrugSelector({ locationId, stockInfo, isAdmin }: DrugSelectorPro
                   )}
                 </CardContent>
                 {isAdmin && info && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="absolute right-2 top-2 size-7 opacity-0 group-hover:opacity-100"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setDeleteTarget({ slug: drug.slug, name: drug.drug_name, id: info.id })
-                    }}
-                  >
-                    <Trash2 className="size-3.5 text-destructive" />
-                  </Button>
+                  <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                    <LogPdfExportDialog
+                      locationId={locationId}
+                      logType="controlled_substance_inventory"
+                      rangeKind="date"
+                      defaultDrugSlug={drug.slug}
+                      defaultRange={{
+                        dateFrom: info.firstDate ?? undefined,
+                        dateTo: info.lastDate ?? undefined,
+                      }}
+                      availableDateRange={{
+                        from: info.firstDate,
+                        to: info.lastDate,
+                      }}
+                      availableDateValues={info.rowDates}
+                      disabled={info.rowCount === 0}
+                      stopPropagationOnTrigger
+                      className="h-7 px-2"
+                      triggerLabel="Export"
+                    />
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-7"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setDeleteTarget({ slug: drug.slug, name: drug.drug_name, id: info.id })
+                      }}
+                    >
+                      <Trash2 className="size-3.5 text-destructive" />
+                    </Button>
+                  </div>
+                )}
+                {!isAdmin && info && (
+                  <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100">
+                    <LogPdfExportDialog
+                      locationId={locationId}
+                      logType="controlled_substance_inventory"
+                      rangeKind="date"
+                      defaultDrugSlug={drug.slug}
+                      defaultRange={{
+                        dateFrom: info.firstDate ?? undefined,
+                        dateTo: info.lastDate ?? undefined,
+                      }}
+                      availableDateRange={{
+                        from: info.firstDate,
+                        to: info.lastDate,
+                      }}
+                      availableDateValues={info.rowDates}
+                      disabled={info.rowCount === 0}
+                      stopPropagationOnTrigger
+                      className="h-7 px-2"
+                      triggerLabel="Export"
+                    />
+                  </div>
                 )}
               </Card>
             )
@@ -246,19 +293,40 @@ export function DrugSelector({ locationId, stockInfo, isAdmin }: DrugSelectorPro
                   )}
                 </div>
               </CardContent>
-              {isAdmin && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="absolute right-2 top-2 size-7 opacity-0 group-hover:opacity-100"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setDeleteTarget({ slug: drug.slug, name: drug.drugName, id: drug.id })
+              <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                <LogPdfExportDialog
+                  locationId={locationId}
+                  logType="controlled_substance_inventory"
+                  rangeKind="date"
+                  defaultDrugSlug={drug.slug}
+                  defaultRange={{
+                    dateFrom: drug.firstDate ?? undefined,
+                    dateTo: drug.lastDate ?? undefined,
                   }}
-                >
-                  <Trash2 className="size-3.5 text-destructive" />
-                </Button>
-              )}
+                  availableDateRange={{
+                    from: drug.firstDate,
+                    to: drug.lastDate,
+                  }}
+                  availableDateValues={drug.rowDates}
+                  disabled={drug.rowCount === 0}
+                  stopPropagationOnTrigger
+                  className="h-7 px-2"
+                  triggerLabel="Export"
+                />
+                {isAdmin && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="size-7"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setDeleteTarget({ slug: drug.slug, name: drug.drugName, id: drug.id })
+                    }}
+                  >
+                    <Trash2 className="size-3.5 text-destructive" />
+                  </Button>
+                )}
+              </div>
             </Card>
           ))}
 

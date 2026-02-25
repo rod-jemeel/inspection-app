@@ -12,6 +12,18 @@ export const metadata: Metadata = {
   title: "Controlled Substances Inventory - Inspection Tracker",
 }
 
+function normalizeInventoryDate(value: string | null | undefined): string | null {
+  if (!value) return null
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(value)) {
+    const [m, d, y] = value.split("/").map(Number)
+    return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`
+  }
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return null
+  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`
+}
+
 async function InventoryLoader({
   loc,
   drug,
@@ -74,18 +86,36 @@ export default async function InventoryPage({
       offset: 0,
     })
 
-    const stockInfo: Record<string, { id: string; currentStock: number | null; rowCount: number; lastDate: string | null; drugName: string; strength: string; sizeQty: string; status: "draft" | "complete" }> = {}
+    const stockInfo: Record<string, {
+      id: string
+      currentStock: number | null
+      rowCount: number
+      firstDate: string | null
+      lastDate: string | null
+      rowDates: string[]
+      drugName: string
+      strength: string
+      sizeQty: string
+      status: "draft" | "complete"
+    }> = {}
 
     for (const entry of allEntries) {
       const d = entry.data as unknown as InventoryLogData
       const rows = d.rows ?? []
       const nonEmptyRows = rows.filter((r: { date: string }) => r.date?.trim())
+      const rowDates = Array.from(new Set(
+        nonEmptyRows
+          .map((r: { date: string }) => normalizeInventoryDate(r.date))
+          .filter((v): v is string => Boolean(v))
+      )).sort()
       const lastRow = nonEmptyRows[nonEmptyRows.length - 1]
       stockInfo[entry.log_key] = {
         id: entry.id,
         currentStock: lastRow?.qty_in_stock ?? null,
         rowCount: nonEmptyRows.length,
-        lastDate: nonEmptyRows.length > 0 ? nonEmptyRows[nonEmptyRows.length - 1].date : null,
+        firstDate: rowDates[0] ?? null,
+        lastDate: rowDates[rowDates.length - 1] ?? null,
+        rowDates,
         drugName: d.drug_name || entry.log_key,
         strength: d.strength,
         sizeQty: d.size_qty,

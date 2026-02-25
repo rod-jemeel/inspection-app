@@ -10,6 +10,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { InventoryTable } from "./inventory-table"
+import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
 import { emptyInventoryLogData } from "@/lib/validations/log-entry"
 import type { InventoryLogData, PresetDrug } from "@/lib/validations/log-entry"
 
@@ -47,6 +48,18 @@ function countNonEmptyRows(rows: InventoryLogData["rows"]): number {
     else break // stop at first empty row (trailing empties aren't locked)
   }
   return count
+}
+
+function normalizeInventoryDate(value: string | null | undefined): string | null {
+  if (!value) return null
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(value)) {
+    const [m, d, y] = value.split("/").map(Number)
+    return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`
+  }
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return null
+  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`
 }
 
 function parseInventoryRowDate(value: string): Date | undefined {
@@ -175,6 +188,13 @@ export function InventoryLedger({
     from: startOfMonth(selectedMonth),
     to: endOfMonth(selectedMonth),
   }
+  const nonEmptyRowDates = data.rows
+    .map((row) => normalizeInventoryDate(row.date))
+    .filter((v): v is string => Boolean(v))
+    .sort()
+  const availableRange = nonEmptyRowDates.length > 0
+    ? { from: nonEmptyRowDates[0], to: nonEmptyRowDates[nonEmptyRowDates.length - 1] }
+    : undefined
 
   return (
     <div className="space-y-4">
@@ -190,6 +210,19 @@ export function InventoryLedger({
         </div>
 
         <div className="flex items-center gap-2">
+          <LogPdfExportDialog
+            locationId={locationId}
+            logType="controlled_substance_inventory"
+            rangeKind="date"
+            defaultRange={{
+              dateFrom: format(monthRange.from, "yyyy-MM-dd"),
+              dateTo: format(monthRange.to, "yyyy-MM-dd"),
+            }}
+            defaultDrugSlug={drugSlug}
+            availableDateRange={availableRange}
+            availableDateValues={nonEmptyRowDates}
+            hasUnsavedChanges={dirty}
+          />
           <Button
             type="button"
             size="sm"

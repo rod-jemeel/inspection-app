@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Save, CheckCircle2, RotateCcw, ChevronLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
 import { CardiacArrestTable } from "./cardiac-arrest-table"
 import { emptyCardiacArrestRecordData } from "@/lib/validations/log-entry"
 import type { CardiacArrestRecordData } from "@/lib/validations/log-entry"
@@ -23,6 +24,7 @@ interface CardiacArrestLogProps {
   /** YYYY-MM — used for the back button and post-save redirects */
   backMonth?: string
   isAdmin?: boolean
+  availableDateValues?: string[]
 }
 
 export function CardiacArrestLog({
@@ -31,6 +33,7 @@ export function CardiacArrestLog({
   initialDate,
   backMonth,
   isAdmin = false,
+  availableDateValues,
 }: CardiacArrestLogProps) {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -145,6 +148,17 @@ export function CardiacArrestLog({
         </Badge>
         {dirty && !isDisabled && (
           <span className="text-xs text-amber-600">Unsaved changes</span>
+        )}
+        {entryId && (
+          <LogPdfExportDialog
+            locationId={locationId}
+            logType="cardiac_arrest_record"
+            rangeKind="date"
+            defaultRange={{ dateFrom: data.arrest_date || initialDate, dateTo: data.arrest_date || initialDate }}
+            availableDateValues={availableDateValues}
+            hasUnsavedChanges={dirty}
+            triggerLabel="Export This Record"
+          />
         )}
       </div>
 
