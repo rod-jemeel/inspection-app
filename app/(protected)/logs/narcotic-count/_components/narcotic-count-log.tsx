@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { NarcoticCountTable } from "./narcotic-count-table"
 import { SignatureIdentification } from "@/components/signature-identification"
 import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
+import { RecentLogChangesPanel } from "../../_components/recent-log-changes-panel"
 import {
   dailyNarcoticCountLogDataSchema,
   emptyDailyNarcoticCountLogData,
@@ -208,6 +209,7 @@ export function NarcoticCountLog({
     initialEntry?.status ?? "draft"
   )
   const [dirty, setDirty] = useState(false)
+  const [auditRefreshKey, setAuditRefreshKey] = useState(0)
 
   // ---------------------------------------------------------------------------
   // Navigation guard - warn before discarding unsaved changes
@@ -410,6 +412,7 @@ export function NarcoticCountLog({
       setDirty(false)
       setAllSummaryRows(null)
       setAllSummaryError(null)
+      setAuditRefreshKey((k) => k + 1)
 
       startTransition(() => {
         router.refresh()
@@ -656,6 +659,15 @@ export function NarcoticCountLog({
           </p>
         )}
       </div>
+
+      <RecentLogChangesPanel
+        locationId={locationId}
+        logType="daily_narcotic_count"
+        logKey={`${currentYear}-${String(currentMonth).padStart(2, "0")}`}
+        logDate="1970-01-01"
+        refreshKey={auditRefreshKey}
+        defaultOpen={viewMode === "form"}
+      />
     </div>
   )
 }

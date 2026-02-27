@@ -7,6 +7,7 @@ import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
 import { LogActionBar } from "../../_components/log-action-bar"
 import { LogFormLayout } from "../../_components/log-form-layout"
 import { LogPeriodNavigator } from "../../_components/log-period-navigator"
+import { RecentLogChangesPanel } from "../../_components/recent-log-changes-panel"
 import { NarcoticTable } from "./narcotic-table"
 import { NarcoticSummary } from "./narcotic-summary"
 import { emptyNarcoticLogData } from "@/lib/validations/log-entry"
@@ -41,6 +42,7 @@ export function NarcoticLog({ locationId, initialDate, initialEntry, isAdmin = f
   )
   const [status, setStatus] = useState<"draft" | "complete">(initialEntry?.status ?? "draft")
   const [dirty, setDirty] = useState(false)
+  const [auditRefreshKey, setAuditRefreshKey] = useState(0)
 
   // ---------------------------------------------------------------------------
   // Navigation guard - warn before discarding unsaved changes
@@ -190,6 +192,7 @@ export function NarcoticLog({ locationId, initialDate, initialEntry, isAdmin = f
 
       setStatus(newStatus)
       setDirty(false)
+      setAuditRefreshKey((k) => k + 1)
 
       startTransition(() => {
         router.refresh()
@@ -251,6 +254,16 @@ export function NarcoticLog({ locationId, initialDate, initialEntry, isAdmin = f
               onRevertToDraft={() => save("draft")}
             />
           ) : undefined
+        }
+        belowContent={
+          <RecentLogChangesPanel
+            locationId={locationId}
+            logType="narcotic_log"
+            logKey=""
+            logDate={currentDate}
+            refreshKey={auditRefreshKey}
+            defaultOpen={activeTab === "fill"}
+          />
         }
       >
         <TabsContent value="fill" className="space-y-4">

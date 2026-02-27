@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils"
 import { InventoryTable } from "./inventory-table"
 import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
+import { RecentLogChangesPanel } from "../../_components/recent-log-changes-panel"
 import { emptyInventoryLogData } from "@/lib/validations/log-entry"
 import type { InventoryLogData, PresetDrug } from "@/lib/validations/log-entry"
 
@@ -118,6 +119,7 @@ export function InventoryLedger({
     return empty
   })
   const [dirty, setDirty] = useState(false)
+  const [auditRefreshKey, setAuditRefreshKey] = useState(0)
   const [selectedMonth, setSelectedMonth] = useState<Date>(
     () => getInitialInventoryMonth(initialEntry),
   )
@@ -171,6 +173,7 @@ export function InventoryLedger({
       }
 
       setDirty(false)
+      setAuditRefreshKey((k) => k + 1)
 
       // After save, lock all non-empty rows (they're now persisted)
       setLockedRowCount(countNonEmptyRows(rows))
@@ -295,6 +298,14 @@ export function InventoryLedger({
           {saving ? "Saving\u2026" : "Save Inventory"}
         </Button>
       </div>
+
+      <RecentLogChangesPanel
+        locationId={locationId}
+        logType="controlled_substance_inventory"
+        logKey={drugSlug}
+        logDate="1970-01-01"
+        refreshKey={auditRefreshKey}
+      />
     </div>
   )
 }
