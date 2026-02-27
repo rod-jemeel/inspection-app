@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
 import { LogActionBar } from "../../_components/log-action-bar"
 import { LogFormLayout } from "../../_components/log-form-layout"
+import { RecentLogChangesPanel } from "../../_components/recent-log-changes-panel"
 import { CardiacArrestTable } from "./cardiac-arrest-table"
 import { emptyCardiacArrestRecordData } from "@/lib/validations/log-entry"
 import type { CardiacArrestRecordData } from "@/lib/validations/log-entry"
@@ -70,6 +71,7 @@ export function CardiacArrestLog({
   const [status, setStatus] = useState<"draft" | "complete">(initialEntry?.status ?? "draft")
   const [dirty, setDirty] = useState(false)
   const [entryId] = useState<string | null>(initialEntry?.id ?? null)
+  const [auditRefreshKey, setAuditRefreshKey] = useState(0)
 
   const handleDataChange = useCallback((newData: CardiacArrestRecordData) => {
     setData(newData)
@@ -102,6 +104,7 @@ export function CardiacArrestLog({
 
       setStatus(newStatus)
       setDirty(false)
+      setAuditRefreshKey((k) => k + 1)
 
       // After saving a new entry, redirect to include the ID in the URL
       const result = await res.json()
@@ -176,6 +179,15 @@ export function CardiacArrestLog({
             onSaveDraft={() => save("draft")}
             onSaveComplete={() => save("complete")}
             onRevertToDraft={() => save("draft")}
+          />
+        }
+        belowContent={
+          <RecentLogChangesPanel
+            locationId={locationId}
+            logType="cardiac_arrest_record"
+            logKey=""
+            logDate={data.arrest_date || initialDate}
+            refreshKey={auditRefreshKey}
           />
         }
       >

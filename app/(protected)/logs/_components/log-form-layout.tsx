@@ -18,6 +18,7 @@ interface LogFormLayoutProps {
   topToolbar?: React.ReactNode
   secondaryToolbar?: React.ReactNode
   topMeta?: React.ReactNode
+  belowContent?: React.ReactNode
   footerActions?: React.ReactNode
   className?: string
 }
@@ -36,6 +37,7 @@ export function LogFormLayout({
   topToolbar,
   secondaryToolbar,
   topMeta,
+  belowContent,
   footerActions,
   className,
 }: LogFormLayoutProps) {
@@ -86,6 +88,8 @@ export function LogFormLayout({
           )}
         </div>
       )}
+
+      {belowContent}
     </div>
   )
 }

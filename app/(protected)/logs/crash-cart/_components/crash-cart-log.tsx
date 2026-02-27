@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
 import { LogActionBar } from "../../_components/log-action-bar"
 import { LogFormLayout } from "../../_components/log-form-layout"
+import { RecentLogChangesPanel } from "../../_components/recent-log-changes-panel"
 import { CrashCartTable } from "./crash-cart-table"
 import { CrashCartTop } from "./crash-cart-top"
 import { emptyCrashCartLogData } from "@/lib/validations/log-entry"
@@ -54,6 +55,7 @@ export function CrashCartLog({
     initialEntry?.status ?? "draft"
   )
   const [dirty, setDirty] = useState(false)
+  const [auditRefreshKey, setAuditRefreshKey] = useState(0)
 
   // ---------------------------------------------------------------------------
   // Navigation guard - warn before discarding unsaved changes
@@ -154,6 +156,7 @@ export function CrashCartLog({
 
       setStatus(newStatus)
       setDirty(false)
+      setAuditRefreshKey((k) => k + 1)
 
       startTransition(() => {
         router.refresh()
@@ -219,6 +222,15 @@ export function CrashCartLog({
           onSaveDraft={() => save("draft")}
           onSaveComplete={() => save("complete")}
           onRevertToDraft={() => save("draft")}
+        />
+      }
+      belowContent={
+        <RecentLogChangesPanel
+          locationId={locationId}
+          logType="crash_cart_checklist"
+          logKey={String(currentYear)}
+          logDate="1970-01-01"
+          refreshKey={auditRefreshKey}
         />
       }
     >

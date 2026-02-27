@@ -6,6 +6,7 @@ import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
 import { LogActionBar } from "../../_components/log-action-bar"
 import { LogFormLayout } from "../../_components/log-form-layout"
 import { LogPeriodNavigator } from "../../_components/log-period-navigator"
+import { RecentLogChangesPanel } from "../../_components/recent-log-changes-panel"
 import { NarcoticSignoutTable } from "./narcotic-signout-table"
 import { emptyNarcoticSignoutLogData } from "@/lib/validations/log-entry"
 import type { NarcoticSignoutLogData } from "@/lib/validations/log-entry"
@@ -46,6 +47,7 @@ export function NarcoticSignoutLog({
     initialEntry?.status ?? "draft"
   )
   const [dirty, setDirty] = useState(false)
+  const [auditRefreshKey, setAuditRefreshKey] = useState(0)
 
   // ---------------------------------------------------------------------------
   // Navigation guard - warn before discarding unsaved changes
@@ -167,6 +169,7 @@ export function NarcoticSignoutLog({
 
       setStatus(newStatus)
       setDirty(false)
+      setAuditRefreshKey((k) => k + 1)
 
       startTransition(() => {
         router.refresh()
@@ -217,6 +220,15 @@ export function NarcoticSignoutLog({
           onSaveDraft={() => save("draft")}
           onSaveComplete={() => save("complete")}
           onRevertToDraft={() => save("draft")}
+        />
+      }
+      belowContent={
+        <RecentLogChangesPanel
+          locationId={locationId}
+          logType="narcotic_signout"
+          logKey=""
+          logDate={currentDate}
+          refreshKey={auditRefreshKey}
         />
       }
     >

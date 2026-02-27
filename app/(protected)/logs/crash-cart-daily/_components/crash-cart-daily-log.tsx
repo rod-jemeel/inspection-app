@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
 import { LogActionBar } from "../../_components/log-action-bar"
 import { LogFormLayout } from "../../_components/log-form-layout"
+import { RecentLogChangesPanel } from "../../_components/recent-log-changes-panel"
 import {
   Select,
   SelectContent,
@@ -85,6 +86,7 @@ export function CrashCartDailyLog({
     initialEntry?.status ?? "draft"
   )
   const [dirty, setDirty] = useState(false)
+  const [auditRefreshKey, setAuditRefreshKey] = useState(0)
 
   // ---------------------------------------------------------------------------
   // Navigation guard - warn before discarding unsaved changes
@@ -198,6 +200,7 @@ export function CrashCartDailyLog({
 
       setStatus(newStatus)
       setDirty(false)
+      setAuditRefreshKey((k) => k + 1)
 
       startTransition(() => {
         router.refresh()
@@ -286,6 +289,15 @@ export function CrashCartDailyLog({
           onSaveDraft={() => save("draft")}
           onSaveComplete={() => save("complete")}
           onRevertToDraft={() => save("draft")}
+        />
+      }
+      belowContent={
+        <RecentLogChangesPanel
+          locationId={locationId}
+          logType="crash_cart_daily"
+          logKey={`${currentYear}-${String(currentMonth).padStart(2, "0")}`}
+          logDate="1970-01-01"
+          refreshKey={auditRefreshKey}
         />
       }
     >
