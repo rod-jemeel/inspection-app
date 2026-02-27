@@ -2,8 +2,10 @@ import { NextRequest } from "next/server"
 import { requireLocationAccess } from "@/lib/server/auth-helpers"
 import { handleError, validationError } from "@/lib/server/errors"
 import { upsertLogEntrySchema, filterLogEntriesSchema } from "@/lib/validations/log-entry"
-import { upsertLogEntry, listLogEntries } from "@/lib/server/services/log-entries"
+import { upsertLogEntry, listLogEntries, getLogEntryByIdentity } from "@/lib/server/services/log-entries"
 import { uploadFormImage } from "@/lib/server/services/form-responses"
+import { appendLogEntryEvent } from "@/lib/server/services/log-entry-events"
+import { diffLogEntryAudit } from "@/lib/server/services/log-entry-diff"
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value)
@@ -96,10 +98,51 @@ export async function POST(
       logType: parsed.data.log_type,
     })
 
+    const prior = await getLogEntryByIdentity(locationId, {
+      log_type: parsed.data.log_type,
+      log_key: parsed.data.log_key,
+      log_date: parsed.data.log_date,
+    })
+
     const entry = await upsertLogEntry(locationId, profile.id, {
       ...parsed.data,
       data,
     })
+
+    const { changes, summary } = diffLogEntryAudit({
+      logType: parsed.data.log_type,
+      oldData: prior?.data ?? null,
+      newData: entry.data as Record<string, unknown>,
+      oldStatus: prior?.status ?? null,
+      newStatus: entry.status,
+    })
+
+    if (changes.length > 0) {
+      const event_type =
+        !prior
+          ? "created"
+          : prior.status === "draft" && entry.status === "complete"
+            ? "submitted_complete"
+            : prior.status === "complete" && entry.status === "draft"
+              ? "reverted_draft"
+              : "updated"
+
+      await appendLogEntryEvent({
+        log_entry_id: entry.id,
+        location_id: locationId,
+        log_type: parsed.data.log_type,
+        log_key: parsed.data.log_key ?? "",
+        log_date: parsed.data.log_date,
+        event_type,
+        actor_profile_id: profile.id,
+        payload: {
+          changes,
+          summary,
+          meta: { source: "logs-api" },
+        },
+      })
+    }
+
     return Response.json(entry, { status: 200 })
   } catch (error) {
     return handleError(error)
