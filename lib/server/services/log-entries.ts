@@ -141,6 +141,47 @@ export async function getLogEntryByDate(
   }
 }
 
+export async function getLogEntryByIdentity(
+  locationId: string,
+  identity: {
+    log_type: string
+    log_key?: string
+    log_date: string
+  }
+): Promise<LogEntry | null> {
+  const { data, error } = await supabase
+    .from("log_entries")
+    .select(`
+      *,
+      submitted_by:profiles!log_entries_submitted_by_profile_id_fkey(full_name)
+    `)
+    .eq("location_id", locationId)
+    .eq("log_type", identity.log_type)
+    .eq("log_key", identity.log_key ?? "")
+    .eq("log_date", identity.log_date)
+    .maybeSingle()
+
+  if (error) throw new ApiError("INTERNAL_ERROR", error.message)
+  if (!data) return null
+
+  const row = data as Record<string, unknown>
+  const submittedBy = row.submitted_by as { full_name: string } | null
+
+  return {
+    id: row.id as string,
+    location_id: row.location_id as string,
+    log_type: row.log_type as string,
+    log_key: row.log_key as string,
+    log_date: row.log_date as string,
+    data: row.data as Record<string, unknown>,
+    submitted_by_profile_id: row.submitted_by_profile_id as string,
+    status: row.status as "draft" | "complete",
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string,
+    submitted_by_name: submittedBy?.full_name ?? null,
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Get single by ID
 // ---------------------------------------------------------------------------
