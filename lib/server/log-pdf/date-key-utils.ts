@@ -1,4 +1,5 @@
 import { ApiError } from "@/lib/server/errors"
+import { normalizeInventoryDate, parseInventoryDate } from "@/lib/logs/inventory"
 
 export function parseMonthKey(value: string): { year: number; month: number } | null {
   const m = /^(\d{4})-(\d{2})$/.exec(value)
@@ -30,30 +31,17 @@ export function yearKeyInRange(value: string, from: number, to: number): boolean
 }
 
 export function parseInventoryRowDate(value: string): Date | null {
-  if (!value) return null
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const [y, m, d] = value.split("-").map(Number)
-    const dt = new Date(Date.UTC(y, m - 1, d))
-    return Number.isNaN(dt.getTime()) ? null : dt
-  }
-  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(value)) {
-    const [m, d, y] = value.split("/").map(Number)
-    const dt = new Date(Date.UTC(y, m - 1, d))
-    return Number.isNaN(dt.getTime()) ? null : dt
-  }
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return null
+  const parsed = parseInventoryDate(value)
+  if (!parsed) return null
   return new Date(Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()))
 }
 
 export function inventoryRowDateInRange(value: string, from: string, to: string): boolean {
-  const dt = parseInventoryRowDate(value)
-  if (!dt) return false
-  const iso = dt.toISOString().slice(0, 10)
+  const iso = normalizeInventoryDate(value)
+  if (!iso) return false
   return iso >= from && iso <= to
 }
 
 export function assertUnreachable(_value: never, message = "Unhandled case"): never {
   throw new ApiError("INTERNAL_ERROR", message)
 }
-

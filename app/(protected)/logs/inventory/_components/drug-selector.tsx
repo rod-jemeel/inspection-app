@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
+import { parseInventoryDate } from "@/lib/logs/inventory"
 import { PRESET_DRUGS } from "@/lib/validations/log-entry"
 import { InventorySummary } from "./inventory-summary"
 
@@ -38,23 +39,6 @@ interface DrugSelectorProps {
   locationId: string
   stockInfo?: Record<string, StockEntry>
   isAdmin?: boolean
-}
-
-function parseInventoryDate(value: string | null): Date | null {
-  if (!value) return null
-
-  // Supports both `YYYY-MM-DD` and `MM/DD/YYYY` formats present in ledger rows.
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const [y, m, d] = value.split("-").map(Number)
-    return new Date(y, m - 1, d)
-  }
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
-    const [m, d, y] = value.split("/").map(Number)
-    return new Date(y, m - 1, d)
-  }
-
-  const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? null : parsed
 }
 
 function formatInventoryDate(value: string | null): string | null {

@@ -20,6 +20,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import {
+  computeInventoryRunningStock,
+  isMeaningfulInventoryRow,
+  normalizeInventoryDate,
+  sanitizeInventoryRowsForEdit,
+} from "@/lib/logs/inventory"
 import { cn } from "@/lib/utils"
 import type { InventoryLogData, InventoryRow } from "@/lib/validations/log-entry"
 
@@ -102,23 +108,22 @@ export function InventorySummary({ locationId }: InventorySummaryProps) {
 
     return entries.map((entry): DrugStats => {
       const d = entry.data as InventoryLogData
-      const rows = d.rows ?? []
+      const rows = sanitizeInventoryRowsForEdit(d.rows ?? [])
+      const meaningfulRows = rows.filter(isMeaningfulInventoryRow)
       const vialVol = parseVialVolume(d.size_qty)
+      const runningStock = computeInventoryRunningStock({ ...d, rows })
 
-      // Compute current stock from running balance
-      let stock = d.initial_stock ?? 0
-      for (const row of rows) {
-        const vialsConsumed =
-          vialVol && row.amt_used ? Math.ceil(row.amt_used / vialVol) : 0
-        const computed = stock + (row.amt_ordered ?? 0) - vialsConsumed
-        stock = row.qty_in_stock ?? computed
-      }
+      const lastMeaningfulIndex = meaningfulRows.length - 1
+      const stock = lastMeaningfulIndex >= 0
+        ? runningStock[lastMeaningfulIndex]?.after ?? null
+        : d.initial_stock
 
       // Filter rows by date range for period stats
-      const periodRows = rows.filter((row: InventoryRow) => {
-        if (!row.date) return false
-        if (fromStr && row.date < fromStr) return false
-        if (toStr && row.date > toStr) return false
+      const periodRows = meaningfulRows.filter((row: InventoryRow) => {
+        const rowDate = normalizeInventoryDate(row.date)
+        if (!rowDate) return false
+        if (fromStr && rowDate < fromStr) return false
+        if (toStr && rowDate > toStr) return false
         return true
       })
 
@@ -133,16 +138,16 @@ export function InventorySummary({ locationId }: InventorySummaryProps) {
       }
 
       // Alerts: unsigned rows (have data but no RN sig)
-      const unsignedRows = rows.filter(
+      const unsignedRows = meaningfulRows.filter(
         (r: InventoryRow) =>
-          (r.patient_name?.trim() || r.amt_used !== null || r.amt_ordered !== null) &&
+          (r.patient_name?.trim() || r.transaction?.trim() || r.amt_used !== null || r.amt_ordered !== null) &&
           !r.rn_sig,
       ).length
 
       // Stock discrepancies: check if manual overrides differ significantly from computed
       let stockDiscrepancies = 0
       let runStock = d.initial_stock ?? 0
-      for (const row of rows) {
+      for (const row of meaningfulRows) {
         const vialsConsumed =
           vialVol && row.amt_used ? Math.ceil(row.amt_used / vialVol) : 0
         const computed = runStock + (row.amt_ordered ?? 0) - vialsConsumed
@@ -153,8 +158,10 @@ export function InventorySummary({ locationId }: InventorySummaryProps) {
       }
 
       // Last activity
-      const datedRows = rows.filter((r: InventoryRow) => r.date?.trim())
-      const lastRow = datedRows[datedRows.length - 1]
+      const datedRows = meaningfulRows
+        .map((r: InventoryRow) => normalizeInventoryDate(r.date))
+        .filter((value): value is string => Boolean(value))
+        .sort()
 
       return {
         slug: entry.log_key,
@@ -164,14 +171,14 @@ export function InventorySummary({ locationId }: InventorySummaryProps) {
         status: entry.status,
         currentStock: stock,
         initialStock: d.initial_stock,
-        totalRows: datedRows.length,
+        totalRows: meaningfulRows.length,
         periodUsed,
         periodWasted,
         periodOrdered,
         periodTransactions: periodRows.length,
         unsignedRows,
         stockDiscrepancies,
-        lastActivity: lastRow?.date ?? null,
+        lastActivity: datedRows[datedRows.length - 1] ?? null,
       }
     })
   }, [entries, dateRange])

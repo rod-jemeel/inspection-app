@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMySignature } from "@/hooks/use-my-signature";
 import { Plus, Trash2, CalendarIcon, Lock } from "lucide-react";
 import type { DateRange } from "react-day-picker";
@@ -13,6 +13,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { SignatureCell } from "../../narcotic/_components/signature-cell";
+import {
+  computeInventoryRunningStock,
+  normalizeInventoryDate,
+  parseInventoryDate,
+} from "@/lib/logs/inventory";
 import { cn } from "@/lib/utils";
 import type {
   InventoryLogData,
@@ -27,26 +32,6 @@ function toDateStr(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-function parseInventoryRowDate(value: string): Date | undefined {
-  if (!value) return undefined;
-
-  const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (iso) {
-    const [, y, m, d] = iso;
-    const parsed = new Date(Number(y), Number(m) - 1, Number(d));
-    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
-  }
-
-  const us = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (us) {
-    const [, m, d, y] = us;
-    const parsed = new Date(Number(y), Number(m) - 1, Number(d));
-    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
-  }
-
-  return undefined;
-}
-
 interface InventoryTableProps {
   data: InventoryLogData;
   onChange: (data: InventoryLogData) => void;
@@ -55,7 +40,6 @@ interface InventoryTableProps {
   /** Rows with index < lockedRowCount are read-only (already saved) */
   lockedRowCount?: number;
   dateRange?: DateRange;
-  onDateRangeChange?: (range: DateRange | undefined) => void;
   isDraft?: boolean;
 }
 
@@ -73,22 +57,6 @@ function emptyRow(): InventoryRow {
     witness_sig: null,
     witness_name: "",
   };
-}
-
-function isRowEmpty(row: InventoryRow): boolean {
-  return (
-    !row.date.trim() &&
-    !row.patient_name.trim() &&
-    !row.transaction.trim() &&
-    row.qty_in_stock === null &&
-    row.amt_ordered === null &&
-    row.amt_used === null &&
-    row.amt_wasted === null &&
-    !row.rn_sig &&
-    !row.rn_name &&
-    !row.witness_sig &&
-    !row.witness_name
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -124,22 +92,26 @@ export function InventoryTable({
   disabled,
   lockedRowCount = 0,
   dateRange,
-  onDateRangeChange,
   isDraft,
 }: InventoryTableProps) {
   const { profile: myProfile } = useMySignature()
-  const rowRenderKeysRef = useRef<string[]>([]);
-  const nextRowRenderKeyRef = useRef(0);
+  const nextRowRenderKeyRef = useRef(data.rows.length);
+  const [rowRenderKeys, setRowRenderKeys] = useState<string[]>(
+    () => data.rows.map((_, index) => `inventory-row-${index}`),
+  );
 
-  const makeRowRenderKey = () => `inventory-row-${nextRowRenderKeyRef.current++}`;
+  useEffect(() => {
+    setRowRenderKeys((current) => {
+      if (current.length === data.rows.length) return current;
+      if (current.length > data.rows.length) return current.slice(0, data.rows.length);
 
-  if (rowRenderKeysRef.current.length < data.rows.length) {
-    while (rowRenderKeysRef.current.length < data.rows.length) {
-      rowRenderKeysRef.current.push(makeRowRenderKey());
-    }
-  } else if (rowRenderKeysRef.current.length > data.rows.length) {
-    rowRenderKeysRef.current = rowRenderKeysRef.current.slice(0, data.rows.length);
-  }
+      const next = [...current];
+      while (next.length < data.rows.length) {
+        next.push(`inventory-row-${nextRowRenderKeyRef.current++}`);
+      }
+      return next;
+    });
+  }, [data.rows.length]);
 
   const vialVolume = useMemo(
     () => parseVialVolume(data.size_qty),
@@ -176,37 +148,21 @@ export function InventoryTable({
 
   function addRow() {
     if (data.rows.length >= 200) return;
-    rowRenderKeysRef.current = [...rowRenderKeysRef.current, makeRowRenderKey()];
+    setRowRenderKeys((current) => [...current, `inventory-row-${nextRowRenderKeyRef.current++}`]);
     onChange({ ...data, rows: [...data.rows, emptyRow()] });
   }
 
   function removeRow(index: number) {
     if (data.rows.length <= 1) return;
     if (index < lockedRowCount) return; // can't delete saved rows
-    rowRenderKeysRef.current = rowRenderKeysRef.current.filter((_, i) => i !== index);
+    setRowRenderKeys((current) => current.filter((_, i) => i !== index));
     const rows = data.rows.filter((_, i) => i !== index);
     onChange({ ...data, rows });
   }
 
-  // Compute running stock balance for each row: { before, after }
-  // Stock is counted in UNITS (vials). Amt Used/Wasted are in mL.
-  // Vials consumed = ceil(amt_used_mL / vial_volume_mL)
-  // after = before + amt_ordered_units - vials_consumed
   const runningStock = useMemo(() => {
-    const result: { before: number; after: number }[] = [];
-    let prev = data.initial_stock ?? 0;
-    for (const row of data.rows) {
-      const before = prev;
-      const vialsConsumed =
-        vialVolume && row.amt_used ? Math.ceil(row.amt_used / vialVolume) : 0;
-      const after = before + (row.amt_ordered ?? 0) - vialsConsumed;
-      // If user manually set qty_in_stock, use that as the "after"
-      const finalAfter = row.qty_in_stock ?? after;
-      result.push({ before, after: finalAfter });
-      prev = finalAfter;
-    }
-    return result;
-  }, [data.rows, data.initial_stock, vialVolume]);
+    return computeInventoryRunningStock(data);
+  }, [data]);
 
   // Derive string boundaries from dateRange for filtering
   const dateFrom = dateRange?.from ? toDateStr(dateRange.from) : "";
@@ -222,12 +178,11 @@ export function InventoryTable({
         indices.push(i);
         continue;
       }
-      const normalizedRowDate = parseInventoryRowDate(rowDate);
-      if (!normalizedRowDate) {
+      const rowDateIso = normalizeInventoryDate(rowDate);
+      if (!rowDateIso) {
         indices.push(i);
         continue;
       }
-      const rowDateIso = toDateStr(normalizedRowDate);
       if (dateFrom && rowDateIso < dateFrom) continue;
       if (dateTo && rowDateIso > dateTo) continue;
       indices.push(i);
@@ -296,7 +251,7 @@ export function InventoryTable({
               const isLocked = disabled || i < lockedRowCount;
               return (
                 <tr
-                  key={rowRenderKeysRef.current[i] ?? `inventory-row-fallback-${i}`}
+                  key={rowRenderKeys[i] ?? `inventory-row-fallback-${i}`}
                   className={cn(i % 2 === 1 ? "bg-muted/5" : "", isLocked && !disabled && "bg-muted/10")}
                 >
                 {/* Date */}
@@ -325,7 +280,7 @@ export function InventoryTable({
                         startMonth={new Date(2020, 0, 1)}
                         endMonth={new Date(2035, 11, 1)}
                         selected={
-                          row.date ? parseInventoryRowDate(row.date) : undefined
+                          row.date ? parseInventoryDate(row.date) ?? undefined : undefined
                         }
                         onSelect={(d) => {
                           if (d) {

@@ -12,6 +12,13 @@ import { cn } from "@/lib/utils"
 import { InventoryTable } from "./inventory-table"
 import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
 import { RecentLogChangesPanel } from "../../_components/recent-log-changes-panel"
+import {
+  normalizeInventoryDate,
+  parseInventoryDate,
+  prepareInventoryRowsForSave,
+  sanitizeInventoryRowsForEdit,
+  isMeaningfulInventoryRow,
+} from "@/lib/logs/inventory"
 import { emptyInventoryLogData } from "@/lib/validations/log-entry"
 import type { InventoryLogData, PresetDrug } from "@/lib/validations/log-entry"
 
@@ -31,61 +38,13 @@ interface InventoryLedgerProps {
   isAdmin?: boolean
 }
 
-// Count non-empty rows from saved data to determine lock boundary
-function countNonEmptyRows(rows: InventoryLogData["rows"]): number {
-  let count = 0
-  for (const row of rows) {
-    const hasData =
-      row.date.trim() ||
-      row.patient_name.trim() ||
-      row.transaction.trim() ||
-      row.qty_in_stock !== null ||
-      row.amt_ordered !== null ||
-      row.amt_used !== null ||
-      row.amt_wasted !== null ||
-      row.rn_sig ||
-      row.witness_sig
-    if (hasData) count++
-    else break // stop at first empty row (trailing empties aren't locked)
-  }
-  return count
-}
-
-function normalizeInventoryDate(value: string | null | undefined): string | null {
-  if (!value) return null
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value
-  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(value)) {
-    const [m, d, y] = value.split("/").map(Number)
-    return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`
-  }
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return null
-  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`
-}
-
-function parseInventoryRowDate(value: string): Date | undefined {
-  if (!value) return undefined
-
-  const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (iso) {
-    const [, y, m, d] = iso
-    const parsed = new Date(Number(y), Number(m) - 1, Number(d))
-    return Number.isNaN(parsed.getTime()) ? undefined : parsed
-  }
-
-  const us = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
-  if (us) {
-    const [, m, d, y] = us
-    const parsed = new Date(Number(y), Number(m) - 1, Number(d))
-    return Number.isNaN(parsed.getTime()) ? undefined : parsed
-  }
-
-  return undefined
+function countMeaningfulRows(rows: InventoryLogData["rows"]): number {
+  return rows.filter(isMeaningfulInventoryRow).length
 }
 
 function getInitialInventoryMonth(entry: EntryData | null): Date {
   const parsedDates = entry?.data.rows
-    .map((row) => parseInventoryRowDate(row.date))
+    .map((row) => parseInventoryDate(row.date))
     .filter((d): d is Date => Boolean(d))
 
   if (!parsedDates || parsedDates.length === 0) {
@@ -108,7 +67,12 @@ export function InventoryLedger({
   const [saving, setSaving] = useState(false)
 
   const [data, setData] = useState<InventoryLogData>(() => {
-    if (initialEntry?.data) return initialEntry.data
+    if (initialEntry?.data) {
+      return {
+        ...initialEntry.data,
+        rows: sanitizeInventoryRowsForEdit(initialEntry.data.rows ?? []),
+      }
+    }
     // Pre-fill from preset drug when creating a new ledger
     const empty = emptyInventoryLogData()
     if (presetDrug) {
@@ -126,7 +90,7 @@ export function InventoryLedger({
 
   // Rows with index < lockedRowCount are read-only (already saved to DB)
   const [lockedRowCount, setLockedRowCount] = useState(
-    () => initialEntry ? countNonEmptyRows(initialEntry.data.rows) : 0
+    () => initialEntry ? countMeaningfulRows(sanitizeInventoryRowsForEdit(initialEntry.data.rows ?? [])) : 0
   )
 
   const handleDataChange = useCallback((newData: InventoryLogData) => {
@@ -137,21 +101,8 @@ export function InventoryLedger({
   async function save() {
     setSaving(true)
     try {
-      // Auto-calculate running qty_in_stock (in vials) for each row
-      // Parse vial volume from size_qty (e.g., "2mL vials" -> 2)
-      const vialMatch = data.size_qty.match(/([\d.]+)\s*m[lL]/i)
-      const vialVol = vialMatch ? parseFloat(vialMatch[1]) : null
-      const rows: typeof data.rows = []
-      let prevStock = data.initial_stock ?? 0
-      for (const row of data.rows) {
-        const vialsConsumed = vialVol && row.amt_used
-          ? Math.ceil(row.amt_used / vialVol)
-          : 0
-        const computed = prevStock + (row.amt_ordered ?? 0) - vialsConsumed
-        const filled = { ...row, qty_in_stock: row.qty_in_stock ?? computed }
-        rows.push(filled)
-        prevStock = filled.qty_in_stock ?? computed
-      }
+      const { rows, lockedRowCount: nextLockedRowCount } = prepareInventoryRowsForSave(data)
+      const nextData = { ...data, rows }
 
       const res = await fetch(`/api/locations/${locationId}/logs`, {
         method: "POST",
@@ -160,7 +111,7 @@ export function InventoryLedger({
           log_type: "controlled_substance_inventory",
           log_key: drugSlug,
           log_date: "1970-01-01",
-          data: { ...data, rows },
+          data: nextData,
           // Perpetual inventory should remain editable; persist as draft/ongoing.
           status: "draft",
         }),
@@ -172,11 +123,12 @@ export function InventoryLedger({
         return
       }
 
+      setData(nextData)
       setDirty(false)
       setAuditRefreshKey((k) => k + 1)
 
-      // After save, lock all non-empty rows (they're now persisted)
-      setLockedRowCount(countNonEmptyRows(rows))
+      // After save, lock all meaningful persisted rows.
+      setLockedRowCount(nextLockedRowCount)
 
       startTransition(() => {
         router.refresh()
