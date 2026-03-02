@@ -12,7 +12,13 @@ import {
   narcoticSignoutLogDataSchema,
   type InventoryLogData,
 } from "@/lib/validations/log-entry"
-import { monthInRange, parseInventoryRowDate, yearKeyInRange } from "@/lib/server/log-pdf/date-key-utils"
+import {
+  isMeaningfulInventoryRow,
+  normalizeInventoryDate,
+  parseInventoryDate,
+  sanitizeInventoryRowsForEdit,
+} from "@/lib/logs/inventory"
+import { monthInRange, yearKeyInRange } from "@/lib/server/log-pdf/date-key-utils"
 import { createRenderContext } from "@/lib/server/log-pdf"
 import { mergePdfBytes } from "@/lib/server/log-pdf/pdf-utils"
 import { templateLabelForLogType } from "@/lib/server/log-pdf/template-registry"
@@ -70,10 +76,10 @@ function parseVialVolume(sizeQty: string): number | null {
 function computeCarryForwardStock(data: InventoryLogData, fromDate: string): number | null {
   let stock = data.initial_stock ?? null
   const vialVol = parseVialVolume(data.size_qty)
-  for (const row of data.rows ?? []) {
-    const dt = parseInventoryRowDate(row.date)
-    if (!dt) continue
-    const iso = dt.toISOString().slice(0, 10)
+  for (const row of sanitizeInventoryRowsForEdit(data.rows ?? [])) {
+    if (!isMeaningfulInventoryRow(row)) continue
+    const iso = normalizeInventoryDate(row.date)
+    if (!iso) continue
     if (iso >= fromDate) break
 
     if (row.qty_in_stock !== null) {
@@ -154,9 +160,10 @@ export async function buildLogExportPdf(locationId: string, request: ExportLogPd
 
           if (request.dateFrom && request.dateTo) {
             const rowsInRange = (data.entries ?? []).filter((row) => {
-              const dt = parseInventoryRowDate(row.date)
+              const dt = parseInventoryDate(row.date)
               if (!dt) return false
-              const iso = dt.toISOString().slice(0, 10)
+              const iso = normalizeInventoryDate(row.date)
+              if (!iso) return false
               return iso >= request.dateFrom! && iso <= request.dateTo!
             })
             if (rowsInRange.length === 0) continue
@@ -211,10 +218,10 @@ export async function buildLogExportPdf(locationId: string, request: ExportLogPd
       let anyRows = false
       for (const entry of filtered) {
         const data = inventoryLogDataSchema.parse(entry.data)
-        const rows = (data.rows ?? []).filter((row) => {
-          const dt = parseInventoryRowDate(row.date)
-          if (!dt) return false
-          const iso = dt.toISOString().slice(0, 10)
+        const rows = sanitizeInventoryRowsForEdit(data.rows ?? []).filter((row) => {
+          if (!isMeaningfulInventoryRow(row)) return false
+          const iso = normalizeInventoryDate(row.date)
+          if (!iso) return false
           return iso >= request.dateFrom && iso <= request.dateTo
         })
         if (rows.length === 0) continue

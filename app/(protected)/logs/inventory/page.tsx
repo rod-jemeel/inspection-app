@@ -1,6 +1,12 @@
 import { Suspense } from "react"
 import type { Metadata } from "next"
 import { requireLocationAccess } from "@/lib/server/auth-helpers"
+import {
+  computeInventoryRunningStock,
+  isMeaningfulInventoryRow,
+  normalizeInventoryDate,
+  sanitizeInventoryRowsForEdit,
+} from "@/lib/logs/inventory"
 import { getLogEntryByKey, listLogEntries } from "@/lib/server/services/log-entries"
 import { LoadingSpinner } from "@/components/loading-spinner"
 import { DrugSelector } from "./_components/drug-selector"
@@ -10,18 +16,6 @@ import { PRESET_DRUGS } from "@/lib/validations/log-entry"
 
 export const metadata: Metadata = {
   title: "Controlled Substances Inventory - Inspection Tracker",
-}
-
-function normalizeInventoryDate(value: string | null | undefined): string | null {
-  if (!value) return null
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value
-  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(value)) {
-    const [m, d, y] = value.split("/").map(Number)
-    return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`
-  }
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return null
-  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`
 }
 
 async function InventoryLoader({
@@ -101,18 +95,21 @@ export default async function InventoryPage({
 
     for (const entry of allEntries) {
       const d = entry.data as unknown as InventoryLogData
-      const rows = d.rows ?? []
-      const nonEmptyRows = rows.filter((r: { date: string }) => r.date?.trim())
+      const rows = sanitizeInventoryRowsForEdit(d.rows ?? [])
+      const meaningfulRows = rows.filter(isMeaningfulInventoryRow)
+      const runningStock = computeInventoryRunningStock({ ...d, rows })
       const rowDates = Array.from(new Set(
-        nonEmptyRows
+        meaningfulRows
           .map((r: { date: string }) => normalizeInventoryDate(r.date))
           .filter((v): v is string => Boolean(v))
       )).sort()
-      const lastRow = nonEmptyRows[nonEmptyRows.length - 1]
+      const lastMeaningfulIndex = meaningfulRows.length - 1
       stockInfo[entry.log_key] = {
         id: entry.id,
-        currentStock: lastRow?.qty_in_stock ?? null,
-        rowCount: nonEmptyRows.length,
+        currentStock: lastMeaningfulIndex >= 0
+          ? runningStock[lastMeaningfulIndex]?.after ?? null
+          : d.initial_stock,
+        rowCount: meaningfulRows.length,
         firstDate: rowDates[0] ?? null,
         lastDate: rowDates[rowDates.length - 1] ?? null,
         rowDates,
