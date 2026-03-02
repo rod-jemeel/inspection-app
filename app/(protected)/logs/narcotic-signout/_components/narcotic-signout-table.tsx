@@ -30,6 +30,320 @@ const NUM =
 
 const DRUG_COUNT = SIGNOUT_DRUGS.length // 5 (4 preset + 1 custom)
 
+function StickyLabelCell({
+  children,
+  className,
+  colSpan = 2,
+}: {
+  children: React.ReactNode
+  className?: string
+  colSpan?: number
+}) {
+  return (
+    <td colSpan={colSpan} className={cn(HDR, "sticky left-0 z-10 bg-muted/30", className)}>
+      {children}
+    </td>
+  )
+}
+
+function DrugColumns({
+  children,
+}: {
+  children: (drug: (typeof SIGNOUT_DRUGS)[number]) => React.ReactNode
+}) {
+  return <>{SIGNOUT_DRUGS.map((drug) => children(drug))}</>
+}
+
+function SignoutDateRow({ date }: { date: string }) {
+  return (
+    <tr>
+      <StickyLabelCell className="text-left">Date:</StickyLabelCell>
+      <td colSpan={DRUG_COUNT} className={cn(B, "bg-background px-3 py-2")}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="whitespace-nowrap text-sm font-medium">
+            {new Date(date + "T00:00:00").toLocaleDateString("en-US", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </span>
+          <span className="text-[11px] text-muted-foreground">Change date in toolbar</span>
+        </div>
+      </td>
+    </tr>
+  )
+}
+
+function SignoutTopFieldsRow({
+  data,
+  disabled,
+  onUpdateTop,
+}: {
+  data: NarcoticSignoutLogData
+  disabled?: boolean
+  onUpdateTop: <K extends keyof NarcoticSignoutLogData>(
+    field: K,
+    value: NarcoticSignoutLogData[K]
+  ) => void
+}) {
+  return (
+    <tr>
+      <StickyLabelCell className="text-left">Anesthesia MD:</StickyLabelCell>
+      <td colSpan={DRUG_COUNT} className={cn(CELL)}>
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+          <Input
+            value={data.anesthesia_md}
+            onChange={(e) => onUpdateTop("anesthesia_md", e.target.value)}
+            disabled={disabled}
+            className={TXT}
+            placeholder="Print Name"
+            aria-label="Anesthesia MD"
+          />
+          <Input
+            value={data.print_name}
+            onChange={(e) => onUpdateTop("print_name", e.target.value)}
+            disabled={disabled}
+            className={TXT}
+            placeholder="Printed name"
+            aria-label="Print Name"
+          />
+        </div>
+      </td>
+    </tr>
+  )
+}
+
+function DrugHeaderRow({
+  data,
+  disabled,
+  onUpdateTop,
+}: {
+  data: NarcoticSignoutLogData
+  disabled?: boolean
+  onUpdateTop: <K extends keyof NarcoticSignoutLogData>(
+    field: K,
+    value: NarcoticSignoutLogData[K]
+  ) => void
+}) {
+  return (
+    <tr>
+      <StickyLabelCell>Item</StickyLabelCell>
+      <DrugColumns>
+        {(drug) => (
+          <td key={drug.key} className={cn(HDR)}>
+            {drug.label ? (
+              <span className="text-sm font-semibold leading-tight">{drug.label}</span>
+            ) : (
+              <Input
+                value={data.custom_drug_name ?? ""}
+                onChange={(e) => onUpdateTop("custom_drug_name", e.target.value)}
+                disabled={disabled}
+                className="h-auto border-0 bg-transparent p-0 text-center text-xs font-semibold shadow-none placeholder:text-muted-foreground/50 focus-visible:ring-0"
+                placeholder="Custom drug"
+              />
+            )}
+          </td>
+        )}
+      </DrugColumns>
+    </tr>
+  )
+}
+
+function PerDrugSignatureRow({
+  title,
+  role,
+  data,
+  locationId,
+  disabled,
+  isDraft,
+  defaultSignerName,
+  onUpdateDrugHeader,
+  onUpdateDrugHeaderMeta,
+}: {
+  title: string
+  role: "anesthesiologist" | "nurse"
+  data: NarcoticSignoutLogData
+  locationId: string
+  disabled?: boolean
+  isDraft?: boolean
+  defaultSignerName?: string
+  onUpdateDrugHeader: (
+    drugKey: string,
+    field:
+      | "anesthesiologist_sig"
+      | "anesthesiologist_sig_signer_name"
+      | "anesthesiologist_sig_signed_at"
+      | "nurse_sig"
+      | "nurse_sig_signer_name"
+      | "nurse_sig_signed_at"
+      | "qty_dispensed",
+    value: string | null
+  ) => void
+  onUpdateDrugHeaderMeta: (
+    drugKey: string,
+    role: "anesthesiologist" | "nurse",
+    meta: { signerName: string; signedAt: string; signatureBase64?: string } | null
+  ) => void
+}) {
+  const valueField = role === "anesthesiologist" ? "anesthesiologist_sig" : "nurse_sig"
+  const signerField =
+    role === "anesthesiologist"
+      ? "anesthesiologist_sig_signer_name"
+      : "nurse_sig_signer_name"
+  const signedAtField =
+    role === "anesthesiologist"
+      ? "anesthesiologist_sig_signed_at"
+      : "nurse_sig_signed_at"
+
+  return (
+    <tr>
+      <StickyLabelCell className="text-left text-xs">{title}</StickyLabelCell>
+      <DrugColumns>
+        {(drug) => (
+          <td
+            key={drug.key}
+            className={cn(CELL, "px-2", isDraft && data.drug_headers[drug.key]?.[valueField] && "bg-yellow-50")}
+          >
+            <SignatureCell
+              value={data.drug_headers[drug.key]?.[valueField] ?? null}
+              onChange={(_p, base64) => onUpdateDrugHeader(drug.key, valueField, base64)}
+              locationId={locationId}
+              disabled={disabled}
+              defaultSignerName={defaultSignerName}
+              signerName={data.drug_headers[drug.key]?.[signerField] ?? ""}
+              signedAt={data.drug_headers[drug.key]?.[signedAtField] ?? ""}
+              onSignedMetaChange={(meta) => onUpdateDrugHeaderMeta(drug.key, role, meta)}
+              emptyLabel="Add"
+            />
+          </td>
+        )}
+      </DrugColumns>
+    </tr>
+  )
+}
+
+function QuantityDispensedRow({
+  data,
+  disabled,
+  isDraft,
+  onUpdateDrugHeader,
+}: {
+  data: NarcoticSignoutLogData
+  disabled?: boolean
+  isDraft?: boolean
+  onUpdateDrugHeader: (
+    drugKey: string,
+    field: "qty_dispensed",
+    value: string | null
+  ) => void
+}) {
+  return (
+    <tr>
+      <StickyLabelCell className="text-left text-xs">
+        Quantity Dispensed (# of units)
+      </StickyLabelCell>
+      <DrugColumns>
+        {(drug) => (
+          <td
+            key={drug.key}
+            className={cn(CELL, isDraft && data.drug_headers[drug.key]?.qty_dispensed && "bg-yellow-50")}
+          >
+            <Input
+              value={data.drug_headers[drug.key]?.qty_dispensed ?? ""}
+              onChange={(e) => onUpdateDrugHeader(drug.key, "qty_dispensed", e.target.value)}
+              disabled={disabled}
+              className={NUM}
+            />
+          </td>
+        )}
+      </DrugColumns>
+    </tr>
+  )
+}
+
+function PerDrugTotalsRow({
+  title,
+  valueMap,
+  disabled,
+  isDraft,
+  onUpdateRecord,
+  field,
+}: {
+  title: string
+  valueMap: Record<string, string>
+  disabled?: boolean
+  isDraft?: boolean
+  field: "total_qty_used" | "end_balance"
+  onUpdateRecord: (
+    field: "total_qty_used" | "end_balance",
+    drugKey: string,
+    value: string
+  ) => void
+}) {
+  return (
+    <tr>
+      <StickyLabelCell className="text-left">{title}</StickyLabelCell>
+      <DrugColumns>
+        {(drug) => (
+          <td key={drug.key} className={cn(CELL, isDraft && valueMap[drug.key] && "bg-yellow-50")}>
+            <Input
+              value={valueMap[drug.key] ?? ""}
+              onChange={(e) => onUpdateRecord(field, drug.key, e.target.value)}
+              disabled={disabled}
+              className={NUM}
+            />
+          </td>
+        )}
+      </DrugColumns>
+    </tr>
+  )
+}
+
+function FinalRnSignatureRow({
+  data,
+  locationId,
+  disabled,
+  isDraft,
+  defaultSignerName,
+  onChange,
+}: {
+  data: NarcoticSignoutLogData
+  locationId: string
+  disabled?: boolean
+  isDraft?: boolean
+  defaultSignerName?: string
+  onChange: (data: NarcoticSignoutLogData) => void
+}) {
+  return (
+    <tr>
+      <StickyLabelCell className="text-left">RN Signature</StickyLabelCell>
+      <td colSpan={DRUG_COUNT} className={cn(CELL, "px-2", isDraft && data.rn_signature && "bg-yellow-50")}>
+        <div className="mx-auto max-w-[200px]">
+          <SignatureCell
+            value={data.rn_signature}
+            onChange={(_p, base64) => onChange({ ...data, rn_signature: base64 })}
+            locationId={locationId}
+            disabled={disabled}
+            defaultSignerName={defaultSignerName}
+            signerName={data.rn_signature_signer_name}
+            signedAt={data.rn_signature_signed_at}
+            onSignedMetaChange={(meta) =>
+              onChange({
+                ...data,
+                rn_signature: meta?.signatureBase64 ?? null,
+                rn_signature_signer_name: meta?.signerName ?? "",
+                rn_signature_signed_at: meta?.signedAt ?? "",
+              })
+            }
+            emptyLabel="Add Signature"
+          />
+        </div>
+      </td>
+    </tr>
+  )
+}
+
 export function NarcoticSignoutTable({
   data,
   onChange,
@@ -164,153 +478,38 @@ export function NarcoticSignoutTable({
         </colgroup>
 
         <tbody>
-          {/* =============================================================
-              ROW: Date navigation
-              ============================================================= */}
-          <tr>
-            <td colSpan={2} className={cn(HDR, "sticky left-0 z-10 bg-muted/30 text-left")}>
-              Date:
-            </td>
-            <td colSpan={DRUG_COUNT} className={cn(B, "bg-background px-3 py-2")}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-sm font-medium whitespace-nowrap">
-                  {new Date(date + "T00:00:00").toLocaleDateString("en-US", {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </span>
-                <span className="text-[11px] text-muted-foreground">Change date in toolbar</span>
-              </div>
-            </td>
-          </tr>
+          <SignoutDateRow date={date} />
+          <SignoutTopFieldsRow data={data} disabled={disabled} onUpdateTop={updateTop} />
+          <DrugHeaderRow data={data} disabled={disabled} onUpdateTop={updateTop} />
+          <PerDrugSignatureRow
+            title="Anesthesiologist Signature"
+            role="anesthesiologist"
+            data={data}
+            locationId={locationId}
+            disabled={disabled}
+            isDraft={isDraft}
+            defaultSignerName={myProfile?.name}
+            onUpdateDrugHeader={updateDrugHeader}
+            onUpdateDrugHeaderMeta={updateDrugHeaderMeta}
+          />
+          <PerDrugSignatureRow
+            title="Nurse Signature"
+            role="nurse"
+            data={data}
+            locationId={locationId}
+            disabled={disabled}
+            isDraft={isDraft}
+            defaultSignerName={myProfile?.name}
+            onUpdateDrugHeader={updateDrugHeader}
+            onUpdateDrugHeaderMeta={updateDrugHeaderMeta}
+          />
+          <QuantityDispensedRow
+            data={data}
+            disabled={disabled}
+            isDraft={isDraft}
+            onUpdateDrugHeader={(drugKey, _field, value) => updateDrugHeader(drugKey, "qty_dispensed", value)}
+          />
 
-          {/* =============================================================
-              ROW: Anesthesia MD + Print Name
-              ============================================================= */}
-          <tr>
-            <td colSpan={2} className={cn(HDR, "sticky left-0 z-10 bg-muted/30 text-left")}>
-              Anesthesia MD:
-            </td>
-            <td colSpan={DRUG_COUNT} className={cn(CELL)}>
-              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={data.anesthesia_md}
-                    onChange={(e) => updateTop("anesthesia_md", e.target.value)}
-                    disabled={disabled}
-                    className={TXT}
-                    placeholder="Print Name"
-                    aria-label="Anesthesia MD"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={data.print_name}
-                    onChange={(e) => updateTop("print_name", e.target.value)}
-                    disabled={disabled}
-                    className={TXT}
-                    placeholder="Printed name"
-                    aria-label="Print Name"
-                  />
-                </div>
-              </div>
-            </td>
-          </tr>
-
-          {/* =============================================================
-              ROW: Drug column headers
-              ============================================================= */}
-          <tr>
-            <td colSpan={2} className={cn(HDR, "sticky left-0 z-10 bg-muted/30")}>Item</td>
-            {SIGNOUT_DRUGS.map((drug) => (
-              <td key={drug.key} className={cn(HDR)}>
-                {drug.label ? (
-                  <span className="text-sm font-semibold leading-tight">{drug.label}</span>
-                ) : (
-                  <Input
-                    value={data.custom_drug_name ?? ""}
-                    onChange={(e) => updateTop("custom_drug_name", e.target.value)}
-                    disabled={disabled}
-                    className="h-auto border-0 bg-transparent p-0 text-center text-xs font-semibold shadow-none placeholder:text-muted-foreground/50 focus-visible:ring-0"
-                    placeholder="Custom drug"
-                  />
-                )}
-              </td>
-            ))}
-          </tr>
-
-          {/* =============================================================
-              ROW: Anesthesiologist Signature (per drug)
-              ============================================================= */}
-          <tr>
-            <td colSpan={2} className={cn(HDR, "sticky left-0 z-10 bg-muted/30 text-left text-xs")}>
-              Anesthesiologist Signature
-            </td>
-            {SIGNOUT_DRUGS.map((drug) => (
-              <td key={drug.key} className={cn(CELL, "px-2", isDraft && data.drug_headers[drug.key]?.anesthesiologist_sig && "bg-yellow-50")}>
-                <SignatureCell
-                  value={data.drug_headers[drug.key]?.anesthesiologist_sig ?? null}
-                  onChange={(_p, b) => updateDrugHeader(drug.key, "anesthesiologist_sig", b)}
-                  locationId={locationId}
-                  disabled={disabled}
-                  defaultSignerName={myProfile?.name}
-                  signerName={data.drug_headers[drug.key]?.anesthesiologist_sig_signer_name ?? ""}
-                  signedAt={data.drug_headers[drug.key]?.anesthesiologist_sig_signed_at ?? ""}
-                  onSignedMetaChange={(meta) => updateDrugHeaderMeta(drug.key, "anesthesiologist", meta)}
-                  emptyLabel="Add"
-                />
-              </td>
-            ))}
-          </tr>
-
-          {/* =============================================================
-              ROW: Nurse Signature (per drug)
-              ============================================================= */}
-          <tr>
-            <td colSpan={2} className={cn(HDR, "sticky left-0 z-10 bg-muted/30 text-left text-xs")}>
-              Nurse Signature
-            </td>
-            {SIGNOUT_DRUGS.map((drug) => (
-              <td key={drug.key} className={cn(CELL, "px-2", isDraft && data.drug_headers[drug.key]?.nurse_sig && "bg-yellow-50")}>
-                <SignatureCell
-                  value={data.drug_headers[drug.key]?.nurse_sig ?? null}
-                  onChange={(_p, b) => updateDrugHeader(drug.key, "nurse_sig", b)}
-                  locationId={locationId}
-                  disabled={disabled}
-                  defaultSignerName={myProfile?.name}
-                  signerName={data.drug_headers[drug.key]?.nurse_sig_signer_name ?? ""}
-                  signedAt={data.drug_headers[drug.key]?.nurse_sig_signed_at ?? ""}
-                  onSignedMetaChange={(meta) => updateDrugHeaderMeta(drug.key, "nurse", meta)}
-                  emptyLabel="Add"
-                />
-              </td>
-            ))}
-          </tr>
-
-          {/* =============================================================
-              ROW: Quantity Dispensed (per drug)
-              ============================================================= */}
-          <tr>
-            <td colSpan={2} className={cn(HDR, "sticky left-0 z-10 bg-muted/30 text-left text-xs")}>
-              Quantity Dispensed (# of units)
-            </td>
-            {SIGNOUT_DRUGS.map((drug) => (
-              <td key={drug.key} className={cn(CELL, isDraft && data.drug_headers[drug.key]?.qty_dispensed && "bg-yellow-50")}>
-                <Input
-                  value={data.drug_headers[drug.key]?.qty_dispensed ?? ""}
-                  onChange={(e) => updateDrugHeader(drug.key, "qty_dispensed", e.target.value)}
-                  disabled={disabled}
-                  className={NUM}
-                />
-              </td>
-            ))}
-          </tr>
-
-          {/* =============================================================
-              CASE BLOCKS (5 patient cases)
-              ============================================================= */}
           {data.cases.map((caseData, caseIdx) => (
             <CaseBlock
               key={caseIdx}
@@ -325,78 +524,30 @@ export function NarcoticSignoutTable({
             />
           ))}
 
-          {/* =============================================================
-              ROW: Total Quantity Used (per drug)
-              ============================================================= */}
-          <tr>
-            <td colSpan={2} className={cn(HDR, "sticky left-0 z-10 bg-muted/30 text-left")}>
-              Total Quantity Used (# units)
-            </td>
-            {SIGNOUT_DRUGS.map((drug) => (
-              <td key={drug.key} className={cn(CELL, isDraft && data.total_qty_used[drug.key] && "bg-yellow-50")}>
-                <Input
-                  value={data.total_qty_used[drug.key] ?? ""}
-                  onChange={(e) => updateRecord("total_qty_used", drug.key, e.target.value)}
-                  disabled={disabled}
-                  className={NUM}
-                />
-              </td>
-            ))}
-          </tr>
-
-          {/* =============================================================
-              ROW: End Balance Returned (per drug)
-              ============================================================= */}
-          <tr>
-            <td colSpan={2} className={cn(HDR, "sticky left-0 z-10 bg-muted/30 text-left")}>
-              End Balance Returned (# of units)
-            </td>
-            {SIGNOUT_DRUGS.map((drug) => (
-              <td key={drug.key} className={cn(CELL, isDraft && data.end_balance[drug.key] && "bg-yellow-50")}>
-                <Input
-                  value={data.end_balance[drug.key] ?? ""}
-                  onChange={(e) => updateRecord("end_balance", drug.key, e.target.value)}
-                  disabled={disabled}
-                  className={NUM}
-                />
-              </td>
-            ))}
-          </tr>
-
-          {/* =============================================================
-              ROW: RN Signature (spans all drug columns)
-              ============================================================= */}
-          <tr>
-            <td colSpan={2} className={cn(HDR, "sticky left-0 z-10 bg-muted/30 text-left")}>
-              RN Signature
-            </td>
-            <td colSpan={DRUG_COUNT} className={cn(CELL, "px-2", isDraft && data.rn_signature && "bg-yellow-50")}>
-              <div className="mx-auto max-w-[200px]">
-                <SignatureCell
-                  value={data.rn_signature}
-                  onChange={(_p, b) => updateTop("rn_signature", b)}
-                  locationId={locationId}
-                  disabled={disabled}
-                  defaultSignerName={myProfile?.name}
-                  signerName={data.rn_signature_signer_name}
-                  signedAt={data.rn_signature_signed_at}
-                  onSignedMetaChange={(meta) =>
-                    onChange({
-                      ...data,
-                      rn_signature: meta?.signatureBase64 ?? null,
-                      rn_signature_signer_name: meta?.signerName ?? "",
-                      rn_signature_signed_at: meta?.signedAt ?? "",
-                    })
-                  }
-                  emptyLabel="Add Signature"
-                />
-              </div>
-            </td>
-          </tr>
-
-          {/* =============================================================
-              Note
-              ============================================================= */}
+          <PerDrugTotalsRow
+            title="Total Quantity Used (# units)"
+            valueMap={data.total_qty_used}
+            disabled={disabled}
+            isDraft={isDraft}
+            field="total_qty_used"
+            onUpdateRecord={updateRecord}
+          />
+          <PerDrugTotalsRow
+            title="End Balance Returned (# of units)"
+            valueMap={data.end_balance}
+            disabled={disabled}
+            isDraft={isDraft}
+            field="end_balance"
+            onUpdateRecord={updateRecord}
+          />
+          <FinalRnSignatureRow
+            data={data}
+            locationId={locationId}
+            disabled={disabled}
+            isDraft={isDraft}
+            defaultSignerName={myProfile?.name}
+            onChange={onChange}
+          />
           <tr>
             <td
               colSpan={2 + DRUG_COUNT}
@@ -407,7 +558,6 @@ export function NarcoticSignoutTable({
           </tr>
         </tbody>
       </table>
-
     </div>
   )
 }

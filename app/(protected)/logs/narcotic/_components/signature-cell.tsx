@@ -54,32 +54,43 @@ export function SignatureCell({
 }: SignatureCellProps) {
   const [showPad, setShowPad] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [storedPreview, setStoredPreview] = useState<{ path: string; url: string | null } | null>(null)
   const [localBase64, setLocalBase64] = useState<string | null>(null)
+  const isInlineDataUrl = !!value?.startsWith("data:")
 
   // Generate a signed preview URL for stored signatures
   useEffect(() => {
-    if (!value || value.startsWith("data:")) {
-      setPreviewUrl(value)
+    if (!value || isInlineDataUrl) {
       return
     }
 
-    // It's a storage path - fetch signed URL
+    const storagePath = value
+
+    let cancelled = false
+
     async function fetchSignedUrl() {
       try {
         const res = await fetch(
-          `/api/locations/${locationId}/logs/signature-url?path=${encodeURIComponent(value!)}`
+          `/api/locations/${locationId}/logs/signature-url?path=${encodeURIComponent(storagePath)}`
         )
         if (res.ok) {
           const { url } = await res.json()
-          setPreviewUrl(url)
+          if (!cancelled) {
+            setStoredPreview({ path: storagePath, url })
+          }
         }
       } catch {
-        setPreviewUrl(null)
+        if (!cancelled) {
+          setStoredPreview({ path: storagePath, url: null })
+        }
       }
     }
     fetchSignedUrl()
-  }, [value, locationId])
+
+    return () => {
+      cancelled = true
+    }
+  }, [isInlineDataUrl, value, locationId])
 
   const handleSave = (result: { imageBlob: Blob; points: unknown; signerName: string }) => {
     const reader = new FileReader()
@@ -88,7 +99,7 @@ export function SignatureCell({
       const signer = result.signerName.trim()
       const stampedAt = new Date().toISOString()
       setLocalBase64(base64)
-      setPreviewUrl(base64)
+      setStoredPreview(null)
       if (onSignedMetaChange) {
         onSignedMetaChange({ signerName: signer, signedAt: stampedAt, signatureBase64: base64 })
       } else {
@@ -104,7 +115,7 @@ export function SignatureCell({
 
   const handleClear = () => {
     setLocalBase64(null)
-    setPreviewUrl(null)
+    setStoredPreview(null)
     if (onSignedMetaChange) {
       onSignedMetaChange(null)
     } else {
@@ -113,7 +124,13 @@ export function SignatureCell({
     }
   }
 
-  const displayUrl = localBase64 || previewUrl
+  const displayUrl =
+    localBase64 ||
+    (isInlineDataUrl
+      ? value
+      : value && storedPreview?.path === value
+        ? storedPreview.url
+        : null)
   const formattedSignedAt = (() => {
     const raw = signedAt?.trim()
     if (!raw) return null

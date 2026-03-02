@@ -113,13 +113,6 @@ export function CardiacArrestSummary({
   });
   const [addError, setAddError] = useState<string | null>(null);
 
-  // Reset newDate whenever currentMonth changes (e.g. year nav crosses a year boundary)
-  useEffect(() => {
-    const today = todayDate();
-    setNewDate(today.startsWith(currentMonth) ? today : `${currentMonth}-01`);
-    setAddError(null);
-  }, [currentMonth]);
-
   // Fetch state
   const [entries, setEntries] = useState<SummaryEntry[] | null>(null);
   const [total, setTotal] = useState(0);
@@ -127,18 +120,17 @@ export function CardiacArrestSummary({
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setOffset(0);
-  }, [currentMonth, scope]);
+  function beginFetch() {
+    setLoading(true);
+    setFetchError(null);
+    setEntries(null);
+  }
 
   // ---------------------------------------------------------------------------
   // Fetch entries (all or current month)
   // ---------------------------------------------------------------------------
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setFetchError(null);
-    setEntries(null);
 
     const params = new URLSearchParams({
       log_type: "cardiac_arrest_record",
@@ -178,9 +170,24 @@ export function CardiacArrestSummary({
   // ---------------------------------------------------------------------------
 
   function navigateMonth(month: string) {
+    setAddError(null);
+    beginFetch();
     startTransition(() => {
       router.push(`/logs/cardiac-arrest?loc=${locationId}&month=${month}`);
     });
+  }
+
+  function handleScopeChange(nextScope: SummaryScope) {
+    if (scope === nextScope && offset === 0) return;
+    beginFetch();
+    setScope(nextScope);
+    setOffset(0);
+  }
+
+  function handleOffsetChange(nextOffset: number) {
+    if (nextOffset === offset) return;
+    beginFetch();
+    setOffset(nextOffset);
   }
 
   function openEntry(id: string) {
@@ -249,7 +256,7 @@ export function CardiacArrestSummary({
               size="sm"
               variant={scope === "all" ? "secondary" : "ghost"}
               className="h-7 text-[11px]"
-              onClick={() => setScope("all")}
+              onClick={() => handleScopeChange("all")}
             >
               All Records
             </Button>
@@ -258,7 +265,7 @@ export function CardiacArrestSummary({
               size="sm"
               variant={scope === "month" ? "secondary" : "ghost"}
               className="h-7 text-[11px]"
-              onClick={() => setScope("month")}
+              onClick={() => handleScopeChange("month")}
             >
               This Month
             </Button>
@@ -401,7 +408,7 @@ export function CardiacArrestSummary({
           total={total}
           limit={PAGE_SIZE}
           offset={offset}
-          onOffsetChange={setOffset}
+          onOffsetChange={handleOffsetChange}
         />
       )}
 

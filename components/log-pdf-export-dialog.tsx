@@ -231,6 +231,170 @@ async function readErrorMessage(res: Response): Promise<string> {
   }
 }
 
+function AvailabilityBanner({
+  label,
+  summary,
+  tone = "emerald",
+}: {
+  label: string
+  summary: string
+  tone?: "emerald" | "sky"
+}) {
+  const classes =
+    tone === "sky"
+      ? "border-sky-200 bg-sky-50 text-sky-800"
+      : "border-emerald-200 bg-emerald-50 text-emerald-800"
+
+  return (
+    <div className={cn("rounded border px-2 py-1 text-[11px]", classes)}>
+      {label}: <span className="font-medium">{summary}</span>
+    </div>
+  )
+}
+
+function DateRangeFields({
+  rangeInputClass,
+  dateFrom,
+  dateTo,
+  setDateFrom,
+  setDateTo,
+}: {
+  rangeInputClass: string
+  dateFrom: string
+  dateTo: string
+  setDateFrom: (value: string) => void
+  setDateTo: (value: string) => void
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <div className="space-y-1">
+        <Label className="text-xs">From</Label>
+        <Input type="date" className={rangeInputClass} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs">To</Label>
+        <Input type="date" className={rangeInputClass} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+      </div>
+    </div>
+  )
+}
+
+function MonthRangeFields({
+  rangeInputClass,
+  monthFrom,
+  monthTo,
+  setMonthFrom,
+  setMonthTo,
+}: {
+  rangeInputClass: string
+  monthFrom: string
+  monthTo: string
+  setMonthFrom: (value: string) => void
+  setMonthTo: (value: string) => void
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <div className="space-y-1">
+        <Label className="text-xs">From</Label>
+        <Input type="month" className={rangeInputClass} value={monthFrom} onChange={(e) => setMonthFrom(e.target.value)} />
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs">To</Label>
+        <Input type="month" className={rangeInputClass} value={monthTo} onChange={(e) => setMonthTo(e.target.value)} />
+      </div>
+    </div>
+  )
+}
+
+function YearRangeFields({
+  rangeInputClass,
+  yearFrom,
+  yearTo,
+  setYearFrom,
+  setYearTo,
+}: {
+  rangeInputClass: string
+  yearFrom: string
+  yearTo: string
+  setYearFrom: (value: string) => void
+  setYearTo: (value: string) => void
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <div className="space-y-1">
+        <Label className="text-xs">From</Label>
+        <Input type="number" className={rangeInputClass} value={yearFrom} onChange={(e) => setYearFrom(e.target.value)} />
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs">To</Label>
+        <Input type="number" className={rangeInputClass} value={yearTo} onChange={(e) => setYearTo(e.target.value)} />
+      </div>
+    </div>
+  )
+}
+
+function DailyRowDateFilter({
+  rangeInputClass,
+  dailyRowDateFrom,
+  dailyRowDateTo,
+  setDailyRowDateFrom,
+  setDailyRowDateTo,
+  availableSummary,
+  onUseAvailableRange,
+  onClear,
+}: {
+  rangeInputClass: string
+  dailyRowDateFrom: string
+  dailyRowDateTo: string
+  setDailyRowDateFrom: (value: string) => void
+  setDailyRowDateTo: (value: string) => void
+  availableSummary?: string
+  onUseAvailableRange: () => void
+  onClear: () => void
+}) {
+  return (
+    <div className="space-y-2 rounded border border-muted p-2">
+      <div className="space-y-0.5">
+        <p className="text-xs font-medium">Daily row date filter (optional)</p>
+        <p className="text-[11px] text-muted-foreground">
+          Filters daily columns/rows by actual date within the selected month sheets.
+        </p>
+      </div>
+      <DateRangeFields
+        rangeInputClass={rangeInputClass}
+        dateFrom={dailyRowDateFrom}
+        dateTo={dailyRowDateTo}
+        setDateFrom={setDailyRowDateFrom}
+        setDateTo={setDailyRowDateTo}
+      />
+      {availableSummary && (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-6 px-2 text-[11px]"
+            onClick={onUseAvailableRange}
+          >
+            Use Available Range
+          </Button>
+          {(dailyRowDateFrom || dailyRowDateTo) && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-[11px]"
+              onClick={onClear}
+            >
+              Clear date filter
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function LogPdfExportDialog({
   locationId,
   logType,
@@ -384,9 +548,9 @@ export function LogPdfExportDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle className="text-sm">Export PDF</DialogTitle>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-sm">Export PDF</DialogTitle>
           <DialogDescription className="text-xs">
             Export saved log data as a merged PDF using the paper form template.
           </DialogDescription>
@@ -394,127 +558,77 @@ export function LogPdfExportDialog({
 
         <div className="space-y-3">
           {rangeKind === "date" && (dateAvailability || hasAvailableDateRange) && (
-            <div className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] text-emerald-800">
-              Available saved dates:{" "}
-              <span className="font-medium">{dateAvailability?.summary ?? `${availableDateRange?.from ?? "?"} - ${availableDateRange?.to ?? "?"}`}</span>
-            </div>
+            <AvailabilityBanner
+              label="Available saved dates"
+              summary={dateAvailability?.summary ?? `${availableDateRange?.from ?? "?"} - ${availableDateRange?.to ?? "?"}`}
+            />
           )}
           {rangeKind === "month" && (monthAvailability || hasAvailableMonthRange) && (
-            <div className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] text-emerald-800">
-              Available saved months:{" "}
-              <span className="font-medium">{monthAvailability?.summary ?? `${availableMonthRange?.from ?? "?"} - ${availableMonthRange?.to ?? "?"}`}</span>
-            </div>
+            <AvailabilityBanner
+              label="Available saved months"
+              summary={monthAvailability?.summary ?? `${availableMonthRange?.from ?? "?"} - ${availableMonthRange?.to ?? "?"}`}
+            />
           )}
           {showDailyNarcoticCountDateFilter && dateAvailability && (
-            <div className="rounded border border-sky-200 bg-sky-50 px-2 py-1 text-[11px] text-sky-800">
-              Available saved daily dates:{" "}
-              <span className="font-medium">{dateAvailability.summary}</span>
-            </div>
+            <AvailabilityBanner
+              label="Available saved daily dates"
+              summary={dateAvailability.summary}
+              tone="sky"
+            />
           )}
           {rangeKind === "year" && (yearAvailability || hasAvailableYearRange) && (
-            <div className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] text-emerald-800">
-              Available saved years:{" "}
-              <span className="font-medium">{yearAvailability?.summary ?? `${availableYearRange?.from ?? "?"} - ${availableYearRange?.to ?? "?"}`}</span>
-            </div>
+            <AvailabilityBanner
+              label="Available saved years"
+              summary={yearAvailability?.summary ?? `${availableYearRange?.from ?? "?"} - ${availableYearRange?.to ?? "?"}`}
+            />
           )}
 
           <div className="space-y-1">
             <p className="text-xs font-medium">{rangeLabel}</p>
             {rangeKind === "date" && (
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">From</Label>
-                  <Input type="date" className={rangeInputClass} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">To</Label>
-                  <Input type="date" className={rangeInputClass} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-                </div>
-              </div>
+              <DateRangeFields
+                rangeInputClass={rangeInputClass}
+                dateFrom={dateFrom}
+                dateTo={dateTo}
+                setDateFrom={setDateFrom}
+                setDateTo={setDateTo}
+              />
             )}
             {rangeKind === "month" && (
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">From</Label>
-                  <Input type="month" className={rangeInputClass} value={monthFrom} onChange={(e) => setMonthFrom(e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">To</Label>
-                  <Input type="month" className={rangeInputClass} value={monthTo} onChange={(e) => setMonthTo(e.target.value)} />
-                </div>
-              </div>
+              <MonthRangeFields
+                rangeInputClass={rangeInputClass}
+                monthFrom={monthFrom}
+                monthTo={monthTo}
+                setMonthFrom={setMonthFrom}
+                setMonthTo={setMonthTo}
+              />
             )}
             {showDailyNarcoticCountDateFilter && (
-              <div className="space-y-2 rounded border border-muted p-2">
-                <div className="space-y-0.5">
-                  <p className="text-xs font-medium">Daily row date filter (optional)</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    Filters daily columns/rows by actual date within the selected month sheets.
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs">From date</Label>
-                    <Input
-                      type="date"
-                      className={rangeInputClass}
-                      value={dailyRowDateFrom}
-                      onChange={(e) => setDailyRowDateFrom(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">To date</Label>
-                    <Input
-                      type="date"
-                      className={rangeInputClass}
-                      value={dailyRowDateTo}
-                      onChange={(e) => setDailyRowDateTo(e.target.value)}
-                    />
-                  </div>
-                </div>
-                {dateAvailability && (
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 px-2 text-[11px]"
-                      onClick={() => {
-                        setDailyRowDateFrom(dateAvailability.min ?? "")
-                        setDailyRowDateTo(dateAvailability.max ?? "")
-                      }}
-                    >
-                      Use Available Range
-                    </Button>
-                    {(dailyRowDateFrom || dailyRowDateTo) && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="h-6 px-2 text-[11px]"
-                        onClick={() => {
-                          setDailyRowDateFrom("")
-                          setDailyRowDateTo("")
-                        }}
-                      >
-                        Clear date filter
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
+              <DailyRowDateFilter
+                rangeInputClass={rangeInputClass}
+                dailyRowDateFrom={dailyRowDateFrom}
+                dailyRowDateTo={dailyRowDateTo}
+                setDailyRowDateFrom={setDailyRowDateFrom}
+                setDailyRowDateTo={setDailyRowDateTo}
+                availableSummary={dateAvailability?.summary}
+                onUseAvailableRange={() => {
+                  setDailyRowDateFrom(dateAvailability?.min ?? "")
+                  setDailyRowDateTo(dateAvailability?.max ?? "")
+                }}
+                onClear={() => {
+                  setDailyRowDateFrom("")
+                  setDailyRowDateTo("")
+                }}
+              />
             )}
             {rangeKind === "year" && (
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">From</Label>
-                  <Input type="number" className={rangeInputClass} value={yearFrom} onChange={(e) => setYearFrom(e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">To</Label>
-                  <Input type="number" className={rangeInputClass} value={yearTo} onChange={(e) => setYearTo(e.target.value)} />
-                </div>
-              </div>
+              <YearRangeFields
+                rangeInputClass={rangeInputClass}
+                yearFrom={yearFrom}
+                yearTo={yearTo}
+                setYearFrom={setYearFrom}
+                setYearTo={setYearTo}
+              />
             )}
             {rangeKind === "date" && (dateAvailability || hasAvailableDateRange) && (
               <Button
