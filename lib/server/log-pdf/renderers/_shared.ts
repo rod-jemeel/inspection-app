@@ -59,6 +59,10 @@ export async function drawSignatureInBox(params: {
 }) {
   const asset = await params.renderCtx.signatureResolver.resolve(params.signatureValue)
   const image = await embedSignatureAsset(params.outDoc, asset)
+  if (!image) {
+    drawDebugBox(params.pageCtx, params.x, params.y, params.width, params.height)
+    return false
+  }
   drawImageBox(params.pageCtx, image, {
     x: params.x,
     y: params.y,
@@ -66,5 +70,5 @@ export async function drawSignatureInBox(params: {
     height: params.height,
   })
   drawDebugBox(params.pageCtx, params.x, params.y, params.width, params.height)
+  return true
 }
-
