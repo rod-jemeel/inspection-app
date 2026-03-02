@@ -89,6 +89,348 @@ interface TemplateDialogProps {
   binders?: { id: string; name: string }[]
 }
 
+function TemplateDialogTitle({
+  isEditing,
+  template,
+}: {
+  isEditing: boolean
+  template?: Template | null
+}) {
+  return (
+    <DialogTitle className="flex items-center gap-2">
+      {isEditing ? "Edit Template" : "New Template"}
+      {isEditing && template && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <Info className="size-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs text-xs">
+              <div className="space-y-1">
+                <p>
+                  <span className="font-medium">Created:</span>{" "}
+                  {new Date(template.created_at).toLocaleDateString()}{" "}
+                  {template.created_by_name && `by ${template.created_by_name}`}
+                </p>
+                {template.updated_at !== template.created_at && (
+                  <p>
+                    <span className="font-medium">Updated:</span>{" "}
+                    {new Date(template.updated_at).toLocaleDateString()}{" "}
+                    {template.updated_by_name && `by ${template.updated_by_name}`}
+                  </p>
+                )}
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+    </DialogTitle>
+  )
+}
+
+function TemplateBasicsFields({
+  task,
+  description,
+  frequency,
+  loading,
+  onTaskChange,
+  onDescriptionChange,
+  onFrequencyChange,
+}: {
+  task: string
+  description: string
+  frequency: string
+  loading: boolean
+  onTaskChange: (value: string) => void
+  onDescriptionChange: (value: string) => void
+  onFrequencyChange: (value: string) => void
+}) {
+  return (
+    <>
+      <Field>
+        <FieldLabel>Task Name</FieldLabel>
+        <Input
+          value={task}
+          onChange={(e) => onTaskChange(e.target.value)}
+          placeholder="e.g., Fire extinguisher check"
+          required
+          maxLength={255}
+          disabled={loading}
+          autoComplete="off"
+        />
+      </Field>
+
+      <Field>
+        <FieldLabel>Description</FieldLabel>
+        <Textarea
+          value={description}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+            onDescriptionChange(e.target.value)
+          }
+          placeholder="Detailed instructions..."
+          maxLength={2000}
+          rows={3}
+          disabled={loading}
+          className="rounded-md text-xs"
+          autoComplete="off"
+        />
+        <FieldDescription>Optional detailed instructions</FieldDescription>
+      </Field>
+
+      <Field>
+        <FieldLabel>Frequency</FieldLabel>
+        <Select
+          value={frequency}
+          onValueChange={(v) => v && onFrequencyChange(v)}
+          disabled={loading}
+        >
+          <SelectTrigger className="h-8 w-full text-xs">
+            <SelectValue placeholder="Select frequency" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="daily" className="text-xs">Daily</SelectItem>
+            <SelectItem value="weekly" className="text-xs">Weekly</SelectItem>
+            <SelectItem value="monthly" className="text-xs">Monthly</SelectItem>
+            <SelectItem value="quarterly" className="text-xs">Quarterly</SelectItem>
+            <SelectItem value="yearly" className="text-xs">Yearly</SelectItem>
+            <SelectItem value="every_3_years" className="text-xs">Every 3 Years</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+    </>
+  )
+}
+
+function TemplateDueRuleFields({
+  frequency,
+  loading,
+  dayOfWeek,
+  dayOfMonth,
+  month,
+  onDayOfWeekChange,
+  onDayOfMonthChange,
+  onMonthChange,
+}: {
+  frequency: string
+  loading: boolean
+  dayOfWeek: number
+  dayOfMonth: number
+  month: number
+  onDayOfWeekChange: (value: number) => void
+  onDayOfMonthChange: (value: number) => void
+  onMonthChange: (value: number) => void
+}) {
+  if (frequency === "weekly") {
+    return (
+      <Field>
+        <FieldLabel>Due Day</FieldLabel>
+        <Select
+          value={String(dayOfWeek)}
+          onValueChange={(v) => v && onDayOfWeekChange(Number(v))}
+          disabled={loading}
+        >
+          <SelectTrigger className="h-8 w-full text-xs">
+            <SelectValue placeholder="Select day" />
+          </SelectTrigger>
+          <SelectContent>
+            {DAYS_OF_WEEK.map((day) => (
+              <SelectItem key={day.value} value={String(day.value)} className="text-xs">
+                {day.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <FieldDescription>Which day of the week is this due?</FieldDescription>
+      </Field>
+    )
+  }
+
+  if (frequency === "monthly" || frequency === "quarterly") {
+    return (
+      <Field>
+        <FieldLabel>Due Day of Month</FieldLabel>
+        <Select
+          value={String(dayOfMonth)}
+          onValueChange={(v) => v && onDayOfMonthChange(Number(v))}
+          disabled={loading}
+        >
+          <SelectTrigger className="h-8 w-full text-xs">
+            <SelectValue placeholder="Select day" />
+          </SelectTrigger>
+          <SelectContent>
+            {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+              <SelectItem key={day} value={String(day)} className="text-xs">
+                {day}{day === 31 && " (or last day)"}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <FieldDescription>Which day of the month is this due?</FieldDescription>
+      </Field>
+    )
+  }
+
+  if (frequency === "yearly" || frequency === "every_3_years") {
+    return (
+      <div className="grid grid-cols-2 gap-3">
+        <Field>
+          <FieldLabel>Due Month</FieldLabel>
+          <Select
+            value={String(month)}
+            onValueChange={(v) => v && onMonthChange(Number(v))}
+            disabled={loading}
+          >
+            <SelectTrigger className="h-8 w-full text-xs">
+              <SelectValue placeholder="Select month" />
+            </SelectTrigger>
+            <SelectContent>
+              {MONTHS.map((item) => (
+                <SelectItem key={item.value} value={String(item.value)} className="text-xs">
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel>Due Day</FieldLabel>
+          <Select
+            value={String(dayOfMonth)}
+            onValueChange={(v) => v && onDayOfMonthChange(Number(v))}
+            disabled={loading}
+          >
+            <SelectTrigger className="h-8 w-full text-xs">
+              <SelectValue placeholder="Select day" />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                <SelectItem key={day} value={String(day)} className="text-xs">
+                  {day}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+    )
+  }
+
+  return null
+}
+
+function TemplateBinderFields({
+  binders,
+  filteredForms,
+  selectedBinderId,
+  formTemplateId,
+  loading,
+  onBinderChange,
+  onFormTemplateChange,
+}: {
+  binders?: { id: string; name: string }[]
+  filteredForms: { id: string; name: string; binder_id: string; binder_name: string }[]
+  selectedBinderId: string
+  formTemplateId: string
+  loading: boolean
+  onBinderChange: (value: string) => void
+  onFormTemplateChange: (value: string) => void
+}) {
+  if (!binders || binders.length === 0) return null
+
+  return (
+    <>
+      <Field>
+        <FieldLabel>Binder</FieldLabel>
+        <Select
+          value={selectedBinderId || "__none__"}
+          onValueChange={(value) => onBinderChange(value === "__none__" ? "" : value)}
+          disabled={loading}
+        >
+          <SelectTrigger className="h-8 w-full text-xs">
+            <SelectValue placeholder="Select a binder (optional)" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__" className="text-xs text-muted-foreground">
+              None
+            </SelectItem>
+            {binders.map((binder) => (
+              <SelectItem key={binder.id} value={binder.id} className="text-xs">
+                {binder.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <FieldDescription>
+          Associate this template with a binder
+        </FieldDescription>
+      </Field>
+
+      {selectedBinderId && filteredForms.length > 0 && (
+        <Field>
+          <FieldLabel>Linked Form</FieldLabel>
+          <Select
+            value={formTemplateId || "__none__"}
+            onValueChange={(value) => onFormTemplateChange(value === "__none__" ? "" : value)}
+            disabled={loading}
+          >
+            <SelectTrigger className="h-8 w-full text-xs">
+              <SelectValue placeholder="Select a form (optional)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__" className="text-xs text-muted-foreground">
+                None
+              </SelectItem>
+              {filteredForms.map((formTemplate) => (
+                <SelectItem key={formTemplate.id} value={formTemplate.id} className="text-xs">
+                  {formTemplate.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <FieldDescription>
+            Link a form to fill out during inspection
+          </FieldDescription>
+        </Field>
+      )}
+    </>
+  )
+}
+
+function TemplateActiveField({
+  isEditing,
+  active,
+  loading,
+  onActiveChange,
+}: {
+  isEditing: boolean
+  active: boolean
+  loading: boolean
+  onActiveChange: (value: boolean) => void
+}) {
+  if (!isEditing) return null
+
+  return (
+    <Field>
+      <div className="flex items-center justify-between">
+        <FieldLabel className="mb-0">Active</FieldLabel>
+        <Switch
+          checked={active}
+          onCheckedChange={onActiveChange}
+          disabled={loading}
+        />
+      </div>
+      <FieldDescription>
+        Inactive templates won&apos;t generate new inspection instances
+      </FieldDescription>
+    </Field>
+  )
+}
+
 export function TemplateDialog({
   open,
   onOpenChange,
@@ -230,259 +572,49 @@ export function TemplateDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {isEditing ? "Edit Template" : "New Template"}
-            {isEditing && template && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <Info className="size-4" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-xs text-xs">
-                    <div className="space-y-1">
-                      <p>
-                        <span className="font-medium">Created:</span>{" "}
-                        {new Date(template.created_at).toLocaleDateString()}{" "}
-                        {template.created_by_name && `by ${template.created_by_name}`}
-                      </p>
-                      {template.updated_at !== template.created_at && (
-                        <p>
-                          <span className="font-medium">Updated:</span>{" "}
-                          {new Date(template.updated_at).toLocaleDateString()}{" "}
-                          {template.updated_by_name && `by ${template.updated_by_name}`}
-                        </p>
-                      )}
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-          </DialogTitle>
+          <TemplateDialogTitle isEditing={isEditing} template={template} />
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Field>
-            <FieldLabel>Task Name</FieldLabel>
-            <Input
-              value={task}
-              onChange={(e) => setTask(e.target.value)}
-              placeholder="e.g., Fire extinguisher check"
-              required
-              maxLength={255}
-              disabled={loading}
-              autoComplete="off"
-            />
-          </Field>
+          <TemplateBasicsFields
+            task={task}
+            description={description}
+            frequency={frequency}
+            loading={loading}
+            onTaskChange={setTask}
+            onDescriptionChange={setDescription}
+            onFrequencyChange={setFrequency}
+          />
 
-          <Field>
-            <FieldLabel>Description</FieldLabel>
-            <Textarea
-              value={description}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                setDescription(e.target.value)
-              }
-              placeholder="Detailed instructions..."
-              maxLength={2000}
-              rows={3}
-              disabled={loading}
-              className="rounded-md text-xs"
-              autoComplete="off"
-            />
-            <FieldDescription>Optional detailed instructions</FieldDescription>
-          </Field>
+          <TemplateDueRuleFields
+            frequency={frequency}
+            loading={loading}
+            dayOfWeek={dayOfWeek}
+            dayOfMonth={dayOfMonth}
+            month={month}
+            onDayOfWeekChange={setDayOfWeek}
+            onDayOfMonthChange={setDayOfMonth}
+            onMonthChange={setMonth}
+          />
 
-          <Field>
-            <FieldLabel>Frequency</FieldLabel>
-            <Select
-              value={frequency}
-              onValueChange={(v) => v && setFrequency(v)}
-              disabled={loading}
-            >
-              <SelectTrigger className="h-8 text-xs w-full">
-                <SelectValue placeholder="Select frequency" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="daily" className="text-xs">Daily</SelectItem>
-                <SelectItem value="weekly" className="text-xs">Weekly</SelectItem>
-                <SelectItem value="monthly" className="text-xs">Monthly</SelectItem>
-                <SelectItem value="quarterly" className="text-xs">Quarterly</SelectItem>
-                <SelectItem value="yearly" className="text-xs">Yearly</SelectItem>
-                <SelectItem value="every_3_years" className="text-xs">Every 3 Years</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
+          <TemplateBinderFields
+            binders={binders}
+            filteredForms={filteredForms}
+            selectedBinderId={selectedBinderId}
+            formTemplateId={formTemplateId}
+            loading={loading}
+            onBinderChange={(value) => {
+              setSelectedBinderId(value)
+              setFormTemplateId("")
+            }}
+            onFormTemplateChange={setFormTemplateId}
+          />
 
-          {/* Due Rule Fields - conditional based on frequency */}
-          {frequency === "weekly" && (
-            <Field>
-              <FieldLabel>Due Day</FieldLabel>
-              <Select
-                value={String(dayOfWeek)}
-                onValueChange={(v) => v && setDayOfWeek(Number(v))}
-                disabled={loading}
-              >
-                <SelectTrigger className="h-8 text-xs w-full">
-                  <SelectValue placeholder="Select day" />
-                </SelectTrigger>
-                <SelectContent>
-                  {DAYS_OF_WEEK.map((day) => (
-                    <SelectItem key={day.value} value={String(day.value)} className="text-xs">
-                      {day.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FieldDescription>Which day of the week is this due?</FieldDescription>
-            </Field>
-          )}
-
-          {(frequency === "monthly" || frequency === "quarterly") && (
-            <Field>
-              <FieldLabel>Due Day of Month</FieldLabel>
-              <Select
-                value={String(dayOfMonth)}
-                onValueChange={(v) => v && setDayOfMonth(Number(v))}
-                disabled={loading}
-              >
-                <SelectTrigger className="h-8 text-xs w-full">
-                  <SelectValue placeholder="Select day" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                    <SelectItem key={day} value={String(day)} className="text-xs">
-                      {day}{day === 31 && " (or last day)"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FieldDescription>Which day of the month is this due?</FieldDescription>
-            </Field>
-          )}
-
-          {(frequency === "yearly" || frequency === "every_3_years") && (
-            <div className="grid grid-cols-2 gap-3">
-              <Field>
-                <FieldLabel>Due Month</FieldLabel>
-                <Select
-                  value={String(month)}
-                  onValueChange={(v) => v && setMonth(Number(v))}
-                  disabled={loading}
-                >
-                  <SelectTrigger className="h-8 text-xs w-full">
-                    <SelectValue placeholder="Select month" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MONTHS.map((m) => (
-                      <SelectItem key={m.value} value={String(m.value)} className="text-xs">
-                        {m.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel>Due Day</FieldLabel>
-                <Select
-                  value={String(dayOfMonth)}
-                  onValueChange={(v) => v && setDayOfMonth(Number(v))}
-                  disabled={loading}
-                >
-                  <SelectTrigger className="h-8 text-xs w-full">
-                    <SelectValue placeholder="Select day" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                      <SelectItem key={day} value={String(day)} className="text-xs">
-                        {day}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-          )}
-
-          {binders && binders.length > 0 && (
-            <>
-              <Field>
-                <FieldLabel>Binder</FieldLabel>
-                <Select
-                  value={selectedBinderId || "__none__"}
-                  onValueChange={(v) => {
-                    const newBinderId = v === "__none__" ? "" : v
-                    setSelectedBinderId(newBinderId)
-                    setFormTemplateId("") // Reset form when binder changes
-                  }}
-                  disabled={loading}
-                >
-                  <SelectTrigger className="h-8 text-xs w-full">
-                    <SelectValue placeholder="Select a binder (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__" className="text-xs text-muted-foreground">
-                      None
-                    </SelectItem>
-                    {binders.map((b) => (
-                      <SelectItem key={b.id} value={b.id} className="text-xs">
-                        {b.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FieldDescription>
-                  Associate this template with a binder
-                </FieldDescription>
-              </Field>
-
-              {selectedBinderId && filteredForms.length > 0 && (
-                <Field>
-                  <FieldLabel>Linked Form</FieldLabel>
-                  <Select
-                    value={formTemplateId || "__none__"}
-                    onValueChange={(v) => setFormTemplateId(v === "__none__" ? "" : v)}
-                    disabled={loading}
-                  >
-                    <SelectTrigger className="h-8 text-xs w-full">
-                      <SelectValue placeholder="Select a form (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__" className="text-xs text-muted-foreground">
-                        None
-                      </SelectItem>
-                      {filteredForms.map((ft) => (
-                        <SelectItem key={ft.id} value={ft.id} className="text-xs">
-                          {ft.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FieldDescription>
-                    Link a form to fill out during inspection
-                  </FieldDescription>
-                </Field>
-              )}
-            </>
-          )}
-
-          {isEditing && (
-            <Field>
-              <div className="flex items-center justify-between">
-                <FieldLabel className="mb-0">Active</FieldLabel>
-                <Switch
-                  checked={active}
-                  onCheckedChange={setActive}
-                  disabled={loading}
-                />
-              </div>
-              <FieldDescription>
-                Inactive templates won&apos;t generate new inspection instances
-              </FieldDescription>
-            </Field>
-          )}
+          <TemplateActiveField
+            isEditing={isEditing}
+            active={active}
+            loading={loading}
+            onActiveChange={setActive}
+          />
 
           {error && <FieldError>{error}</FieldError>}
 

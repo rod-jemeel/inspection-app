@@ -32,6 +32,111 @@ interface InitialsStampCellProps {
   onClear: () => void
 }
 
+function StampActionButton({
+  title,
+  onClick,
+  disabled,
+  destructive = false,
+  children,
+}: {
+  title: string
+  onClick: () => void
+  disabled?: boolean
+  destructive?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center justify-center rounded text-muted-foreground transition-colors touch-manipulation",
+        "size-5 md:size-6",
+        destructive
+          ? "hover:bg-destructive/10 hover:text-destructive"
+          : "hover:bg-muted/30 hover:text-foreground"
+      )}
+      title={title}
+      disabled={disabled}
+    >
+      {children}
+    </button>
+  )
+}
+
+function StampValueView({
+  value,
+  slotLabel,
+  audit,
+  disabled,
+  isLegacyStamp,
+  onViewAudit,
+  onClear,
+}: {
+  value: string
+  slotLabel: string
+  audit?: InitialsAudit | null
+  disabled?: boolean
+  isLegacyStamp: boolean
+  onViewAudit: () => void
+  onClear: () => void
+}) {
+  return (
+    <>
+      <span
+        className="select-none text-[11px] font-medium leading-none md:text-xs"
+        title={isLegacyStamp ? `${slotLabel} (legacy stamp, no audit)` : slotLabel}
+      >
+        {value}
+      </span>
+      {audit && (
+        <StampActionButton
+          title={`View ${slotLabel} audit`}
+          onClick={onViewAudit}
+          disabled={disabled && !audit}
+        >
+          <Eye className="size-3 md:size-3.5" />
+        </StampActionButton>
+      )}
+      {!disabled && (
+        <StampActionButton
+          title={`Clear ${slotLabel}`}
+          onClick={onClear}
+          destructive
+        >
+          <X className="size-3 md:size-3.5" />
+        </StampActionButton>
+      )}
+    </>
+  )
+}
+
+function EmptyStampButton({
+  slotLabel,
+  processing,
+  onClick,
+}: {
+  slotLabel: string
+  processing: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex size-6 touch-manipulation items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground md:size-7"
+      title={`Sign to stamp ${slotLabel}`}
+      disabled={processing}
+    >
+      {processing ? (
+        <Loader2 className="size-3.5 animate-spin md:size-4" />
+      ) : (
+        <PenLine className="size-3.5 md:size-4" />
+      )}
+    </button>
+  )
+}
+
 export function InitialsStampCell({
   value,
   audit,
@@ -104,49 +209,21 @@ export function InitialsStampCell({
         )}
       >
         {hasValue ? (
-          <>
-            <span
-              className="select-none text-[11px] md:text-xs font-medium leading-none"
-              title={isLegacyStamp ? `${slotLabel} (legacy stamp, no audit)` : slotLabel}
-            >
-              {value}
-            </span>
-            {audit && (
-              <button
-                type="button"
-                onClick={() => setViewingAudit(true)}
-                className="inline-flex size-5 md:size-6 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors touch-manipulation"
-                title={`View ${slotLabel} audit`}
-                disabled={disabled && !audit}
-              >
-                <Eye className="size-3 md:size-3.5" />
-              </button>
-            )}
-            {!disabled && (
-              <button
-                type="button"
-                onClick={onClear}
-                className="inline-flex size-5 md:size-6 items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors touch-manipulation"
-                title={`Clear ${slotLabel}`}
-              >
-                <X className="size-3 md:size-3.5" />
-              </button>
-            )}
-          </>
+          <StampValueView
+            value={value}
+            slotLabel={slotLabel}
+            audit={audit}
+            disabled={disabled}
+            isLegacyStamp={isLegacyStamp}
+            onViewAudit={() => setViewingAudit(true)}
+            onClear={onClear}
+          />
         ) : !disabled ? (
-          <button
-            type="button"
+          <EmptyStampButton
+            slotLabel={slotLabel}
+            processing={processing}
             onClick={() => setSigning(true)}
-            className="inline-flex size-6 md:size-7 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors touch-manipulation"
-            title={`Sign to stamp ${slotLabel}`}
-            disabled={processing}
-          >
-            {processing ? (
-              <Loader2 className="size-3.5 md:size-4 animate-spin" />
-            ) : (
-              <PenLine className="size-3.5 md:size-4" />
-            )}
-          </button>
+          />
         ) : (
           <div className="h-6" />
         )}
