@@ -267,7 +267,7 @@ export const inventoryRenderer: RecordRenderer<InventoryRenderJob<InventoryLogDa
         })
 
         // RN cell (signature first, fallback to printed name)
-        await drawSignatureInBox({
+        const drewRnSignature = await drawSignatureInBox({
           outDoc: doc,
           renderCtx,
           signatureValue: row.rn_sig as string | null | undefined,
@@ -277,14 +277,14 @@ export const inventoryRenderer: RecordRenderer<InventoryRenderJob<InventoryLogDa
           width: COLUMNS[7].width - 8,
           height: rowH - 14,
         })
-        if (!row.rn_sig && row.rn_name) {
+        if (!drewRnSignature && row.rn_name) {
           drawText(ctx, row.rn_name, {
             x: xs[7] + 4, y: top + 27, width: COLUMNS[7].width - 8, font, size: 8, align: "center", maxLength: 22,
           })
         }
 
         // Witness cell (signature first, fallback to printed name)
-        await drawSignatureInBox({
+        const drewWitnessSignature = await drawSignatureInBox({
           outDoc: doc,
           renderCtx,
           signatureValue: row.witness_sig as string | null | undefined,
@@ -294,7 +294,7 @@ export const inventoryRenderer: RecordRenderer<InventoryRenderJob<InventoryLogDa
           width: COLUMNS[8].width - 8,
           height: rowH - 14,
         })
-        if (!row.witness_sig && row.witness_name) {
+        if (!drewWitnessSignature && row.witness_name) {
           drawText(ctx, row.witness_name, {
             x: xs[8] + 4, y: top + 27, width: COLUMNS[8].width - 8, font, size: 8, align: "center", maxLength: 22,
           })

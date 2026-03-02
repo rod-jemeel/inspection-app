@@ -64,8 +64,7 @@ export function createSignatureResolver(): SignatureResolver {
       if (!value || typeof value !== "object") return null
       const sig = (value as { sig?: unknown }).sig
       if (typeof sig !== "string") return null
-      return sig.startsWith("data:image/") ? parseDataUrl(sig) : null
+      return sig.startsWith("data:image/") ? parseDataUrl(sig) : resolveStoragePath(sig)
     },
   }
 }
-

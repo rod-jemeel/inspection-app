@@ -24,7 +24,6 @@ import type {
   InventoryRow,
 } from "@/lib/validations/log-entry";
 
-// Helper: Date object → YYYY-MM-DD string (local timezone)
 function toDateStr(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -37,7 +36,6 @@ interface InventoryTableProps {
   onChange: (data: InventoryLogData) => void;
   locationId: string;
   disabled?: boolean;
-  /** Rows with index < lockedRowCount are read-only (already saved) */
   lockedRowCount?: number;
   dateRange?: DateRange;
   isDraft?: boolean;
@@ -59,10 +57,6 @@ function emptyRow(): InventoryRow {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Shared cell style constants (matches narcotic-table.tsx exactly)
-// ---------------------------------------------------------------------------
-
 const B = "border border-foreground/25";
 const HDR = `${B} bg-muted/30 px-2 py-2 text-xs font-semibold text-center`;
 const CELL = `${B} px-1.5 py-1.5`;
@@ -72,17 +66,404 @@ const NUM =
 const TXT =
   "h-8 md:h-9 w-full text-xs border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-ring";
 
-// Parse vial volume from size_qty string (e.g., "2mL vials" → 2)
 function parseVialVolume(sizeQty: string): number | null {
   const match = sizeQty.match(/([\d.]+)\s*m[lL]/i);
   return match ? parseFloat(match[1]) : null;
 }
 
-// Calculate waste: if 5mL used and vials are 2mL each, need 3 vials (6mL), waste = 1mL
 function computeWaste(amtUsed: number, vialVol: number): number {
   if (amtUsed <= 0 || vialVol <= 0) return 0;
   const vialsNeeded = Math.ceil(amtUsed / vialVol);
   return +(vialsNeeded * vialVol - amtUsed).toFixed(2);
+}
+
+function InventoryTableHeader({
+  data,
+  disabled,
+  onUpdateHeader,
+  showDeleteColumn,
+}: {
+  data: InventoryLogData;
+  disabled?: boolean;
+  onUpdateHeader: <K extends keyof InventoryLogData>(
+    field: K,
+    value: InventoryLogData[K],
+  ) => void;
+  showDeleteColumn: boolean;
+}) {
+  return (
+    <thead>
+      <tr>
+        <th className={cn(HDR, "w-[100px] xl:w-[140px]")}>Drug Name</th>
+        <td className={cn(CELL, "min-w-[140px] xl:min-w-[200px]")} colSpan={3}>
+          <Input
+            className={TXT}
+            value={data.drug_name}
+            onChange={(e) => onUpdateHeader("drug_name", e.target.value)}
+            placeholder="Drug name"
+            disabled={disabled}
+          />
+        </td>
+        <th className={cn(HDR, "w-[70px] xl:w-[100px]")}>Strength</th>
+        <td className={cn(CELL, "min-w-[80px] xl:min-w-[120px]")} colSpan={2}>
+          <Input
+            className={TXT}
+            value={data.strength}
+            onChange={(e) => onUpdateHeader("strength", e.target.value)}
+            placeholder="e.g., 5mg/mL"
+            disabled={disabled}
+          />
+        </td>
+        <th className={cn(HDR, "w-[70px] xl:w-[100px]")}>Size / Qty</th>
+        <td className={cn(CELL, "min-w-[80px] xl:min-w-[120px]")}>
+          <Input
+            className={TXT}
+            value={data.size_qty}
+            onChange={(e) => onUpdateHeader("size_qty", e.target.value)}
+            placeholder="e.g., 2mL vials"
+            disabled={disabled}
+          />
+        </td>
+      </tr>
+      <tr>
+        <th className={cn(HDR, "w-[100px] xl:w-[150px]")}>Date</th>
+        <th className={cn(HDR, "min-w-[120px] xl:min-w-[200px]")}>MD/CRNA or Patient</th>
+        <th className={cn(HDR, "w-[160px] xl:w-[300px]")}>Transaction</th>
+        <th className={cn(HDR, "w-[80px] xl:w-[110px]", GREY)}>Qty in Stock</th>
+        <th className={cn(HDR, "w-[70px] xl:w-[100px]")}>Amt Ordered</th>
+        <th className={cn(HDR, "w-[70px] xl:w-[100px]")}>Amt Used</th>
+        <th className={cn(HDR, "w-[70px] xl:w-[100px]")}>Amt Wasted</th>
+        <th className={cn(HDR, "w-[140px] xl:w-[200px]")}>RN Signature</th>
+        <th className={cn(HDR, "w-[140px] xl:w-[200px]")}>Witness</th>
+        {showDeleteColumn && <th className={cn(B, "w-[36px] bg-muted/30")} />}
+      </tr>
+    </thead>
+  );
+}
+
+function InventoryDateCell({
+  row,
+  rowIndex,
+  isLocked,
+  isDraft,
+  onUpdateRow,
+}: {
+  row: InventoryRow;
+  rowIndex: number;
+  isLocked: boolean;
+  isDraft?: boolean;
+  onUpdateRow: (index: number, updates: Partial<InventoryRow>) => void;
+}) {
+  return (
+    <td className={cn(CELL, isDraft && row.date && "bg-yellow-50")}>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            disabled={isLocked}
+            className={cn(
+              "flex h-8 md:h-9 w-full items-center justify-center gap-1 text-xs",
+              !row.date && "text-muted-foreground",
+            )}
+          >
+            {row.date ? row.date : <CalendarIcon className="size-3.5 text-muted-foreground/40" />}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            captionLayout="dropdown"
+            startMonth={new Date(2020, 0, 1)}
+            endMonth={new Date(2035, 11, 1)}
+            selected={row.date ? parseInventoryDate(row.date) ?? undefined : undefined}
+            onSelect={(d) => {
+              if (d) {
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, "0");
+                const day = String(d.getDate()).padStart(2, "0");
+                onUpdateRow(rowIndex, { date: `${y}-${m}-${day}` });
+              }
+            }}
+            initialFocus
+          />
+        </PopoverContent>
+      </Popover>
+    </td>
+  );
+}
+
+function InventoryStockCell({
+  row,
+  rowIndex,
+  isLocked,
+  isDraft,
+  initialStock,
+  runningStock,
+  onUpdateHeader,
+  onUpdateRow,
+}: {
+  row: InventoryRow;
+  rowIndex: number;
+  isLocked: boolean;
+  isDraft?: boolean;
+  initialStock: number | null;
+  runningStock: { before: number; after: number };
+  onUpdateHeader: <K extends keyof InventoryLogData>(
+    field: K,
+    value: InventoryLogData[K],
+  ) => void;
+  onUpdateRow: (index: number, updates: Partial<InventoryRow>) => void;
+}) {
+  return (
+    <td className={cn(CELL, GREY, "relative p-0", isDraft && row.qty_in_stock !== null && "bg-yellow-50")}>
+      <div className="relative flex h-12 w-full flex-col items-center justify-between overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 z-0">
+          <svg className="h-full w-full" preserveAspectRatio="none">
+            <line
+              x1="100%"
+              y1="0"
+              x2="0"
+              y2="100%"
+              stroke="currentColor"
+              className="text-foreground/20"
+              strokeWidth="1"
+            />
+          </svg>
+        </div>
+        {rowIndex === 0 ? (
+          <input
+            type="number"
+            className="relative z-10 w-[50px] self-start bg-transparent pl-1 pt-0.5 text-[11px] tabular-nums text-muted-foreground outline-none placeholder:text-muted-foreground/40 focus:ring-1 focus:ring-ring [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            value={initialStock ?? ""}
+            placeholder="Qty"
+            onChange={(e) =>
+              onUpdateHeader("initial_stock", e.target.value === "" ? null : Number(e.target.value))
+            }
+            disabled={isLocked}
+          />
+        ) : (
+          <span className="relative z-10 self-start pl-1 pt-0.5 text-[10px] tabular-nums text-muted-foreground">
+            {runningStock.before}
+          </span>
+        )}
+        <input
+          type="number"
+          className="relative z-10 w-[50px] self-end bg-transparent pb-0.5 pr-1 text-right text-[11px] tabular-nums font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground focus:ring-1 focus:ring-ring [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          value={row.qty_in_stock ?? ""}
+          placeholder={String(runningStock.after)}
+          onChange={(e) =>
+            onUpdateRow(rowIndex, {
+              qty_in_stock: e.target.value === "" ? null : Number(e.target.value),
+            })
+          }
+          disabled={isLocked}
+        />
+      </div>
+    </td>
+  );
+}
+
+function InventorySignaturePair({
+  row,
+  rowIndex,
+  locationId,
+  isLocked,
+  isDraft,
+  defaultSignerName,
+  onUpdateRow,
+}: {
+  row: InventoryRow;
+  rowIndex: number;
+  locationId: string;
+  isLocked: boolean;
+  isDraft?: boolean;
+  defaultSignerName?: string;
+  onUpdateRow: (index: number, updates: Partial<InventoryRow>) => void;
+}) {
+  return (
+    <>
+      <td className={cn(CELL, isDraft && row.rn_sig && "bg-yellow-50")}>
+        <SignatureCell
+          value={row.rn_sig}
+          onChange={() => {}}
+          signerName={row.rn_name}
+          locationId={locationId}
+          disabled={isLocked}
+          className="h-10"
+          defaultSignerName={defaultSignerName}
+          onSignedMetaChange={(meta) =>
+            onUpdateRow(rowIndex, {
+              rn_sig: meta?.signatureBase64 ?? null,
+              rn_name: meta?.signerName ?? "",
+            })
+          }
+        />
+      </td>
+      <td className={cn(CELL, isDraft && row.witness_sig && "bg-yellow-50")}>
+        <SignatureCell
+          value={row.witness_sig}
+          onChange={() => {}}
+          signerName={row.witness_name}
+          locationId={locationId}
+          disabled={isLocked}
+          className="h-10"
+          defaultSignerName={defaultSignerName}
+          onSignedMetaChange={(meta) =>
+            onUpdateRow(rowIndex, {
+              witness_sig: meta?.signatureBase64 ?? null,
+              witness_name: meta?.signerName ?? "",
+            })
+          }
+        />
+      </td>
+    </>
+  );
+}
+
+function InventoryTableRow({
+  row,
+  rowIndex,
+  locationId,
+  isLocked,
+  isDraft,
+  vialVolume,
+  runningStock,
+  initialStock,
+  defaultSignerName,
+  showDeleteColumn,
+  canDelete,
+  onUpdateHeader,
+  onUpdateRow,
+  onAmtUsedChange,
+  onRemoveRow,
+}: {
+  row: InventoryRow;
+  rowIndex: number;
+  locationId: string;
+  isLocked: boolean;
+  isDraft?: boolean;
+  vialVolume: number | null;
+  runningStock: { before: number; after: number };
+  initialStock: number | null;
+  defaultSignerName?: string;
+  showDeleteColumn: boolean;
+  canDelete: boolean;
+  onUpdateHeader: <K extends keyof InventoryLogData>(
+    field: K,
+    value: InventoryLogData[K],
+  ) => void;
+  onUpdateRow: (index: number, updates: Partial<InventoryRow>) => void;
+  onAmtUsedChange: (index: number, raw: string) => void;
+  onRemoveRow: (index: number) => void;
+}) {
+  return (
+    <tr className={cn(rowIndex % 2 === 1 ? "bg-muted/5" : "", isLocked && "bg-muted/10")}>
+      <InventoryDateCell
+        row={row}
+        rowIndex={rowIndex}
+        isLocked={isLocked}
+        isDraft={isDraft}
+        onUpdateRow={onUpdateRow}
+      />
+      <td className={cn(CELL, isDraft && row.patient_name && "bg-yellow-50")}>
+        <Input
+          className={TXT}
+          value={row.patient_name}
+          onChange={(e) => onUpdateRow(rowIndex, { patient_name: e.target.value })}
+          placeholder=""
+          disabled={isLocked}
+        />
+      </td>
+      <td className={cn(CELL, isDraft && row.transaction && "bg-yellow-50")}>
+        <Input
+          className={TXT}
+          value={row.transaction}
+          onChange={(e) => onUpdateRow(rowIndex, { transaction: e.target.value })}
+          placeholder=""
+          disabled={isLocked}
+        />
+      </td>
+      <InventoryStockCell
+        row={row}
+        rowIndex={rowIndex}
+        isLocked={isLocked}
+        isDraft={isDraft}
+        initialStock={initialStock}
+        runningStock={runningStock}
+        onUpdateHeader={onUpdateHeader}
+        onUpdateRow={onUpdateRow}
+      />
+      <td className={cn(CELL, isDraft && row.amt_ordered !== null && "bg-yellow-50")}>
+        <Input
+          type="number"
+          className={NUM}
+          value={row.amt_ordered ?? ""}
+          onChange={(e) =>
+            onUpdateRow(rowIndex, {
+              amt_ordered: e.target.value === "" ? null : Number(e.target.value),
+            })
+          }
+          placeholder="-"
+          disabled={isLocked}
+        />
+      </td>
+      <td className={cn(CELL, isDraft && row.amt_used !== null && "bg-yellow-50")}>
+        <Input
+          type="number"
+          className={NUM}
+          value={row.amt_used ?? ""}
+          onChange={(e) => onAmtUsedChange(rowIndex, e.target.value)}
+          placeholder="-"
+          disabled={isLocked}
+        />
+      </td>
+      <td className={cn(CELL, isDraft && row.amt_wasted !== null && "bg-yellow-50")}>
+        <Input
+          type="number"
+          className={NUM}
+          value={row.amt_wasted ?? ""}
+          onChange={(e) =>
+            onUpdateRow(rowIndex, {
+              amt_wasted: e.target.value === "" ? null : Number(e.target.value),
+            })
+          }
+          placeholder={
+            vialVolume && row.amt_used !== null && row.amt_used > 0
+              ? String(computeWaste(row.amt_used, vialVolume))
+              : "-"
+          }
+          disabled={isLocked}
+        />
+      </td>
+      <InventorySignaturePair
+        row={row}
+        rowIndex={rowIndex}
+        locationId={locationId}
+        isLocked={isLocked}
+        isDraft={isDraft}
+        defaultSignerName={defaultSignerName}
+        onUpdateRow={onUpdateRow}
+      />
+      {showDeleteColumn && (
+        <td className={cn(B, "px-1 py-1 text-center")}>
+          {!canDelete ? (
+            <span className="inline-flex size-6 items-center justify-center">
+              <Lock className="size-3 text-muted-foreground/40" />
+            </span>
+          ) : (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-6"
+              onClick={() => onRemoveRow(rowIndex)}
+            >
+              <Trash2 className="size-3 text-muted-foreground" />
+            </Button>
+          )}
+        </td>
+      )}
+    </tr>
+  );
 }
 
 export function InventoryTable({
@@ -94,7 +475,7 @@ export function InventoryTable({
   dateRange,
   isDraft,
 }: InventoryTableProps) {
-  const { profile: myProfile } = useMySignature()
+  const { profile: myProfile } = useMySignature();
   const nextRowRenderKeyRef = useRef(data.rows.length);
   const [rowRenderKeys, setRowRenderKeys] = useState<string[]>(
     () => data.rows.map((_, index) => `inventory-row-${index}`),
@@ -113,10 +494,7 @@ export function InventoryTable({
     });
   }, [data.rows.length]);
 
-  const vialVolume = useMemo(
-    () => parseVialVolume(data.size_qty),
-    [data.size_qty],
-  );
+  const vialVolume = useMemo(() => parseVialVolume(data.size_qty), [data.size_qty]);
 
   function updateHeader<K extends keyof InventoryLogData>(
     field: K,
@@ -131,17 +509,12 @@ export function InventoryTable({
     onChange({ ...data, rows });
   }
 
-  // When amt_used changes, auto-fill waste if vial volume is known
   function handleAmtUsedChange(index: number, raw: string) {
     const amtUsed = raw === "" ? null : Number(raw);
     const updates: Partial<InventoryRow> = { amt_used: amtUsed };
-    // Auto-calculate waste only if user hasn't manually set it
-    if (vialVolume && amtUsed !== null && amtUsed > 0) {
+    if (vialVolume && amtUsed !== null && amtUsed > 0 && data.rows[index].amt_wasted === null) {
       const autoWaste = computeWaste(amtUsed, vialVolume);
-      // Only auto-fill if current waste is null (not manually overridden)
-      if (data.rows[index].amt_wasted === null) {
-        updates.amt_wasted = autoWaste > 0 ? autoWaste : null;
-      }
+      updates.amt_wasted = autoWaste > 0 ? autoWaste : null;
     }
     updateRow(index, updates);
   }
@@ -153,28 +526,20 @@ export function InventoryTable({
   }
 
   function removeRow(index: number) {
-    if (data.rows.length <= 1) return;
-    if (index < lockedRowCount) return; // can't delete saved rows
+    if (data.rows.length <= 1 || index < lockedRowCount) return;
     setRowRenderKeys((current) => current.filter((_, i) => i !== index));
-    const rows = data.rows.filter((_, i) => i !== index);
-    onChange({ ...data, rows });
+    onChange({ ...data, rows: data.rows.filter((_, i) => i !== index) });
   }
 
-  const runningStock = useMemo(() => {
-    return computeInventoryRunningStock(data);
-  }, [data]);
-
-  // Derive string boundaries from dateRange for filtering
+  const runningStock = useMemo(() => computeInventoryRunningStock(data), [data]);
   const dateFrom = dateRange?.from ? toDateStr(dateRange.from) : "";
   const dateTo = dateRange?.to ? toDateStr(dateRange.to) : "";
 
-  // Filter which rows to display based on date range
   const filteredIndices = useMemo(() => {
     const indices: number[] = [];
     for (let i = 0; i < data.rows.length; i++) {
       const rowDate = data.rows[i].date;
       if (!rowDate) {
-        // Always show rows without dates (they're being filled)
         indices.push(i);
         continue;
       }
@@ -192,299 +557,44 @@ export function InventoryTable({
 
   return (
     <div className="space-y-3">
-      {/* Combined ledger table (header + rows) */}
       <div className="max-w-full overflow-x-auto">
         <table className="w-full border-collapse">
-          {/* Drug info header */}
-          <thead>
-            <tr>
-              <th className={cn(HDR, "w-[100px] xl:w-[140px]")} colSpan={1}>
-                Drug Name
-              </th>
-              <td className={cn(CELL, "min-w-[140px] xl:min-w-[200px]")} colSpan={3}>
-                <Input
-                  className={TXT}
-                  value={data.drug_name}
-                  onChange={(e) => updateHeader("drug_name", e.target.value)}
-                  placeholder="Drug name"
-                  disabled={disabled}
-                />
-              </td>
-              <th className={cn(HDR, "w-[70px] xl:w-[100px]")}>Strength</th>
-              <td className={cn(CELL, "min-w-[80px] xl:min-w-[120px]")} colSpan={2}>
-                <Input
-                  className={TXT}
-                  value={data.strength}
-                  onChange={(e) => updateHeader("strength", e.target.value)}
-                  placeholder="e.g., 5mg/mL"
-                  disabled={disabled}
-                />
-              </td>
-              <th className={cn(HDR, "w-[70px] xl:w-[100px]")}>Size / Qty</th>
-              <td className={cn(CELL, "min-w-[80px] xl:min-w-[120px]")}>
-                <Input
-                  className={TXT}
-                  value={data.size_qty}
-                  onChange={(e) => updateHeader("size_qty", e.target.value)}
-                  placeholder="e.g., 2mL vials"
-                  disabled={disabled}
-                />
-              </td>
-            </tr>
-            {/* Column headers */}
-            <tr>
-              <th className={cn(HDR, "w-[100px] xl:w-[150px]")}>Date</th>
-              <th className={cn(HDR, "min-w-[120px] xl:min-w-[200px]")}>MD/CRNA or Patient</th>
-              <th className={cn(HDR, "w-[160px] xl:w-[300px]")}>Transaction</th>
-              <th className={cn(HDR, "w-[80px] xl:w-[110px]", GREY)}>Qty in Stock</th>
-              <th className={cn(HDR, "w-[70px] xl:w-[100px]")}>Amt Ordered</th>
-              <th className={cn(HDR, "w-[70px] xl:w-[100px]")}>Amt Used</th>
-              <th className={cn(HDR, "w-[70px] xl:w-[100px]")}>Amt Wasted</th>
-              <th className={cn(HDR, "w-[140px] xl:w-[200px]")}>RN Signature</th>
-              <th className={cn(HDR, "w-[140px] xl:w-[200px]")}>Witness</th>
-              {!disabled && <th className={cn(B, "w-[36px] bg-muted/30")} />}
-            </tr>
-          </thead>
+          <InventoryTableHeader
+            data={data}
+            disabled={disabled}
+            onUpdateHeader={updateHeader}
+            showDeleteColumn={!disabled}
+          />
           <tbody>
-            {filteredIndices.map((i) => {
-              const row = data.rows[i];
-              const isLocked = disabled || i < lockedRowCount;
+            {filteredIndices.map((index) => {
+              const row = data.rows[index];
+              const isLocked = !!disabled || index < lockedRowCount;
+
               return (
-                <tr
-                  key={rowRenderKeys[i] ?? `inventory-row-fallback-${i}`}
-                  className={cn(i % 2 === 1 ? "bg-muted/5" : "", isLocked && !disabled && "bg-muted/10")}
-                >
-                {/* Date */}
-                <td className={cn(CELL, isDraft && row.date && "bg-yellow-50")}>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <button
-                        type="button"
-                        disabled={isLocked}
-                        className={cn(
-                          "flex h-8 md:h-9 w-full items-center justify-center gap-1 text-xs",
-                          !row.date && "text-muted-foreground",
-                        )}
-                      >
-                        {row.date ? (
-                          row.date
-                        ) : (
-                          <CalendarIcon className="size-3.5 text-muted-foreground/40" />
-                        )}
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        captionLayout="dropdown"
-                        startMonth={new Date(2020, 0, 1)}
-                        endMonth={new Date(2035, 11, 1)}
-                        selected={
-                          row.date ? parseInventoryDate(row.date) ?? undefined : undefined
-                        }
-                        onSelect={(d) => {
-                          if (d) {
-                            const y = d.getFullYear();
-                            const m = String(d.getMonth() + 1).padStart(2, "0");
-                            const day = String(d.getDate()).padStart(2, "0");
-                            updateRow(i, { date: `${y}-${m}-${day}` });
-                          }
-                        }}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </td>
-
-                {/* Patient / MD name */}
-                <td className={cn(CELL, isDraft && row.patient_name && "bg-yellow-50")}>
-                  <Input
-                    className={TXT}
-                    value={row.patient_name}
-                    onChange={(e) =>
-                      updateRow(i, { patient_name: e.target.value })
-                    }
-                    placeholder=""
-                    disabled={isLocked}
-                  />
-                </td>
-
-                {/* Transaction */}
-                <td className={cn(CELL, isDraft && row.transaction && "bg-yellow-50")}>
-                  <Input
-                    className={TXT}
-                    value={row.transaction}
-                    onChange={(e) =>
-                      updateRow(i, { transaction: e.target.value })
-                    }
-                    placeholder=""
-                    disabled={isLocked}
-                  />
-                </td>
-
-                {/* Qty in Stock — diagonal split: before (top-left) / after (bottom-right) */}
-                <td className={cn(CELL, GREY, "relative p-0", isDraft && row.qty_in_stock !== null && "bg-yellow-50")}>
-                  <div className="relative flex h-12 w-full flex-col items-center justify-between overflow-hidden">
-                    {/* Diagonal line: top-right to bottom-left */}
-                    <div className="pointer-events-none absolute inset-0 z-0">
-                      <svg className="h-full w-full" preserveAspectRatio="none">
-                        <line
-                          x1="100%"
-                          y1="0"
-                          x2="0"
-                          y2="100%"
-                          stroke="currentColor"
-                          className="text-foreground/20"
-                          strokeWidth="1"
-                        />
-                      </svg>
-                    </div>
-                    {/* Before (top-left) — first row: editable initial stock; rest: derived */}
-                    {i === 0 ? (
-                      <input
-                        type="number"
-                        className="relative z-10 w-[50px] self-start bg-transparent pl-1 pt-0.5 text-[11px] tabular-nums text-muted-foreground outline-none placeholder:text-muted-foreground/40 focus:ring-1 focus:ring-ring [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                        value={data.initial_stock ?? ""}
-                        placeholder="Qty"
-                        onChange={(e) =>
-                          updateHeader("initial_stock", e.target.value === "" ? null : Number(e.target.value))
-                        }
-                        disabled={isLocked}
-                      />
-                    ) : (
-                      <span className="relative z-10 self-start pl-1 pt-0.5 text-[10px] tabular-nums text-muted-foreground">
-                        {runningStock[i].before}
-                      </span>
-                    )}
-                    {/* After (bottom-right) — editable, computed shown as placeholder */}
-                    <input
-                      type="number"
-                      className="relative z-10 w-[50px] self-end bg-transparent pb-0.5 pr-1 text-right text-[11px] tabular-nums font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground focus:ring-1 focus:ring-ring [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      value={row.qty_in_stock ?? ""}
-                      placeholder={String(runningStock[i].after)}
-                      onChange={(e) =>
-                        updateRow(i, {
-                          qty_in_stock:
-                            e.target.value === ""
-                              ? null
-                              : Number(e.target.value),
-                        })
-                      }
-                      disabled={isLocked}
-                    />
-                  </div>
-                </td>
-
-                {/* Amt Ordered */}
-                <td className={cn(CELL, isDraft && row.amt_ordered !== null && "bg-yellow-50")}>
-                  <Input
-                    type="number"
-                    className={NUM}
-                    value={row.amt_ordered ?? ""}
-                    onChange={(e) =>
-                      updateRow(i, {
-                        amt_ordered:
-                          e.target.value === "" ? null : Number(e.target.value),
-                      })
-                    }
-                    placeholder="—"
-                    disabled={isLocked}
-                  />
-                </td>
-
-                {/* Amt Used */}
-                <td className={cn(CELL, isDraft && row.amt_used !== null && "bg-yellow-50")}>
-                  <Input
-                    type="number"
-                    className={NUM}
-                    value={row.amt_used ?? ""}
-                    onChange={(e) => handleAmtUsedChange(i, e.target.value)}
-                    placeholder="—"
-                    disabled={isLocked}
-                  />
-                </td>
-
-                {/* Amt Wasted (auto-calculated from vial size) */}
-                <td className={cn(CELL, isDraft && row.amt_wasted !== null && "bg-yellow-50")}>
-                  <Input
-                    type="number"
-                    className={NUM}
-                    value={row.amt_wasted ?? ""}
-                    onChange={(e) =>
-                      updateRow(i, {
-                        amt_wasted:
-                          e.target.value === "" ? null : Number(e.target.value),
-                      })
-                    }
-                    placeholder={
-                      vialVolume && row.amt_used !== null && row.amt_used > 0
-                        ? String(computeWaste(row.amt_used, vialVolume))
-                        : "—"
-                    }
-                    disabled={isLocked}
-                  />
-                </td>
-
-                {/* RN Signature */}
-                <td className={cn(CELL, isDraft && row.rn_sig && "bg-yellow-50")}>
-                  <SignatureCell
-                    value={row.rn_sig}
-                    onChange={(_, base64) => updateRow(i, { rn_sig: base64 })}
-                    signerName={row.rn_name}
-                    onNameChange={(name) => updateRow(i, { rn_name: name })}
-                    locationId={locationId}
-                    disabled={isLocked}
-                    className="h-10"
-                    defaultSignerName={myProfile?.name}
-                  />
-                </td>
-
-                {/* Witness Signature */}
-                <td className={cn(CELL, isDraft && row.witness_sig && "bg-yellow-50")}>
-                  <SignatureCell
-                    value={row.witness_sig}
-                    onChange={(_, base64) =>
-                      updateRow(i, { witness_sig: base64 })
-                    }
-                    signerName={row.witness_name}
-                    onNameChange={(name) =>
-                      updateRow(i, { witness_name: name })
-                    }
-                    locationId={locationId}
-                    disabled={isLocked}
-                    className="h-10"
-                    defaultSignerName={myProfile?.name}
-                  />
-                </td>
-
-                {/* Delete row button — only on unlocked rows */}
-                {!disabled && (
-                  <td className={cn(B, "px-1 py-1 text-center")}>
-                    {i < lockedRowCount ? (
-                      <span className="inline-flex size-6 items-center justify-center">
-                        <Lock className="size-3 text-muted-foreground/40" />
-                      </span>
-                    ) : (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="size-6"
-                        onClick={() => removeRow(i)}
-                        disabled={data.rows.length <= 1}
-                      >
-                        <Trash2 className="size-3 text-muted-foreground" />
-                      </Button>
-                    )}
-                  </td>
-                )}
-              </tr>
+                <InventoryTableRow
+                  key={rowRenderKeys[index] ?? `inventory-row-fallback-${index}`}
+                  row={row}
+                  rowIndex={index}
+                  locationId={locationId}
+                  isLocked={isLocked}
+                  isDraft={isDraft}
+                  vialVolume={vialVolume}
+                  runningStock={runningStock[index]}
+                  initialStock={data.initial_stock}
+                  defaultSignerName={myProfile?.name}
+                  showDeleteColumn={!disabled}
+                  canDelete={index >= lockedRowCount && data.rows.length > 1}
+                  onUpdateHeader={updateHeader}
+                  onUpdateRow={updateRow}
+                  onAmtUsedChange={handleAmtUsedChange}
+                  onRemoveRow={removeRow}
+                />
               );
             })}
           </tbody>
         </table>
       </div>
 
-      {/* Add row */}
       {!disabled && (
         <Button
           size="sm"
