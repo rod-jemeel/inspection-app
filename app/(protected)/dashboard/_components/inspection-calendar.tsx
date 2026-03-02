@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback, useMemo } from "react"
+import { useEffect, useEffectEvent, useRef, useState, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
+import type { CalendarEventExternal } from "@schedule-x/calendar"
 import { useQueryState } from "nuqs"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -48,6 +49,21 @@ interface InspectionCalendarProps {
   events: CalendarEvent[]
   locationId: string
   locationName?: string
+}
+
+interface ScheduleXCalendarApi {
+  destroy?: () => void
+  render: (container: HTMLElement) => void
+  setDate?: (date: string) => void
+  goTo?: (date: string) => void
+  goToPreviousMonth?: () => void
+  goToNextMonth?: () => void
+}
+
+interface TemporalApi {
+  PlainDate: {
+    from: (value: string) => Temporal.PlainDate
+  }
 }
 
 function getStatusBadge(status: string, isOverdue: boolean) {
@@ -118,7 +134,7 @@ function shouldShowFridayWarning(dueDate: Date, status: string): boolean {
 export function InspectionCalendar({ events, locationId, locationName }: InspectionCalendarProps) {
   const router = useRouter()
   const containerRef = useRef<HTMLDivElement>(null)
-  const calendarRef = useRef<any>(null)
+  const calendarRef = useRef<ScheduleXCalendarApi | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -146,19 +162,9 @@ export function InspectionCalendar({ events, locationId, locationName }: Inspect
   // Derive modal open state from URL params
   const isModalOpen = !!calendarDate || !!calendarEvent
 
-  // Memoize events to prevent calendar re-initialization on modal interactions
-  const eventsKey = events.map(e => e.id).join(",")
-  const stableEvents = useMemo(() => events, [eventsKey])
-
-  // Create a map for quick event lookup
-  const eventMap = useRef<Map<string, CalendarEvent>>(new Map())
-
-  useEffect(() => {
-    eventMap.current.clear()
-    stableEvents.forEach((event) => {
-      eventMap.current.set(event.id, event)
-    })
-  }, [stableEvents])
+  const eventMap = useMemo(() => {
+    return new Map(events.map((event) => [event.id, event] satisfies [string, CalendarEvent]))
+  }, [events])
 
   // Fetch events for a specific date from API
   const fetchEventsForDate = useCallback(async (dateStr: string) => {
@@ -177,7 +183,7 @@ export function InspectionCalendar({ events, locationId, locationName }: Inspect
       setSelectedDateEvents(data.events ?? [])
     } catch {
       // Fallback to local data if API fails
-      const dateEvents = stableEvents.filter((event) => {
+      const dateEvents = events.filter((event) => {
         const eventDate = new Date(event.dueAt).toISOString().split("T")[0]
         return eventDate === dateStr
       })
@@ -188,10 +194,10 @@ export function InspectionCalendar({ events, locationId, locationName }: Inspect
     } finally {
       setIsLoadingEvents(false)
     }
-  }, [stableEvents, locationId, setCalendarDate, setCalendarEvent])
+  }, [events, locationId, setCalendarDate, setCalendarEvent])
 
   const handleEventClick = useCallback((eventId: string) => {
-    const event = eventMap.current.get(eventId)
+    const event = eventMap.get(eventId)
     if (event) {
       setSelectedEvent(event)
       setSelectedDateEvents([]) // Clear list to hide back button
@@ -199,7 +205,7 @@ export function InspectionCalendar({ events, locationId, locationName }: Inspect
       setCalendarEvent(eventId)
       setCalendarDate("") // Clear date selection
     }
-  }, [setCalendarEvent, setCalendarDate])
+  }, [eventMap, setCalendarEvent, setCalendarDate])
 
   const handleDateClick = useCallback((dateStr: string) => {
     fetchEventsForDate(dateStr)
@@ -232,7 +238,7 @@ export function InspectionCalendar({ events, locationId, locationName }: Inspect
   // Initialize from URL params on mount
   useEffect(() => {
     if (calendarEvent && !selectedEvent) {
-      const event = eventMap.current.get(calendarEvent)
+      const event = eventMap.get(calendarEvent)
       if (event) {
         setSelectedEvent(event)
         setModalMode("single")
@@ -240,13 +246,13 @@ export function InspectionCalendar({ events, locationId, locationName }: Inspect
     } else if (calendarDate && selectedDateEvents.length === 0 && !isLoadingEvents) {
       fetchEventsForDate(calendarDate)
     }
-  }, [calendarEvent, calendarDate, selectedEvent, selectedDateEvents.length, isLoadingEvents, fetchEventsForDate])
+  }, [calendarEvent, calendarDate, selectedEvent, selectedDateEvents.length, isLoadingEvents, fetchEventsForDate, eventMap])
 
   const now = useMemo(() => new Date(), [])
 
   // Memoize calendar event transformation to prevent re-renders
   const calendarEventsData = useMemo(() => {
-    return stableEvents.map((event) => {
+    return events.map((event) => {
       const dueDate = new Date(event.dueAt)
       const isOverdue =
         (event.status === "pending" || event.status === "in_progress") &&
@@ -265,16 +271,75 @@ export function InspectionCalendar({ events, locationId, locationName }: Inspect
         status: event.status,
       }
     })
-  }, [stableEvents, now])
+  }, [events, now])
 
-  // Stable callbacks using refs to avoid re-initialization
-  const handleEventClickRef = useRef(handleEventClick)
-  const handleDateClickRef = useRef(handleDateClick)
+  const onCalendarEventClick = useEffectEvent((calendarEvent: CalendarEventExternal) => {
+    handleEventClick(String(calendarEvent.id))
+  })
 
-  useEffect(() => {
-    handleEventClickRef.current = handleEventClick
-    handleDateClickRef.current = handleDateClick
-  }, [handleEventClick, handleDateClick])
+  const onCalendarDateClick = useEffectEvent((date: Temporal.PlainDate) => {
+    handleDateClick(date.toString())
+  })
+
+  // Navigate calendar to a specific date
+  const navigateToDate = useCallback((date: Date) => {
+    setViewDate(date)
+    if (calendarRef.current) {
+      try {
+        const dateStr = date.toISOString().split("T")[0]
+        if (typeof calendarRef.current.setDate === "function") {
+          calendarRef.current.setDate(dateStr)
+        } else if (typeof calendarRef.current.goTo === "function") {
+          calendarRef.current.goTo(dateStr)
+        }
+      } catch {
+        // Fallback: calendar will sync via viewDate state on next render
+      }
+    }
+  }, [])
+
+  const goToToday = useCallback(() => {
+    navigateToDate(new Date())
+  }, [navigateToDate])
+
+  const goToPrevMonth = useCallback(() => {
+    setViewDate((prev) => {
+      const newDate = new Date(prev)
+      newDate.setMonth(newDate.getMonth() - 1)
+      return newDate
+    })
+    if (calendarRef.current?.goToPreviousMonth) {
+      calendarRef.current.goToPreviousMonth()
+    }
+  }, [])
+
+  const goToNextMonth = useCallback(() => {
+    setViewDate((prev) => {
+      const newDate = new Date(prev)
+      newDate.setMonth(newDate.getMonth() + 1)
+      return newDate
+    })
+    if (calendarRef.current?.goToNextMonth) {
+      calendarRef.current.goToNextMonth()
+    }
+  }, [])
+
+  const handleDateSelect = useCallback((date: Date | undefined) => {
+    if (date) {
+      navigateToDate(date)
+      setDatePickerOpen(false)
+    }
+  }, [navigateToDate])
+
+  const selectedEventIsOverdue = selectedEvent
+    ? (selectedEvent.status === "pending" || selectedEvent.status === "in_progress") &&
+      new Date(selectedEvent.dueAt) < now
+    : false
+
+  const viewDateLabel = viewDate.toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  })
 
   useEffect(() => {
     let mounted = true
@@ -292,7 +357,7 @@ export function InspectionCalendar({ events, locationId, locationName }: Inspect
 
         if (!mounted) return
 
-        const Temporal = (globalThis as any).Temporal
+        const Temporal = (globalThis as { Temporal?: TemporalApi }).Temporal
         if (!Temporal) {
           throw new Error("Temporal polyfill not loaded")
         }
@@ -332,21 +397,19 @@ export function InspectionCalendar({ events, locationId, locationName }: Inspect
           plugins: [createEventsServicePlugin()],
           // Sunday-first calendar (US format: Sun, Mon, Tue, Wed, Thu, Fri, Sat)
           // ISO week: 1=Monday, 7=Sunday
-          firstDayOfWeek: 7 as any,
-          selectedDate,
-          callbacks: {
-            onEventClick: (calendarEvent: any) => {
-              handleEventClickRef.current(calendarEvent.id)
-            },
-            onClickPlusEvents: (date: any) => {
-              const dateStr = date.toString()
-              handleDateClickRef.current(dateStr)
-            },
-            onClickDate: (date: any) => {
-              const dateStr = date.toString()
-              handleDateClickRef.current(dateStr)
-            },
-          },
+          firstDayOfWeek: 7 as const,
+           selectedDate,
+           callbacks: {
+             onEventClick: (calendarEvent: CalendarEventExternal) => {
+               onCalendarEventClick(calendarEvent)
+             },
+             onClickPlusEvents: (date: Temporal.PlainDate) => {
+               onCalendarDateClick(date)
+             },
+             onClickDate: (date: Temporal.PlainDate) => {
+               onCalendarDateClick(date)
+             },
+           },
           monthGridOptions: {
             nEventsPerDay,
           },
@@ -399,7 +462,7 @@ export function InspectionCalendar({ events, locationId, locationName }: Inspect
         calendarRef.current.destroy()
       }
     }
-  }, [calendarEventsData, locationId, viewDate])
+  }, [calendarEventsData, viewDate])
 
   if (error) {
     return (
@@ -408,68 +471,6 @@ export function InspectionCalendar({ events, locationId, locationName }: Inspect
       </div>
     )
   }
-
-  const selectedEventIsOverdue = selectedEvent
-    ? (selectedEvent.status === "pending" || selectedEvent.status === "in_progress") &&
-      new Date(selectedEvent.dueAt) < now
-    : false
-
-  // Navigate calendar to a specific date
-  const navigateToDate = useCallback((date: Date) => {
-    setViewDate(date)
-    if (calendarRef.current) {
-      try {
-        // Schedule-x uses different navigation methods
-        const dateStr = date.toISOString().split("T")[0]
-        if (typeof calendarRef.current.setDate === "function") {
-          calendarRef.current.setDate(dateStr)
-        } else if (typeof calendarRef.current.goTo === "function") {
-          calendarRef.current.goTo(dateStr)
-        }
-      } catch {
-        // Fallback: calendar will sync via viewDate state on next render
-      }
-    }
-  }, [])
-
-  const goToToday = useCallback(() => {
-    navigateToDate(new Date())
-  }, [navigateToDate])
-
-  const goToPrevMonth = useCallback(() => {
-    setViewDate((prev) => {
-      const newDate = new Date(prev)
-      newDate.setMonth(newDate.getMonth() - 1)
-      return newDate
-    })
-    if (calendarRef.current?.goToPreviousMonth) {
-      calendarRef.current.goToPreviousMonth()
-    }
-  }, [])
-
-  const goToNextMonth = useCallback(() => {
-    setViewDate((prev) => {
-      const newDate = new Date(prev)
-      newDate.setMonth(newDate.getMonth() + 1)
-      return newDate
-    })
-    if (calendarRef.current?.goToNextMonth) {
-      calendarRef.current.goToNextMonth()
-    }
-  }, [])
-
-  const handleDateSelect = useCallback((date: Date | undefined) => {
-    if (date) {
-      navigateToDate(date)
-      setDatePickerOpen(false)
-    }
-  }, [navigateToDate])
-
-  // Format current view date for display
-  const viewDateLabel = viewDate.toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-  })
 
   return (
     <>
