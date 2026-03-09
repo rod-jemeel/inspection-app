@@ -3,17 +3,10 @@
 import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Plus, Search, FileText, Settings, ClipboardList, ClipboardCheck, Calendar, User, Pencil, Trash2, Users2, ListChecks } from "lucide-react"
+import { getBinderIconOption } from "@/components/binder-icon"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,12 +17,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { ResponseList } from "./response-list"
 import { FormTemplateDialog } from "./form-template-dialog"
@@ -126,11 +113,9 @@ interface InspectionInstance {
 function TemplatesTab({
   binderId,
   locationId,
-  canEdit,
 }: {
   binderId: string
   locationId: string
-  canEdit: boolean
 }) {
   const router = useRouter()
   const [templates, setTemplates] = useState<InspectionTemplate[]>([])
@@ -334,6 +319,7 @@ export function BinderDetail({
   canEdit,
 }: BinderDetailProps) {
   const router = useRouter()
+  const binderIcon = getBinderIconOption(binder.icon)
   const [activeTab, setActiveTab] = useState<"forms" | "templates" | "inspections" | "responses" | "assignments">("forms")
   const [searchQuery, setSearchQuery] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -376,68 +362,57 @@ export function BinderDetail({
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col gap-3">
-        {/* Breadcrumb */}
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href={`/binders?loc=${locationId}`}>
-                Binders
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>{binder.name}</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-
-        {/* Title row */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              {binder.color && (
-                <div
-                  className="size-2 rounded-full"
-                  style={{ backgroundColor: binder.color }}
-                />
-              )}
-              <h1 className="text-lg font-semibold">{binder.name}</h1>
+      <header className="pb-2">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex min-w-0 items-start gap-4">
+            <div
+              className="flex size-12 shrink-0 items-center justify-center rounded-2xl ring-1 ring-border/60"
+              style={{
+                backgroundColor: binder.color ? `${binder.color}22` : undefined,
+                color: binder.color ?? undefined,
+              }}
+            >
+              <binderIcon.Icon className="size-5" />
             </div>
-            {binder.description && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                {binder.description}
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-lg font-semibold tracking-tight">{binder.name}</h1>
+                <Badge variant="outline" className="text-[10px]">
+                  Binder
+                </Badge>
+              </div>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+                {binder.description || "General templates and master forms"}
               </p>
-            )}
+            </div>
           </div>
           {canEdit && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2 self-start">
               <Button
                 variant="outline"
                 size="sm"
-                className="h-7 gap-1 text-xs"
+                className="gap-1.5"
                 onClick={() => setBinderDialogOpen(true)}
               >
-                <Pencil className="size-3" />
-                Edit
+                <Pencil className="size-3.5" />
+                Edit Binder
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                className="h-7 gap-1 text-xs text-destructive hover:bg-destructive/10"
+                className="gap-1.5 text-destructive hover:bg-destructive/10"
                 onClick={() => setDeleteDialogOpen(true)}
               >
-                <Trash2 className="size-3" />
+                <Trash2 className="size-3.5" />
                 Delete
               </Button>
             </div>
           )}
         </div>
-      </div>
+      </header>
 
       {/* Tab Switcher */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button
           variant={activeTab === "forms" ? "default" : "outline"}
           size="sm"
@@ -608,7 +583,6 @@ export function BinderDetail({
         <TemplatesTab
           binderId={binder.id}
           locationId={locationId}
-          canEdit={canEdit}
         />
       )}
 

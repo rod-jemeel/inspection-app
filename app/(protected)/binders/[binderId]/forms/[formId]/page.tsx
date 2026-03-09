@@ -7,10 +7,11 @@ import { getBinder, canUserEditBinder } from "@/lib/server/services/binders"
 import { getInstance } from "@/lib/server/services/instances"
 import { getFormResponse } from "@/lib/server/services/form-responses"
 import { LoadingSpinner } from "@/components/loading-spinner"
+import { PageBreadcrumbs } from "@/components/page-breadcrumbs"
 import { FormRenderer } from "./_components/form-renderer"
 
 export const metadata: Metadata = {
-  title: "Fill Form - Inspection Tracker",
+  title: "Fill Form",
 }
 
 async function FormData({
@@ -64,18 +65,27 @@ async function FormData({
   }
 
   return (
-    <FormRenderer
-      binder={binder}
-      template={template}
-      fields={fields}
-      locationId={loc}
-      profileId={profile.id}
-      profileName={profile.full_name}
-      inspectionInstanceId={instanceId ?? existingResponse?.inspection_instance_id ?? undefined}
-      instanceDueDate={instanceDueDate}
-      canEdit={canEdit}
-      existingResponse={existingResponse}
-    />
+    <>
+      <PageBreadcrumbs
+        items={[
+          { label: "Binders", href: `/binders?loc=${loc}` },
+          { label: binder.name, href: `/binders/${binder.id}?loc=${loc}` },
+          { label: template.name },
+        ]}
+      />
+      <FormRenderer
+        binder={binder}
+        template={template}
+        fields={fields}
+        locationId={loc}
+        profileId={profile.id}
+        profileName={profile.full_name}
+        inspectionInstanceId={instanceId ?? existingResponse?.inspection_instance_id ?? undefined}
+        instanceDueDate={instanceDueDate}
+        canEdit={canEdit}
+        existingResponse={existingResponse}
+      />
+    </>
   )
 }
 

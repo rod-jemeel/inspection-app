@@ -8,10 +8,11 @@ import { canUserEditBinder } from "@/lib/server/services/binders"
 import { supabase } from "@/lib/server/db"
 import { redirect } from "next/navigation"
 import { LoadingSpinner } from "@/components/loading-spinner"
+import { PageBreadcrumbs } from "@/components/page-breadcrumbs"
 import { FormBuilder } from "./_components/form-builder"
 
 export const metadata: Metadata = {
-  title: "Edit Form - Inspection Tracker",
+  title: "Edit Form",
 }
 
 async function FormBuilderData({
@@ -41,13 +42,23 @@ async function FormBuilderData({
   }
 
   return (
-    <FormBuilder
-      binder={binder}
-      template={template}
-      fields={fields}
-      locationId={loc}
-      responseCount={responseCountResult.count ?? 0}
-    />
+    <>
+      <PageBreadcrumbs
+        items={[
+          { label: "Binders", href: `/binders?loc=${loc}` },
+          { label: binder.name, href: `/binders/${binder.id}?loc=${loc}` },
+          { label: template.name, href: `/binders/${binder.id}/forms/${template.id}?loc=${loc}` },
+          { label: "Edit Fields" },
+        ]}
+      />
+      <FormBuilder
+        binder={binder}
+        template={template}
+        fields={fields}
+        locationId={loc}
+        responseCount={responseCountResult.count ?? 0}
+      />
+    </>
   )
 }
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Loader2 } from "lucide-react"
+import { Check, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import {
   Dialog,
@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { BINDER_ICON_OPTIONS, getBinderIconOption } from "@/components/binder-icon"
 
 interface Binder {
   id: string
@@ -43,17 +44,6 @@ const PRESET_COLORS = [
   { name: "Red", value: "#EF4444" },
 ]
 
-const PRESET_ICONS = [
-  { name: "Folder", value: "folder" },
-  { name: "Hand", value: "hand" },
-  { name: "Shield", value: "shield" },
-  { name: "Heart Pulse", value: "heart-pulse" },
-  { name: "Clipboard List", value: "clipboard-list" },
-  { name: "Microscope", value: "microscope" },
-  { name: "Stethoscope", value: "stethoscope" },
-  { name: "Thermometer", value: "thermometer" },
-]
-
 export function BinderDialog({
   open,
   onOpenChange,
@@ -67,8 +57,10 @@ export function BinderDialog({
     name: binder?.name || "",
     description: binder?.description || "",
     color: binder?.color || PRESET_COLORS[0].value,
-    icon: binder?.icon || PRESET_ICONS[0].value,
+    icon: binder?.icon || BINDER_ICON_OPTIONS[0].value,
   })
+
+  const selectedIcon = getBinderIconOption(formData.icon)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -159,23 +151,52 @@ export function BinderDialog({
           {/* Icon */}
           <div className="space-y-2">
             <Label>Icon</Label>
-            <div className="grid grid-cols-4 gap-2">
-              {PRESET_ICONS.map((icon) => (
+            <div className="rounded-xl border border-border/80 bg-muted/30 p-3">
+              <div className="mb-3 flex items-center gap-3 rounded-xl border border-border/70 bg-card px-3 py-2">
+                <div
+                  className="flex size-10 items-center justify-center rounded-xl"
+                  style={{ backgroundColor: `${formData.color}20` }}
+                >
+                  <selectedIcon.Icon
+                    className="size-5"
+                    style={{ color: formData.color }}
+                  />
+                </div>
+                <div>
+                  <p className="text-xs font-medium">{selectedIcon.label}</p>
+                  <p className="text-[11px] text-muted-foreground">Current binder icon</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {BINDER_ICON_OPTIONS.map((icon) => (
                 <button
                   key={icon.value}
                   type="button"
                   onClick={() => setFormData({ ...formData, icon: icon.value })}
                   className={cn(
-                    "flex h-8 items-center justify-center rounded-md border-2 text-xs transition-all",
+                    "relative flex min-h-20 flex-col items-center justify-center gap-2 rounded-xl border-2 px-2 py-3 text-center transition-all",
                     formData.icon === icon.value
-                      ? "border-foreground bg-muted"
-                      : "border-border hover:bg-muted/50"
+                      ? "border-primary bg-primary/5 shadow-sm"
+                      : "border-border bg-card hover:bg-muted/50"
                   )}
-                  title={icon.name}
+                  title={icon.label}
                 >
-                  {icon.name}
+                  <div
+                    className="flex size-9 items-center justify-center rounded-xl"
+                    style={{ backgroundColor: `${formData.color}20` }}
+                  >
+                    <icon.Icon
+                      className="size-4"
+                      style={{ color: formData.color }}
+                    />
+                  </div>
+                  <span className="text-[11px] font-medium leading-tight">{icon.label}</span>
+                  {formData.icon === icon.value ? (
+                    <Check className="absolute right-2 top-2 size-3.5 text-primary" />
+                  ) : null}
                 </button>
               ))}
+            </div>
             </div>
           </div>
 
