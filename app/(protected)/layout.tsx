@@ -6,6 +6,10 @@ import { listBinders } from "@/lib/server/services/binders"
 import { LoadingSpinner } from "@/components/loading-spinner"
 import { AppShell } from "./_components/app-shell"
 
+interface ProfileLocationRow {
+  locations: { id: string; name: string } | null
+}
+
 async function AuthenticatedShell({ children }: { children: React.ReactNode }) {
   const session = await getSession().catch(() => null)
   if (!session) redirect("/login")
@@ -18,17 +22,24 @@ async function AuthenticatedShell({ children }: { children: React.ReactNode }) {
     .select("location_id, locations(id, name)")
     .eq("profile_id", profile.id)
 
-  const locations = (profileLocations ?? []).map((pl: any) => ({
-    id: pl.locations.id as string,
-    name: pl.locations.name as string,
-  }))
+  const locations = (profileLocations as ProfileLocationRow[] | null ?? [])
+    .filter((pl) => pl.locations)
+    .map((pl) => ({
+      id: pl.locations!.id,
+      name: pl.locations!.name,
+    }))
 
   // Fetch binders for sidebar navigation
-  let binders: { id: string; name: string; color: string | null }[] = []
+  let binders: { id: string; name: string; color: string | null; icon: string | null }[] = []
   if (locations.length > 0) {
     try {
       const allBinders = await listBinders(locations[0].id)
-      binders = allBinders.map((b: any) => ({ id: b.id, name: b.name, color: b.color }))
+      binders = allBinders.map((b) => ({
+        id: b.id,
+        name: b.name,
+        color: b.color,
+        icon: b.icon,
+      }))
     } catch {
       // Ignore - binders are optional for sidebar
     }

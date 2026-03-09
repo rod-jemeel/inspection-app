@@ -3,8 +3,9 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { FolderOpen, Plus, MoreHorizontal, Pencil, Trash2, Loader2, ChevronRight } from "lucide-react"
+import { Plus, MoreHorizontal, Pencil, Trash2, Loader2, ChevronRight } from "lucide-react"
 import { toast } from "sonner"
+import { getBinderIconOption } from "@/components/binder-icon"
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -40,6 +41,7 @@ interface Binder {
   id: string
   name: string
   color: string | null
+  icon: string | null
 }
 
 interface NavBindersProps {
@@ -98,6 +100,7 @@ export function NavBinders({ binders, locationId }: NavBindersProps) {
           <CollapsibleContent>
             <SidebarMenu>
               {binders.map((binder) => {
+                const binderIcon = getBinderIconOption(binder.icon)
                 const binderPath = `/binders/${binder.id}`
                 const href = locationId
                   ? `${binderPath}?loc=${locationId}`
@@ -112,14 +115,15 @@ export function NavBinders({ binders, locationId }: NavBindersProps) {
                       tooltip={binder.name}
                     >
                       <Link href={href}>
-                        {binder.color ? (
-                          <span
-                            className="inline-block size-3 shrink-0 rounded-full"
-                            style={{ backgroundColor: binder.color }}
-                          />
-                        ) : (
-                          <FolderOpen className="size-4" />
-                        )}
+                        <span
+                          className="flex size-5 shrink-0 items-center justify-center rounded-md ring-1 ring-sidebar-border/60"
+                          style={{
+                            backgroundColor: binder.color ? `${binder.color}22` : undefined,
+                            color: binder.color ?? undefined,
+                          }}
+                        >
+                          <binderIcon.Icon className="size-3.5" />
+                        </span>
                         <span className="truncate">{binder.name}</span>
                       </Link>
                     </SidebarMenuButton>

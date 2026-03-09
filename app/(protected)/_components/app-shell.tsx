@@ -6,6 +6,11 @@ import { parseAsString, useQueryState } from "nuqs"
 
 import { AppSidebar } from "@/components/app-sidebar"
 import {
+  PageBreadcrumbProvider,
+  usePageBreadcrumbs,
+  type PageBreadcrumbItem,
+} from "@/components/page-breadcrumbs"
+import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
@@ -29,7 +34,7 @@ interface AppShellProps {
     role: Role
   }
   locations: { id: string; name: string }[]
-  binders?: { id: string; name: string; color: string | null }[]
+  binders?: { id: string; name: string; color: string | null; icon: string | null }[]
   children: React.ReactNode
   mustChangePassword?: boolean
 }
@@ -51,6 +56,87 @@ const pageTitles: Record<string, string> = {
   "/settings": "Settings",
   "/change-password": "Change Password",
   "/help": "Help & User Guide",
+}
+
+function AppShellChrome({
+  binders,
+  children,
+  currentLocationId,
+  defaultBreadcrumbs,
+  handleLocationChange,
+  handleSignOut,
+  locations,
+  user,
+}: {
+  binders?: { id: string; name: string; color: string | null; icon: string | null }[]
+  children: React.ReactNode
+  currentLocationId: string
+  defaultBreadcrumbs: PageBreadcrumbItem[]
+  handleLocationChange: (id: string) => void
+  handleSignOut: () => void
+  locations: { id: string; name: string }[]
+  user: {
+    name: string
+    email: string | null
+    role: Role
+  }
+}) {
+  const { items: overrideBreadcrumbs } = usePageBreadcrumbs()
+  const breadcrumbs = overrideBreadcrumbs ?? defaultBreadcrumbs
+
+  return (
+    <>
+      <AppSidebar
+        user={user}
+        locations={locations}
+        currentLocationId={currentLocationId}
+        onLocationChange={handleLocationChange}
+        onSignOut={handleSignOut}
+        binders={binders}
+      />
+      <SidebarInset>
+        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+          <div className="flex items-center gap-2 px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator
+              orientation="vertical"
+              className="mr-2 data-[orientation=vertical]:h-4"
+            />
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem className="hidden md:block">
+                  <BreadcrumbLink href={currentLocationId ? `/dashboard?loc=${currentLocationId}` : "/dashboard"}>
+                    Home
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                {breadcrumbs.map((segment, index) => {
+                  const isLast = index === breadcrumbs.length - 1
+
+                  return (
+                    <span key={`${segment.label}-${segment.href ?? index}`} className="contents">
+                      <BreadcrumbSeparator className="hidden md:block" />
+                      <BreadcrumbItem className={!isLast ? "hidden md:block" : ""}>
+                        {!isLast && segment.href ? (
+                          <BreadcrumbLink href={segment.href}>
+                            {segment.label}
+                          </BreadcrumbLink>
+                        ) : (
+                          <BreadcrumbPage>{segment.label}</BreadcrumbPage>
+                        )}
+                      </BreadcrumbItem>
+                    </span>
+                  )
+                })}
+              </BreadcrumbList>
+            </Breadcrumb>
+          </div>
+        </header>
+        <div className="flex min-w-0 flex-1 flex-col gap-4 p-4 pt-0">
+          {children}
+        </div>
+      </SidebarInset>
+    </>
+  )
 }
 
 export function AppShell({ user, locations, binders, children, mustChangePassword }: AppShellProps) {
@@ -83,96 +169,62 @@ export function AppShell({ user, locations, binders, children, mustChangePasswor
 
   const [drugParam] = useQueryState("drug", parseAsString)
 
-  // Build hierarchical breadcrumb segments from pathname
-  const breadcrumbs = useMemo(() => {
+  const defaultBreadcrumbs = useMemo<PageBreadcrumbItem[]>(() => {
     const parts = pathname.split("/").filter(Boolean)
-    const segments: { label: string; href: string }[] = []
+    const locQuery = locationId ? `?loc=${locationId}` : ""
+    const segments: PageBreadcrumbItem[] = []
     let currentPath = ""
+
     for (const part of parts) {
       currentPath += `/${part}`
       const title = pageTitles[currentPath]
       if (title) {
-        segments.push({ label: title, href: currentPath })
+        segments.push({ label: title, href: `${currentPath}${locQuery}` })
       }
     }
-    // Fallback: if no segments matched, use pathname as-is
-    if (segments.length === 0) {
-      segments.push({ label: "Inspection Tracker", href: pathname })
-    }
-    return segments
-  }, [pathname])
 
-  // Extra context from search params (e.g., drug name on inventory page)
-  const drugLabel = useMemo(() => {
-    if (!drugParam || !pathname.startsWith("/logs/inventory")) return null
-    // Check preset drugs
-    const presets: Record<string, string> = {
-      versed: "Versed (Midazolam)",
-      fentanyl: "Fentanyl Citrate",
-      ephedrine: "Ephedrine Sulfate",
+    if (segments.length === 0) {
+      segments.push({ label: "Summit" })
     }
-    return presets[drugParam] ?? drugParam.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
-  }, [drugParam, pathname])
+
+    if (drugParam && pathname.startsWith("/logs/inventory")) {
+      const presets: Record<string, string> = {
+        versed: "Versed (Midazolam)",
+        fentanyl: "Fentanyl Citrate",
+        ephedrine: "Ephedrine Sulfate",
+      }
+
+      segments.push({
+        label: presets[drugParam] ?? drugParam.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+      })
+      return segments
+    }
+
+    const lastIndex = segments.length - 1
+    if (lastIndex >= 0) {
+      segments[lastIndex] = {
+        label: segments[lastIndex].label,
+      }
+    }
+
+    return segments
+  }, [drugParam, locationId, pathname])
 
   return (
-    <SidebarProvider>
-      <AppSidebar
-        user={user}
-        locations={locations}
-        currentLocationId={locationId}
-        onLocationChange={handleLocationChange}
-        onSignOut={handleSignOut}
-        binders={binders}
-      />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator
-              orientation="vertical"
-              className="mr-2 data-[orientation=vertical]:h-4"
-            />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href={locationId ? `/dashboard?loc=${locationId}` : "/dashboard"}>
-                    Home
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                {breadcrumbs.map((segment, i) => {
-                  const isLast = i === breadcrumbs.length - 1 && !drugLabel
-                  const locQuery = locationId ? `?loc=${locationId}` : ""
-                  return (
-                    <span key={segment.href} className="contents">
-                      <BreadcrumbSeparator className="hidden md:block" />
-                      <BreadcrumbItem className={!isLast ? "hidden md:block" : ""}>
-                        {isLast ? (
-                          <BreadcrumbPage>{segment.label}</BreadcrumbPage>
-                        ) : (
-                          <BreadcrumbLink href={`${segment.href}${locQuery}`}>
-                            {segment.label}
-                          </BreadcrumbLink>
-                        )}
-                      </BreadcrumbItem>
-                    </span>
-                  )
-                })}
-                {drugLabel && (
-                  <span className="contents">
-                    <BreadcrumbSeparator className="hidden md:block" />
-                    <BreadcrumbItem>
-                      <BreadcrumbPage>{drugLabel}</BreadcrumbPage>
-                    </BreadcrumbItem>
-                  </span>
-                )}
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-        </header>
-        <div className="flex min-w-0 flex-1 flex-col gap-4 p-4 pt-0">
+    <PageBreadcrumbProvider>
+      <SidebarProvider>
+        <AppShellChrome
+          user={user}
+          locations={locations}
+          binders={binders}
+          currentLocationId={locationId}
+          handleLocationChange={handleLocationChange}
+          handleSignOut={handleSignOut}
+          defaultBreadcrumbs={defaultBreadcrumbs}
+        >
           {children}
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
+        </AppShellChrome>
+      </SidebarProvider>
+    </PageBreadcrumbProvider>
   )
 }

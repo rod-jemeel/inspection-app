@@ -2,19 +2,11 @@
 
 import {
   ArrowRight,
-  FolderOpen,
   FileText,
-  Folder,
-  Hand,
-  Shield,
-  HeartPulse,
-  ClipboardList,
-  Microscope,
-  Stethoscope,
-  Thermometer,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
+import { getBinderIconOption } from "@/components/binder-icon"
 
 interface Binder {
   id: string
@@ -33,22 +25,8 @@ interface BinderCardProps {
   onClick: () => void
 }
 
-// Map icon names to Lucide icons (must match PRESET_ICONS in binder-dialog.tsx)
-const ICON_MAP: Record<string, React.ElementType> = {
-  folder: Folder,
-  "folder-open": FolderOpen,
-  file: FileText,
-  hand: Hand,
-  shield: Shield,
-  "heart-pulse": HeartPulse,
-  "clipboard-list": ClipboardList,
-  microscope: Microscope,
-  stethoscope: Stethoscope,
-  thermometer: Thermometer,
-}
-
 export function BinderCard({ binder, onClick }: BinderCardProps) {
-  const IconComponent = binder.icon ? ICON_MAP[binder.icon] || FolderOpen : FolderOpen
+  const { Icon } = getBinderIconOption(binder.icon)
 
   return (
     <div
@@ -65,7 +43,7 @@ export function BinderCard({ binder, onClick }: BinderCardProps) {
           className="flex-shrink-0 rounded-md p-1.5"
           style={{ backgroundColor: `${binder.color || "#6B7280"}20` }}
         >
-          <IconComponent
+          <Icon
             className="size-4"
             style={{ color: binder.color || "#6B7280" }}
           />

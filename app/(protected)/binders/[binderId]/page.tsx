@@ -4,9 +4,10 @@ import { requireLocationAccess } from "@/lib/server/auth-helpers"
 import { getBinder, canUserEditBinder } from "@/lib/server/services/binders"
 import { listFormTemplates } from "@/lib/server/services/form-templates"
 import { LoadingSpinner } from "@/components/loading-spinner"
+import { PageBreadcrumbs } from "@/components/page-breadcrumbs"
 import { BinderDetail } from "./_components/binder-detail"
 
-export const metadata: Metadata = { title: "Binder - Inspection Tracker" }
+export const metadata: Metadata = { title: "Binder" }
 
 async function BinderData({ loc, binderId }: { loc: string; binderId: string }) {
   const { profile } = await requireLocationAccess(loc)
@@ -15,13 +16,21 @@ async function BinderData({ loc, binderId }: { loc: string; binderId: string }) 
   const canEdit = await canUserEditBinder(profile.id, binderId, profile.role)
 
   return (
-    <BinderDetail
-      binder={binder}
-      templates={templates}
-      locationId={loc}
-      canEdit={canEdit}
-      profileId={profile.id}
-    />
+    <>
+      <PageBreadcrumbs
+        items={[
+          { label: "Binders", href: `/binders?loc=${loc}` },
+          { label: binder.name },
+        ]}
+      />
+      <BinderDetail
+        binder={binder}
+        templates={templates}
+        locationId={loc}
+        canEdit={canEdit}
+        profileId={profile.id}
+      />
+    </>
   )
 }
 

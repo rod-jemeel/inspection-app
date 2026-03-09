@@ -33,7 +33,7 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   currentLocationId: string | null
   onLocationChange: (id: string) => void
   onSignOut: () => void
-  binders?: { id: string; name: string; color: string | null }[]
+  binders?: { id: string; name: string; color: string | null; icon: string | null }[]
 }
 
 export function AppSidebar({

@@ -6,10 +6,11 @@ import { getTemplate } from "@/lib/server/services/templates"
 import { listEvents } from "@/lib/server/services/events"
 import { getSignatures } from "@/lib/server/services/signatures"
 import { LoadingSpinner } from "@/components/loading-spinner"
+import { PageBreadcrumbs } from "@/components/page-breadcrumbs"
 import { InspectionDetail } from "./_components/inspection-detail"
 
 export const metadata: Metadata = {
-  title: "Inspection Detail - Inspection Tracker",
+  title: "Inspection Detail",
 }
 
 async function InspectionDetailData({
@@ -29,14 +30,22 @@ async function InspectionDetailData({
   ])
 
   return (
-    <InspectionDetail
-      instance={instance}
-      template={template}
-      events={events}
-      signatures={signatures}
-      locationId={loc}
-      profileId={profile.id}
-    />
+    <>
+      <PageBreadcrumbs
+        items={[
+          { label: "Inspections", href: `/inspections?loc=${loc}` },
+          { label: template?.task ?? "Inspection Detail" },
+        ]}
+      />
+      <InspectionDetail
+        instance={instance}
+        template={template}
+        events={events}
+        signatures={signatures}
+        locationId={loc}
+        profileId={profile.id}
+      />
+    </>
   )
 }
 

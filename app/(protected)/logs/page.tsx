@@ -1,10 +1,11 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { FileSpreadsheet, Pill, ClipboardList, Syringe, CalendarCheck, HeartPulse, ShieldCheck } from "lucide-react"
+import { PageHeader } from "@/components/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 export const metadata: Metadata = {
-  title: "Logs - Inspection Tracker",
+  title: "Logs",
 }
 
 const logTypes = [
@@ -76,25 +77,30 @@ export default async function LogsPage({
 
   return (
     <div className="space-y-4 overflow-hidden">
-      <div>
-        <h2 className="text-sm font-semibold">Permanent Forms & Logs</h2>
-        <p className="text-xs text-muted-foreground">
-          Daily record-keeping logs for compliance tracking
-        </p>
-      </div>
+      <PageHeader
+        title="Permanent Forms & Logs"
+        description="Daily record-keeping logs for compliance tracking across the location."
+        icon={FileSpreadsheet}
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {logTypes.map((log) => (
-          <Link key={log.id} href={`${log.href}?loc=${loc}`}>
-            <Card className="transition-colors hover:bg-muted/50">
+          <Link
+            key={log.id}
+            href={`${log.href}?loc=${loc}`}
+            className="block h-full"
+          >
+            <Card className="flex h-full min-h-36 flex-col border-border/80 transition-all duration-200 hover:-translate-y-0.5 hover:bg-muted/35 hover:shadow-md">
               <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <log.icon className="size-4 text-muted-foreground" />
-                  <CardTitle className="text-sm">{log.title}</CardTitle>
+                <div className="flex items-start gap-3">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted/70">
+                    <log.icon className="size-4 text-muted-foreground" />
+                  </div>
+                  <CardTitle className="pt-1 text-sm leading-5">{log.title}</CardTitle>
                 </div>
               </CardHeader>
-              <CardContent>
-                <CardDescription className="text-xs">
+              <CardContent className="flex flex-1 items-end pt-0">
+                <CardDescription className="text-xs leading-5">
                   {log.description}
                 </CardDescription>
               </CardContent>
