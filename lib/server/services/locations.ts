@@ -103,20 +103,30 @@ export async function getTeamMembers(locationId: string): Promise<TeamMember[]> 
   }))
 }
 
+async function getMemberLocationMemberships(locationId: string, profileId: string) {
+  const { data: memberships, error } = await supabase
+    .from("profile_locations")
+    .select("location_id")
+    .eq("profile_id", profileId)
+    .order("location_id", { ascending: true })
+
+  if (error) {
+    throw new ApiError("INTERNAL_ERROR", error.message)
+  }
+
+  if (!memberships?.some((membership) => membership.location_id === locationId)) {
+    throw new ApiError("NOT_FOUND", "Member not found in this location")
+  }
+
+  return memberships
+}
+
 export async function updateMemberRole(
   locationId: string,
   profileId: string,
   newRole: "admin" | "nurse" | "inspector"
 ): Promise<void> {
-  // Verify the member is actually in this location
-  const { data: link } = await supabase
-    .from("profile_locations")
-    .select("profile_id")
-    .eq("location_id", locationId)
-    .eq("profile_id", profileId)
-    .single()
-
-  if (!link) throw new ApiError("NOT_FOUND", "Member not found in this location")
+  const memberships = await getMemberLocationMemberships(locationId, profileId)
 
   // Check if this is the owner - can't change owner role
   const { data: profile } = await supabase
@@ -127,6 +137,10 @@ export async function updateMemberRole(
 
   if (profile?.role === "owner") {
     throw new ApiError("FORBIDDEN", "Cannot change owner role")
+  }
+
+  if (memberships.length > 1) {
+    throw new ApiError("FORBIDDEN", "Cannot change role from a location-specific endpoint for a member assigned to multiple locations")
   }
 
   // Update the role
@@ -174,15 +188,11 @@ export async function updateMemberPermissions(
     can_configure_integrations?: boolean
   }
 ): Promise<void> {
-  // Verify the member is in this location
-  const { data: link } = await supabase
-    .from("profile_locations")
-    .select("profile_id")
-    .eq("location_id", locationId)
-    .eq("profile_id", profileId)
-    .single()
+  const memberships = await getMemberLocationMemberships(locationId, profileId)
 
-  if (!link) throw new ApiError("NOT_FOUND", "Member not found in this location")
+  if (memberships.length > 1) {
+    throw new ApiError("FORBIDDEN", "Cannot change permissions from a location-specific endpoint for a member assigned to multiple locations")
+  }
 
   const { error } = await supabase
     .from("profiles")

@@ -3,6 +3,11 @@ import { z } from "zod"
 import { supabase } from "@/lib/server/db"
 import { auth } from "@/lib/auth"
 import { checkHasUsers } from "@/lib/server/utils/password"
+import {
+  ensureProfileForUser,
+  rollbackCreatedUser,
+  updateAuthUserIdentity,
+} from "@/lib/server/services/user-provisioning"
 
 const setupSchema = z.object({
   fullName: z.string().min(1, "Full name is required"),
@@ -51,69 +56,51 @@ export async function POST(request: Request) {
 
     const userId = signUpResult.user.id
 
-    // Update user to set correct email (null if not provided) and username
-    await supabase
-      .from("user")
-      .update({
+    try {
+      await updateAuthUserIdentity(userId, {
         email: input.email || null,
         username: input.username,
       })
-      .eq("id", userId)
 
-    // 4. Create profile with owner role
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .insert({
-        user_id: userId,
-        full_name: input.fullName,
+      const profile = await ensureProfileForUser({
+        userId,
+        fullName: input.fullName,
         username: input.username,
         email: input.email || null,
         role: "owner",
-        must_change_password: false, // Owner sets their own password
-      })
-      .select()
-      .single()
-
-    if (profileError) {
-      console.error("Profile creation error:", profileError)
-      return Response.json(
-        { error: "Failed to create user profile" },
-        { status: 500 }
-      )
-    }
-
-    // 5. Create first location
-    const { data: location, error: locationError } = await supabase
-      .from("locations")
-      .insert({
-        name: input.locationName,
-        address: input.locationAddress || null,
-        timezone: input.timezone,
-        active: true,
-      })
-      .select()
-      .single()
-
-    if (locationError) {
-      console.error("Location creation error:", locationError)
-      return Response.json(
-        { error: "Failed to create location" },
-        { status: 500 }
-      )
-    }
-
-    // 6. Link profile to location
-    const { error: linkError } = await supabase
-      .from("profile_locations")
-      .insert({
-        profile_id: profile.id,
-        location_id: location.id,
+        mustChangePassword: false,
       })
 
-    if (linkError) {
-      console.error("Profile-location link error:", linkError)
+      const { data: location, error: locationError } = await supabase
+        .from("locations")
+        .insert({
+          name: input.locationName,
+          address: input.locationAddress || null,
+          timezone: input.timezone,
+          active: true,
+        })
+        .select()
+        .single()
+
+      if (locationError || !location) {
+        throw new Error(locationError?.message || "Failed to create location")
+      }
+
+      const { error: linkError } = await supabase
+        .from("profile_locations")
+        .insert({
+          profile_id: profile.id,
+          location_id: location.id,
+        })
+
+      if (linkError) {
+        throw new Error(linkError.message)
+      }
+    } catch (error) {
+      console.error("Setup provisioning error:", error)
+      await rollbackCreatedUser(userId)
       return Response.json(
-        { error: "Failed to link user to location" },
+        { error: "Failed to complete setup" },
         { status: 500 }
       )
     }

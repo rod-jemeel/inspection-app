@@ -21,7 +21,7 @@ All endpoints must:
 Better Auth catch-all handler. Handles sign-in, sign-out, session, etc.
 
 ### `POST /api/auth/invite`
-Exchange invite code for session.
+Exchange invite code for location access.
 
 **Body:**
 ```json
@@ -32,7 +32,7 @@ Exchange invite code for session.
 }
 ```
 
-**Response:** `200` with session cookie set.
+**Response:** `200` with JSON containing `locationId`, `role`, and one-time credentials only when a brand new inspector account is created. Existing users keep their current login and are linked to the invited location without a password reset.
 
 **Errors:** `400 INVALID_CODE`, `410 EXPIRED_CODE`, `409 CODE_EXHAUSTED`
 

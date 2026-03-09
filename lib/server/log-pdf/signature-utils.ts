@@ -20,9 +20,39 @@ function parseDataUrl(value: string): SignatureAsset | null {
   }
 }
 
+function isHttpUrl(value: string) {
+  return /^https?:\/\//i.test(value)
+}
+
+function extractSignatureReference(value: unknown, seen = new WeakSet<object>()): string | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim()
+    return trimmed ? trimmed : null
+  }
+
+  if (!value || typeof value !== "object") {
+    return null
+  }
+
+  if (seen.has(value)) {
+    return null
+  }
+  seen.add(value)
+
+  const objectValue = value as Record<string, unknown>
+  for (const key of ["sig", "signature", "signatureBase64", "image", "value", "storagePath", "path", "url"]) {
+    const nested = extractSignatureReference(objectValue[key], seen)
+    if (nested) {
+      return nested
+    }
+  }
+
+  return null
+}
+
 export interface SignatureResolver {
   warnings: string[]
-  resolve(value: string | null | undefined): Promise<SignatureAsset | null>
+  resolve(value: unknown): Promise<SignatureAsset | null>
   resolveAuditSig(value: unknown): Promise<SignatureAsset | null>
 }
 
@@ -53,18 +83,44 @@ export function createSignatureResolver(): SignatureResolver {
     }
   }
 
+  async function resolveRemoteUrl(url: string): Promise<SignatureAsset | null> {
+    const cached = cache.get(url)
+    if (cached !== undefined) return cached
+
+    try {
+      const response = await fetch(url)
+      if (!response.ok) {
+        warnings.push(`Signature download failed: ${url}`)
+        cache.set(url, null)
+        return null
+      }
+      const bytes = new Uint8Array(await response.arrayBuffer())
+      const contentType = response.headers.get("content-type")?.toLowerCase()
+      const asset: SignatureAsset = {
+        bytes,
+        mimeType: contentType?.includes("png") ? "image/png" : inferMimeType(bytes),
+        source: "supabase-path",
+      }
+      cache.set(url, asset)
+      return asset
+    } catch {
+      warnings.push(`Signature resolution failed: ${url}`)
+      cache.set(url, null)
+      return null
+    }
+  }
+
   return {
     warnings,
     async resolve(value) {
-      if (!value) return null
-      if (value.startsWith("data:image/")) return parseDataUrl(value)
-      return resolveStoragePath(value)
+      const reference = extractSignatureReference(value)
+      if (!reference) return null
+      if (reference.startsWith("data:image/")) return parseDataUrl(reference)
+      if (isHttpUrl(reference)) return resolveRemoteUrl(reference)
+      return resolveStoragePath(reference)
     },
     async resolveAuditSig(value) {
-      if (!value || typeof value !== "object") return null
-      const sig = (value as { sig?: unknown }).sig
-      if (typeof sig !== "string") return null
-      return sig.startsWith("data:image/") ? parseDataUrl(sig) : resolveStoragePath(sig)
+      return this.resolve(value)
     },
   }
 }

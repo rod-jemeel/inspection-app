@@ -1,9 +1,15 @@
 import { NextRequest } from "next/server"
 import { exchangeInviteSchema } from "@/lib/validations/invite"
-import { exchangeInviteCode } from "@/lib/server/services/invite-codes"
+import { consumeInviteCode, exchangeInviteCode } from "@/lib/server/services/invite-codes"
 import { handleError, validationError, ApiError } from "@/lib/server/errors"
 import { supabase } from "@/lib/server/db"
 import { auth } from "@/lib/auth"
+import {
+  ensureProfileForUser,
+  ensureProfileLocation,
+  rollbackCreatedUser,
+  updateAuthUserIdentity,
+} from "@/lib/server/services/user-provisioning"
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,14 +37,11 @@ export async function POST(request: NextRequest) {
 
     let userId: string
     let password: string
+    let createdUserId: string | null = null
 
     if (existingUser) {
       userId = existingUser.id
       password = tempPassword
-
-      // For existing users, we can't easily update their password through Better Auth
-      // In production, you'd want to implement a password reset flow
-      // For MVP, we'll just return success and let them sign in with their existing credentials
     } else {
       // Create user via Better Auth admin API (server-side user creation)
       let result
@@ -62,42 +65,34 @@ export async function POST(request: NextRequest) {
 
       userId = result.user.id
       password = tempPassword
+      createdUserId = userId
+    }
 
-      // Mark email as verified
-      await supabase
-        .from("user")
-        .update({ emailVerified: true })
-        .eq("id", userId)
-
-      // Create profile
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .insert({
-          user_id: userId,
-          full_name: inspectorName,
-          email: inspectorEmail,
-          role: invite.role_grant,
+    try {
+      if (!existingUser) {
+        await updateAuthUserIdentity(userId, {
+          emailVerified: true,
         })
-        .select("id")
-        .single()
-
-      if (profileError || !profile) {
-        console.error("Profile creation error:", profileError)
-        throw new ApiError("INTERNAL_ERROR", `Failed to create profile: ${profileError?.message || "Unknown error"}`)
       }
 
-      // Link to location
-      const { error: locationError } = await supabase
-        .from("profile_locations")
-        .insert({
-          profile_id: profile.id,
-          location_id: invite.location_id,
-        })
+      const profile = await ensureProfileForUser({
+        userId,
+        fullName: inspectorName,
+        email: inspectorEmail,
+        role: invite.role_grant,
+      })
 
-      if (locationError) {
-        console.error("Location link error:", locationError)
-        throw new ApiError("INTERNAL_ERROR", `Failed to link to location: ${locationError.message}`)
+      if (existingUser && profile.role !== invite.role_grant) {
+        throw new ApiError("FORBIDDEN", `This invite grants ${invite.role_grant} access, but the existing account is ${profile.role}. Use an account with the correct role or create a separate inspector login.`)
       }
+
+      await ensureProfileLocation(profile.id, invite.location_id)
+      await consumeInviteCode(invite)
+    } catch (error) {
+      if (createdUserId) {
+        await rollbackCreatedUser(createdUserId)
+      }
+      throw error
     }
 
     // Return credentials so client can sign in
