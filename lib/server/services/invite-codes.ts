@@ -82,16 +82,30 @@ export async function exchangeInviteCode(plainCode: string) {
     throw new ApiError("CODE_EXHAUSTED", "Invite code has been used the maximum number of times")
   }
 
-  // Increment uses
-  await supabase
+  return record
+}
+
+export async function consumeInviteCode(record: InviteCode) {
+  const nextUses = record.uses + 1
+
+  const { data, error } = await supabase
     .from("invite_codes")
     .update({
-      uses: record.uses + 1,
-      consumed_at: record.uses + 1 >= record.max_uses ? new Date().toISOString() : null,
+      uses: nextUses,
+      consumed_at: nextUses >= record.max_uses ? new Date().toISOString() : null,
     })
     .eq("id", record.id)
+    .eq("uses", record.uses)
+    .select("id")
+    .maybeSingle()
 
-  return record
+  if (error) {
+    throw new ApiError("INTERNAL_ERROR", error.message)
+  }
+
+  if (!data) {
+    throw new ApiError("CODE_EXHAUSTED", "Invite code has already been redeemed")
+  }
 }
 
 function generateCode(length: number): string {

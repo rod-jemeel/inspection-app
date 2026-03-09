@@ -50,7 +50,7 @@ export async function renderTemplatePages(
 export async function drawSignatureInBox(params: {
   outDoc: PDFDocument
   renderCtx: RenderContext
-  signatureValue: string | null | undefined
+  signatureValue: unknown
   pageCtx: ReturnType<typeof createDrawContext>
   x: number
   y: number

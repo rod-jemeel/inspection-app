@@ -178,6 +178,17 @@ export async function requireFormEdit(
   const session = await getSession()
   const profile = await getProfile(session.user.id)
 
+  const { data: membership } = await supabase
+    .from("profile_locations")
+    .select("location_id")
+    .eq("profile_id", profile.id)
+    .eq("location_id", locationId)
+    .maybeSingle()
+
+  if (!membership) {
+    throw new ApiError("FORBIDDEN", "No access to this location")
+  }
+
   // Owner always has edit rights
   if (profile.role === "owner") return { session, profile }
 

@@ -50,8 +50,8 @@ Supabase provides **Postgres** (app data + RLS) and **Storage** (signature image
 1. Admin creates invite code (hashed, with expiry).
 2. Inspector enters code on `/invite`.
 3. Server validates hash + expiry + usage count.
-4. Server creates a Better Auth user (for persistent identity / audit trail).
-5. Inspector gets session cookie and sees assigned inspections.
+4. Server provisions or reuses the Better Auth user, then links the matching profile to the invited location.
+5. New inspectors receive generated credentials in the API response; existing users keep their current login and gain access to the invited location.
 
 ---
 

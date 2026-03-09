@@ -5,6 +5,11 @@ import { auth } from "@/lib/auth"
 import { requireLocationAccess } from "@/lib/server/auth-helpers"
 import { generateSecurePassword } from "@/lib/server/utils/password"
 import { sendWelcomeEmail } from "@/lib/server/services/email-sender"
+import {
+  ensureProfileForUser,
+  rollbackCreatedUser,
+  updateAuthUserIdentity,
+} from "@/lib/server/services/user-provisioning"
 
 const createUserSchema = z.object({
   username: z
@@ -82,52 +87,41 @@ export async function POST(request: Request) {
     }
 
     const userId = createResult.user.id
+    let newProfile: Awaited<ReturnType<typeof ensureProfileForUser>> | null = null
 
-    // Update user to set correct email (null if not provided) and username
-    await supabase
-      .from("user")
-      .update({
+    try {
+      await updateAuthUserIdentity(userId, {
         email: input.email || null,
         username: input.username,
       })
-      .eq("id", userId)
 
-    // 7. Create profile with must_change_password flag
-    const { data: newProfile, error: profileError } = await supabase
-      .from("profiles")
-      .insert({
-        user_id: userId,
-        full_name: input.fullName,
+      const provisionedProfile = await ensureProfileForUser({
+        userId,
+        fullName: input.fullName,
         username: input.username,
         email: input.email || null,
         role: input.role,
-        must_change_password: true,
+        mustChangePassword: true,
       })
-      .select()
-      .single()
+      newProfile = provisionedProfile
 
-    if (profileError) {
-      console.error("Profile creation error:", profileError)
+      const locationLinks = input.locationIds.map((locationId) => ({
+        profile_id: provisionedProfile.id,
+        location_id: locationId,
+      }))
+
+      const { error: linkError } = await supabase
+        .from("profile_locations")
+        .insert(locationLinks)
+
+      if (linkError) {
+        throw new Error(linkError.message)
+      }
+    } catch (error) {
+      console.error("Create user provisioning error:", error)
+      await rollbackCreatedUser(userId)
       return Response.json(
-        { error: "Failed to create user profile" },
-        { status: 500 }
-      )
-    }
-
-    // 8. Link to locations
-    const locationLinks = input.locationIds.map((locationId) => ({
-      profile_id: newProfile.id,
-      location_id: locationId,
-    }))
-
-    const { error: linkError } = await supabase
-      .from("profile_locations")
-      .insert(locationLinks)
-
-    if (linkError) {
-      console.error("Profile-location link error:", linkError)
-      return Response.json(
-        { error: "Failed to assign user to locations" },
+        { error: "Failed to finish user provisioning" },
         { status: 500 }
       )
     }
@@ -148,7 +142,7 @@ export async function POST(request: Request) {
       success: true,
       user: {
         id: userId,
-        profileId: newProfile.id,
+        profileId: newProfile!.id,
         username: input.username,
         email: input.email || null,
         fullName: input.fullName,
@@ -217,8 +211,7 @@ export async function GET() {
         full_name,
         email,
         role,
-        created_at,
-        profile_locations(location_id, locations(id, name))
+        created_at
       `
       )
       .in("id", profileIds)
@@ -229,7 +222,37 @@ export async function GET() {
       return Response.json({ error: "Failed to fetch users" }, { status: 500 })
     }
 
-    return Response.json({ users: profiles ?? [] })
+    const { data: visibleMemberships, error: membershipError } = await supabase
+      .from("profile_locations")
+      .select("profile_id, location_id, locations(id, name)")
+      .in("profile_id", profileIds)
+      .in("location_id", locationIds)
+
+    if (membershipError) {
+      console.error("List user memberships error:", membershipError)
+      return Response.json({ error: "Failed to fetch user locations" }, { status: 500 })
+    }
+
+    const membershipsByProfileId = new Map<string, Array<{
+      location_id: string
+      locations: { id: string; name: string } | null
+    }>>()
+
+    for (const membership of visibleMemberships ?? []) {
+      const profileMemberships = membershipsByProfileId.get(membership.profile_id) ?? []
+      profileMemberships.push({
+        location_id: membership.location_id,
+        locations: Array.isArray(membership.locations) ? membership.locations[0] ?? null : membership.locations,
+      })
+      membershipsByProfileId.set(membership.profile_id, profileMemberships)
+    }
+
+    return Response.json({
+      users: (profiles ?? []).map((user) => ({
+        ...user,
+        profile_locations: membershipsByProfileId.get(user.id) ?? [],
+      })),
+    })
   } catch (error) {
     console.error("List users error:", error)
     return Response.json(
