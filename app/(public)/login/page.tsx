@@ -4,8 +4,8 @@ import { checkHasUsers } from "@/lib/server/utils/password"
 import { LoginForm } from "./_components/login-form"
 
 export const metadata: Metadata = {
-  title: "Sign In - Inspection Tracker",
-  description: "Sign in to your inspection tracker account",
+  title: "Sign In",
+  description: "Sign in to your Summit inspection tracker account.",
 }
 
 export default async function LoginPage({

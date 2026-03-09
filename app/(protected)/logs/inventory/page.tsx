@@ -15,7 +15,7 @@ import type { InventoryLogData } from "@/lib/validations/log-entry"
 import { PRESET_DRUGS } from "@/lib/validations/log-entry"
 
 export const metadata: Metadata = {
-  title: "Controlled Substances Inventory - Inspection Tracker",
+  title: "Controlled Substances Inventory",
 }
 
 async function InventoryLoader({

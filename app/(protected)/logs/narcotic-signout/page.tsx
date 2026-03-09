@@ -7,7 +7,7 @@ import { NarcoticSignoutLog } from "./_components/narcotic-signout-log"
 import type { NarcoticSignoutLogData as NarcoticSignoutLogDataType } from "@/lib/validations/log-entry"
 
 export const metadata: Metadata = {
-  title: "Narcotic Sign-out - Inspection Tracker",
+  title: "Narcotic Sign-out",
 }
 
 async function NarcoticSignoutLoader({

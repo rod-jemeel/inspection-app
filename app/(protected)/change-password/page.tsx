@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { ChangePasswordForm } from "./_components/change-password-form"
 
 export const metadata: Metadata = {
-  title: "Change Password - Inspection Tracker",
+  title: "Change Password",
   description: "Change your password",
 }
 

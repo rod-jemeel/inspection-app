@@ -8,7 +8,7 @@ import { InspectionList } from "./_components/inspection-list"
 import { InspectionModal } from "./_components/inspection-modal"
 
 export const metadata: Metadata = {
-  title: "Inspections - Inspection Tracker",
+  title: "Inspections",
 }
 
 async function InspectionsData({ loc, status, binder }: { loc: string; status?: string; binder?: string }) {

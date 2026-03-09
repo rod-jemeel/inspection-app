@@ -8,7 +8,7 @@ import { LoadingSpinner } from "@/components/loading-spinner"
 import { TemplateList } from "./_components/template-list"
 
 export const metadata: Metadata = {
-  title: "Templates - Inspection Tracker",
+  title: "Templates",
 }
 
 async function TemplatesData({ loc, binder }: { loc: string; binder?: string }) {

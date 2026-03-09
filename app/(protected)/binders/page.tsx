@@ -6,7 +6,7 @@ import { LoadingSpinner } from "@/components/loading-spinner"
 import { BinderList } from "./_components/binder-list"
 
 export const metadata: Metadata = {
-  title: "Binders - Inspection Tracker",
+  title: "Binders",
 }
 
 async function BindersData({ loc }: { loc: string }) {

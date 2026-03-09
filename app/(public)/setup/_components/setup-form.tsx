@@ -116,7 +116,7 @@ export function SetupForm() {
   }
 
   return (
-    <Card className="w-full max-w-lg">
+    <Card className="w-full max-w-lg border-border/70 bg-card/90 shadow-[0_35px_90px_-52px_rgba(20,41,61,0.5)] backdrop-blur-sm">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Rocket className="size-5" />

@@ -7,7 +7,7 @@ import { CrashCartDailyLog } from "./_components/crash-cart-daily-log"
 import type { CrashCartDailyLogData } from "@/lib/validations/log-entry"
 
 export const metadata: Metadata = {
-  title: "Crash Cart Daily Checklist - Inspection Tracker",
+  title: "Crash Cart Daily Checklist",
 }
 
 async function CrashCartDailyLoader({

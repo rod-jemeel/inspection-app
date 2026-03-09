@@ -8,7 +8,7 @@ import { CardiacArrestSummary } from "./_components/cardiac-arrest-summary"
 import type { CardiacArrestRecordData } from "@/lib/validations/log-entry"
 
 export const metadata: Metadata = {
-  title: "Cardiac Arrest Record - Inspection Tracker",
+  title: "Cardiac Arrest Record",
 }
 
 /** Returns today as YYYY-MM */

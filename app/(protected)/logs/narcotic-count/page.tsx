@@ -7,7 +7,7 @@ import { NarcoticCountLog } from "./_components/narcotic-count-log"
 import { dailyNarcoticCountLogDataSchema, type DailyNarcoticCountLogData } from "@/lib/validations/log-entry"
 
 export const metadata: Metadata = {
-  title: "Daily Narcotic Count - Inspection Tracker",
+  title: "Daily Narcotic Count",
 }
 
 function normalizeDncDateToIso(value: string): string | null {

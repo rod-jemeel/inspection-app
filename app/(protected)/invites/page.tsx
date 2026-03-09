@@ -6,7 +6,7 @@ import { LoadingSpinner } from "@/components/loading-spinner"
 import { InviteManagement } from "./_components/invite-management"
 
 export const metadata: Metadata = {
-  title: "Invites - Inspection Tracker",
+  title: "Invites",
 }
 
 async function InvitesData({ loc }: { loc: string }) {
