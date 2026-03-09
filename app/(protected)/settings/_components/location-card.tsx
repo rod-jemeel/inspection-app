@@ -2,11 +2,11 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { MapPin, Edit2, Building2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Building2, Edit2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
+import { Button } from "@/components/ui/button"
+import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field"
+import { Switch } from "@/components/ui/switch"
 import { TIMEZONES } from "@/lib/validations/location"
 
 interface Location {
@@ -92,30 +92,7 @@ export function LocationCard({ location, canEdit, isOwner }: LocationCardProps) 
   }
 
   return (
-    <div className="rounded-md border bg-card p-5 shadow-sm md:col-span-2 lg:col-span-2">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="flex size-8 items-center justify-center rounded-md bg-primary/10">
-            <MapPin className="size-4 text-primary" />
-          </div>
-          <div>
-            <h3 className="text-xs font-semibold">Location Details</h3>
-            <p className="text-[11px] text-muted-foreground">Manage location information</p>
-          </div>
-        </div>
-        {canEdit && !editing && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setEditing(true)}
-            className="gap-1.5 text-xs"
-          >
-            <Edit2 className="size-3.5" />
-            Edit
-          </Button>
-        )}
-      </div>
-
+    <section className="space-y-5">
       {editing ? (
         <div className="space-y-4">
           <Field>
@@ -165,23 +142,23 @@ export function LocationCard({ location, canEdit, isOwner }: LocationCardProps) 
             <FieldDescription>Used for scheduling and due dates</FieldDescription>
           </Field>
 
-          {isOwner && (
+          {isOwner ? (
             <Field>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-4 py-1">
                 <div className="space-y-0.5">
                   <FieldLabel className="mb-0">Active</FieldLabel>
                   <FieldDescription className="mt-0">
-                    Inactive locations won't generate inspections
+                    Inactive locations will stop generating inspections
                   </FieldDescription>
                 </div>
                 <Switch checked={active} onCheckedChange={setActive} disabled={loading} />
               </div>
             </Field>
-          )}
+          ) : null}
 
-          {error && <FieldError>{error}</FieldError>}
+          {error ? <FieldError>{error}</FieldError> : null}
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={handleSave} disabled={loading}>
               {loading ? "Saving..." : "Save"}
             </Button>
@@ -191,27 +168,55 @@ export function LocationCard({ location, canEdit, isOwner }: LocationCardProps) 
           </div>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1">
-            <div className="text-[11px] font-medium text-muted-foreground">Name</div>
-            <div className="text-sm font-medium">{location.name}</div>
-          </div>
-          <div className="space-y-1">
-            <div className="text-[11px] font-medium text-muted-foreground">Status</div>
-            <Badge variant={location.active ? "default" : "secondary"} className="text-[10px]">
-              {location.active ? "Active" : "Inactive"}
-            </Badge>
-          </div>
-          <div className="space-y-1">
-            <div className="text-[11px] font-medium text-muted-foreground">Address</div>
-            <div className="text-sm">{location.address || "—"}</div>
-          </div>
-          <div className="space-y-1">
-            <div className="text-[11px] font-medium text-muted-foreground">Timezone</div>
-            <div className="text-sm">{TIMEZONE_LABELS[location.timezone] || location.timezone}</div>
-          </div>
+        <div className="space-y-5 border-t border-border/70 pt-5">
+          <dl className="grid gap-5 sm:grid-cols-2">
+            <div className="space-y-1">
+              <dt className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                Name
+              </dt>
+              <dd className="text-sm font-medium text-foreground">{location.name}</dd>
+            </div>
+            <div className="space-y-1">
+              <dt className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                Status
+              </dt>
+              <dd>
+                <Badge variant={location.active ? "default" : "secondary"} className="text-[10px]">
+                  {location.active ? "Active" : "Inactive"}
+                </Badge>
+              </dd>
+            </div>
+            <div className="space-y-1">
+              <dt className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                Address
+              </dt>
+              <dd className="text-sm text-foreground">{location.address || "Not provided"}</dd>
+            </div>
+            <div className="space-y-1">
+              <dt className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                Timezone
+              </dt>
+              <dd className="text-sm text-foreground">
+                {TIMEZONE_LABELS[location.timezone] || location.timezone}
+              </dd>
+            </div>
+          </dl>
+
+          {canEdit ? (
+            <div className="flex justify-start">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditing(true)}
+                className="gap-1.5"
+              >
+                <Edit2 className="size-3.5" />
+                Edit
+              </Button>
+            </div>
+          ) : null}
         </div>
       )}
-    </div>
+    </section>
   )
 }

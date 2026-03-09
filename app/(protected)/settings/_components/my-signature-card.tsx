@@ -4,7 +4,6 @@ import { useState } from "react"
 import { PenLine, Save, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { FullscreenSignaturePad } from "@/components/fullscreen-signature-pad"
 import { cn } from "@/lib/utils"
 
@@ -92,18 +91,11 @@ export function MySignatureCard({ initialSignature, initialInitials }: MySignatu
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle>My Signature</CardTitle>
-          <CardDescription>
-            Your saved signature and initials for quick log signing
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <section className="space-y-4">
           {/* Signature preview */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Signature</label>
-            <div className="flex h-32 items-center justify-center rounded-md border bg-muted/50">
+            <div className="flex h-32 items-center justify-center rounded-2xl border border-border/70 bg-muted/30">
               {signatureImage ? (
                 <img
                   src={signatureImage}
@@ -174,8 +166,7 @@ export function MySignatureCard({ initialSignature, initialInitials }: MySignatu
               </Button>
             )}
           </div>
-        </CardContent>
-      </Card>
+      </section>
 
       {showSignaturePad && (
         <FullscreenSignaturePad
