@@ -1,10 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { Bell, Mail, BellOff, Send } from "lucide-react"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
+import { Bell, BellOff, Mail, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { usePushNotifications } from "@/hooks/use-push-notifications"
 
 export function NotificationCard() {
@@ -22,7 +22,7 @@ export function NotificationCard() {
       if (response.ok && data.sent > 0) {
         setTestResult("Test notification sent!")
       } else if (data.sent === 0) {
-        setTestResult("No subscriptions found - enable push first")
+        setTestResult("No subscriptions found. Enable push first.")
       } else {
         setTestResult(data.error?.message || "Failed to send")
       }
@@ -34,49 +34,38 @@ export function NotificationCard() {
   }
 
   return (
-    <div className="rounded-md border bg-card p-5 shadow-sm">
-      <div className="mb-4 flex items-center gap-2">
-        <div className="flex size-8 items-center justify-center rounded-md bg-amber-500/10">
-          <Bell className="size-4 text-amber-600" />
-        </div>
-        <div>
-          <h3 className="text-xs font-semibold">Notifications</h3>
-          <p className="text-[11px] text-muted-foreground">Manage alert preferences</p>
-        </div>
-      </div>
-
+    <section className="space-y-5">
       <div className="space-y-4">
-        {/* Push Notifications */}
         {!isSupported ? (
-          <div className="flex items-start gap-3 rounded-md border bg-muted/50 p-3">
+          <div className="flex items-start gap-3 py-1">
             <BellOff className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
             <div className="space-y-1">
-              <p className="text-xs font-medium">Push notifications unavailable</p>
-              <p className="text-[11px] text-muted-foreground">
-                Your browser doesn't support push notifications. On iOS, install this app to your
-                home screen to enable notifications.
+              <p className="text-sm font-medium">Push notifications unavailable</p>
+              <p className="text-xs leading-5 text-muted-foreground">
+                This browser does not support push notifications. On iOS, add the app to your
+                home screen to enable them.
               </p>
             </div>
           </div>
         ) : permission === "denied" ? (
-          <div className="flex items-start gap-3 rounded-md border bg-muted/50 p-3">
+          <div className="flex items-start gap-3 py-1">
             <BellOff className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
             <div className="space-y-1">
-              <p className="text-xs font-medium">Notifications blocked</p>
-              <p className="text-[11px] text-muted-foreground">
-                You've blocked notifications. Update your browser settings to enable them.
+              <p className="text-sm font-medium">Notifications blocked</p>
+              <p className="text-xs leading-5 text-muted-foreground">
+                Your browser has blocked notifications. Update browser settings to allow them.
               </p>
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center justify-between gap-4 border-t border-border/70 pt-4">
             <div className="flex items-start gap-3">
               <Bell className="mt-0.5 size-4 shrink-0" />
               <div className="space-y-0.5">
                 <Label htmlFor="push-notifications" className="text-xs font-medium">
                   Push Notifications
                 </Label>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs leading-5 text-muted-foreground">
                   Get alerts for overdue inspections and assignments
                 </p>
               </div>
@@ -96,23 +85,20 @@ export function NotificationCard() {
           </div>
         )}
 
-        {error && <p className="text-xs text-destructive">{error}</p>}
+        {error ? <p className="text-xs text-destructive">{error}</p> : null}
 
-        {/* Test Push Notification */}
-        {isSupported && isSubscribed && (
-          <div className="flex items-center justify-between gap-4 border-t pt-4">
+        {isSupported && isSubscribed ? (
+          <div className="flex items-center justify-between gap-4 border-t border-border/70 pt-4">
             <div className="flex items-start gap-3">
               <Send className="mt-0.5 size-4 shrink-0" />
               <div className="space-y-0.5">
-                <p className="text-xs font-medium">Test Notification</p>
-                <p className="text-[11px] text-muted-foreground">
-                  Send a test push to verify notifications work
+                <p className="text-xs font-medium">Test Push Notification</p>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  Send a sample push to verify this device is receiving alerts.
                 </p>
-                {testResult && (
-                  <p className={`text-[11px] ${testResult.includes("sent") ? "text-green-600" : "text-muted-foreground"}`}>
-                    {testResult}
-                  </p>
-                )}
+                {testResult ? (
+                  <p className="text-xs text-muted-foreground">{testResult}</p>
+                ) : null}
               </div>
             </div>
             <Button
@@ -120,29 +106,27 @@ export function NotificationCard() {
               size="sm"
               onClick={sendTestNotification}
               disabled={isSendingTest}
-              className="h-7 text-xs"
             >
               {isSendingTest ? "Sending..." : "Send Test"}
             </Button>
           </div>
-        )}
+        ) : null}
 
-        {/* Email Notifications - placeholder for future */}
-        <div className="flex items-center justify-between gap-4 border-t pt-4">
+        <div className="flex items-center justify-between gap-4 border-t border-border/70 pt-4">
           <div className="flex items-start gap-3">
             <Mail className="mt-0.5 size-4 shrink-0" />
             <div className="space-y-0.5">
               <Label htmlFor="email-notifications" className="text-xs font-medium">
                 Email Notifications
               </Label>
-              <p className="text-[11px] text-muted-foreground">
-                Receive daily digest of pending inspections
+              <p className="text-xs leading-5 text-muted-foreground">
+                Receive a digest of pending inspections and reminders.
               </p>
             </div>
           </div>
           <Switch id="email-notifications" defaultChecked />
         </div>
       </div>
-    </div>
+    </section>
   )
 }
