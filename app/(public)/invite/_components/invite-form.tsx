@@ -74,7 +74,7 @@ export function InviteForm() {
   }
 
   return (
-    <Card>
+    <Card className="w-full border-border/70 bg-card/90 shadow-[0_35px_90px_-52px_rgba(20,41,61,0.5)] backdrop-blur-sm">
       <CardHeader>
         <CardTitle>Enter Invite Code</CardTitle>
         <CardDescription>Use the code provided by your admin</CardDescription>

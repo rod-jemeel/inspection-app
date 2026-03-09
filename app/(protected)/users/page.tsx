@@ -7,7 +7,7 @@ import { LoadingSpinner } from "@/components/loading-spinner"
 import { UsersContent } from "./_components/users-content"
 
 export const metadata: Metadata = {
-  title: "Team - Inspection Tracker",
+  title: "Team",
 }
 
 async function UsersData({ loc }: { loc: string }) {

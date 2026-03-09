@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
@@ -7,9 +7,16 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "Inspection Tracker",
-  description: "Multi-location inspection checklists with signature capture",
+  title: {
+    default: "Summit Inspection Tracker",
+    template: "%s | Summit",
+  },
+  description: "Multi-location inspection checklists with signature capture for Summit teams.",
 };
+
+export const viewport: Viewport = {
+  themeColor: "#5f97cf",
+}
 
 export default function RootLayout({
   children,

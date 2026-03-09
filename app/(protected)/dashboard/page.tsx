@@ -7,7 +7,7 @@ import { LoadingSpinner } from "@/components/loading-spinner"
 import { DashboardContent } from "./_components/dashboard-content"
 
 export const metadata: Metadata = {
-  title: "Dashboard - Inspection Tracker",
+  title: "Dashboard",
 }
 
 // Type for inspection instance with template relation

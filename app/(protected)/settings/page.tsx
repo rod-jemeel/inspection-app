@@ -7,7 +7,7 @@ import { LoadingSpinner } from "@/components/loading-spinner"
 import { SettingsContent } from "./_components/settings-content"
 
 export const metadata: Metadata = {
-  title: "Settings - Inspection Tracker",
+  title: "Settings",
 }
 
 async function SettingsData({ loc }: { loc: string }) {

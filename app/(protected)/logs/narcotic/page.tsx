@@ -7,7 +7,7 @@ import { NarcoticLog } from "./_components/narcotic-log"
 import type { NarcoticLogData as NarcoticLogDataType } from "@/lib/validations/log-entry"
 
 export const metadata: Metadata = {
-  title: "Narcotic Log - Inspection Tracker",
+  title: "Narcotic Log",
 }
 
 async function NarcoticLogLoader({

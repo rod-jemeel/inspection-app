@@ -4,8 +4,8 @@ export default function PublicLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex min-h-svh items-center justify-center bg-background">
-      <div className="w-full max-w-md px-4">
+    <div className="relative flex min-h-svh items-center justify-center overflow-hidden px-4 py-10">
+      <div className="relative w-full max-w-xl">
         {children}
       </div>
     </div>
