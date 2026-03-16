@@ -14,9 +14,13 @@ interface FormResponse {
   location_id: string
   submitted_by_profile_id: string
   submitted_at: string
+  original_submitted_at: string
   status: ResponseStatus
   overall_pass: boolean | null
   remarks: string | null
+  current_revision_number: number
+  last_edited_at: string | null
+  last_edited_by_name: string | null
   submitted_by_name: string | null
   form_template_name: string | null
 }
@@ -139,6 +143,15 @@ export function ResponseList({ binderId, locationId }: ResponseListProps) {
                 <p className="text-xs text-muted-foreground">
                   by {response.submitted_by_name || "Unknown"}
                 </p>
+                {response.current_revision_number > 1 && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Version {response.current_revision_number}
+                    {response.last_edited_at
+                      ? ` corrected ${new Date(response.last_edited_at).toLocaleDateString()}`
+                      : ""}
+                    {response.last_edited_by_name ? ` by ${response.last_edited_by_name}` : ""}
+                  </p>
+                )}
               </div>
 
               {/* Date & Time */}
@@ -170,6 +183,15 @@ export function ResponseList({ binderId, locationId }: ResponseListProps) {
                   )}
                 >
                   {response.overall_pass ? "Pass" : "Fail"}
+                </Badge>
+              )}
+
+              {response.current_revision_number > 1 && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] font-medium"
+                >
+                  v{response.current_revision_number}
                 </Badge>
               )}
             </div>

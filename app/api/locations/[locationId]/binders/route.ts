@@ -2,7 +2,7 @@ import { NextRequest } from "next/server"
 import { requireLocationAccess, requireBinderManagement } from "@/lib/server/auth-helpers"
 import { handleError, validationError } from "@/lib/server/errors"
 import { createBinderSchema } from "@/lib/validations/binder"
-import { listBinders, createBinder, getBindersForUser } from "@/lib/server/services/binders"
+import { createBinder, getBindersForUser } from "@/lib/server/services/binders"
 
 export async function GET(
   _request: NextRequest,
@@ -12,7 +12,10 @@ export async function GET(
     const { locationId } = await params
     const { profile } = await requireLocationAccess(locationId)
 
-    const binders = await getBindersForUser(locationId, profile.id, profile.role)
+    const binders = await getBindersForUser(locationId, profile.id, profile.role, {
+      can_manage_binders: profile.can_manage_binders,
+      can_manage_forms: profile.can_manage_forms,
+    })
     return Response.json(binders)
   } catch (error) {
     return handleError(error)

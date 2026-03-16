@@ -20,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { cn } from "@/lib/utils"
 
 interface FormTemplate {
   id: string
@@ -255,7 +254,7 @@ export function FormTemplateDialog({
               disabled={isLoading}
             />
             <p className="text-[10px] text-muted-foreground">
-              Paste the spreadsheet ID from the Google Sheets URL to enable sync
+              Paste the spreadsheet ID from the Google Sheets URL to sync each response to the latest row state
             </p>
           </div>
 
@@ -271,6 +270,9 @@ export function FormTemplateDialog({
               className="h-8 text-xs"
               disabled={isLoading}
             />
+            <p className="text-[10px] text-muted-foreground">
+              Optional. Corrections update the same response row instead of creating a new sheet row.
+            </p>
           </div>
 
           <DialogFooter>

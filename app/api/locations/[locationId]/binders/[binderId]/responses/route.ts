@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { requireLocationAccess } from "@/lib/server/auth-helpers"
+import { requireBinderAccess } from "@/lib/server/auth-helpers"
 import { handleError, validationError } from "@/lib/server/errors"
 import { filterResponsesSchema } from "@/lib/validations/form-response"
 import { listFormResponses } from "@/lib/server/services/form-responses"
@@ -10,7 +10,7 @@ export async function GET(
 ) {
   try {
     const { locationId, binderId } = await params
-    const { profile } = await requireLocationAccess(locationId)
+    const { profile } = await requireBinderAccess(locationId, binderId)
 
     const searchParams = Object.fromEntries(request.nextUrl.searchParams)
     const parsed = filterResponsesSchema.safeParse({

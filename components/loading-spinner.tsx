@@ -12,18 +12,18 @@ interface LoadingSpinnerProps {
 const sizeMap = {
   sm: {
     frame: "size-14",
-    shell: "size-11 rounded-[1.35rem]",
-    logo: "size-8",
+    shell: "size-11 rounded-[1.35rem] p-1.5",
+    logo: "size-[1.65rem]",
   },
   md: {
     frame: "size-18",
-    shell: "size-14 rounded-[1.65rem]",
-    logo: "size-10",
+    shell: "size-14 rounded-[1.65rem] p-2",
+    logo: "size-[2.1rem]",
   },
   lg: {
     frame: "size-24",
-    shell: "size-[4.5rem] rounded-[1.9rem]",
-    logo: "size-12",
+    shell: "size-[4.5rem] rounded-[1.9rem] p-2.5",
+    logo: "size-[2.55rem]",
   },
 } as const
 

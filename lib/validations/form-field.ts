@@ -21,6 +21,8 @@ export type FieldType = z.infer<typeof fieldTypeEnum>
 export const validationRulesSchema = z.object({
   min: z.number().optional(),
   max: z.number().optional(),
+  step: z.number().optional(),
+  unit: z.string().max(20).optional(),
   pattern: z.string().optional(),
   min_length: z.number().int().optional(),
   max_length: z.number().int().optional(),

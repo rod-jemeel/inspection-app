@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { requireFormEdit } from "@/lib/server/auth-helpers"
+import { requireBinderAccess, requireFormEdit } from "@/lib/server/auth-helpers"
 import { handleError, validationError } from "@/lib/server/errors"
 import { updateFormFieldSchema } from "@/lib/validations/form-field"
 import { getFormField, updateFormField, deleteFormField } from "@/lib/server/services/form-fields"
@@ -11,10 +11,10 @@ export async function GET(
 ) {
   try {
     const { locationId, formId, fieldId } = await params
-    // Verify form template exists
-    await getFormTemplate(locationId, formId)
+    const template = await getFormTemplate(locationId, formId)
+    await requireBinderAccess(locationId, template.binder_id)
 
-    const field = await getFormField(fieldId)
+    const field = await getFormField(formId, fieldId)
     return Response.json(field)
   } catch (error) {
     return handleError(error)
@@ -34,7 +34,7 @@ export async function PATCH(
     const parsed = updateFormFieldSchema.safeParse(body)
     if (!parsed.success) return validationError(parsed.error.issues).toResponse()
 
-    const field = await updateFormField(fieldId, parsed.data)
+    const field = await updateFormField(formId, fieldId, parsed.data)
     return Response.json(field)
   } catch (error) {
     return handleError(error)
@@ -50,7 +50,7 @@ export async function DELETE(
     const template = await getFormTemplate(locationId, formId)
     await requireFormEdit(locationId, template.binder_id)
 
-    await deleteFormField(fieldId)
+    await deleteFormField(formId, fieldId)
     return new Response(null, { status: 204 })
   } catch (error) {
     return handleError(error)

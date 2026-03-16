@@ -1,12 +1,11 @@
 import { Suspense } from "react"
 import type { Metadata } from "next"
-import { requireLocationAccess } from "@/lib/server/auth-helpers"
+import { requireFormEdit } from "@/lib/server/auth-helpers"
+import { ApiError } from "@/lib/server/errors"
 import { getFormTemplate } from "@/lib/server/services/form-templates"
 import { listFormFields } from "@/lib/server/services/form-fields"
 import { getBinder } from "@/lib/server/services/binders"
-import { canUserEditBinder } from "@/lib/server/services/binders"
 import { supabase } from "@/lib/server/db"
-import { redirect } from "next/navigation"
 import { LoadingSpinner } from "@/components/loading-spinner"
 import { PageBreadcrumbs } from "@/components/page-breadcrumbs"
 import { FormBuilder } from "./_components/form-builder"
@@ -24,22 +23,22 @@ async function FormBuilderData({
   binderId: string
   formId: string
 }) {
-  const { profile } = await requireLocationAccess(loc)
-  const [binder, template, fields, canEdit, responseCountResult] = await Promise.all([
+  const template = await getFormTemplate(loc, formId)
+  if (template.binder_id !== binderId) {
+    throw new ApiError("NOT_FOUND", "Form template not found in this binder")
+  }
+
+  await requireFormEdit(loc, binderId)
+
+  const [binder, fields, responseCountResult] = await Promise.all([
     getBinder(loc, binderId),
-    getFormTemplate(loc, formId),
     listFormFields(formId),
-    canUserEditBinder(profile.id, binderId, profile.role),
     supabase
       .from("form_responses")
       .select("id", { count: "exact", head: true })
       .eq("form_template_id", formId)
       .eq("location_id", loc),
   ])
-
-  if (!canEdit) {
-    redirect(`/binders/${binderId}?loc=${loc}`)
-  }
 
   return (
     <>

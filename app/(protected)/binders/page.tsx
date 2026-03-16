@@ -11,7 +11,10 @@ export const metadata: Metadata = {
 
 async function BindersData({ loc }: { loc: string }) {
   const { profile } = await requireLocationAccess(loc)
-  const binders = await getBindersForUser(loc, profile.id, profile.role)
+  const binders = await getBindersForUser(loc, profile.id, profile.role, {
+    can_manage_binders: profile.can_manage_binders,
+    can_manage_forms: profile.can_manage_forms,
+  })
   const canManage = profile.role === "owner" || profile.role === "admin" || profile.can_manage_binders
 
   return (

@@ -177,12 +177,22 @@ export async function getMemberBinderAssignments(profileId: string) {
 
   if (error) throw new ApiError("INTERNAL_ERROR", error.message)
 
-  return (data ?? []).map((assignment: any) => ({
-    binder_id: assignment.binder_id,
-    binder_name: assignment.binders.name,
-    binder_color: assignment.binders.color || "#6b7280",
-    access_level: assignment.can_edit ? "editor" : "viewer",
-  }))
+  type AssignmentRow = {
+    binder_id: string
+    can_edit: boolean
+    binders: { id: string; name: string; color: string | null }[] | null
+  }
+
+  return ((data ?? []) as AssignmentRow[]).map((assignment) => {
+    const binder = assignment.binders?.[0] ?? null
+
+    return {
+      binder_id: assignment.binder_id,
+      binder_name: binder?.name ?? "Unknown Binder",
+      binder_color: binder?.color || "#6b7280",
+      access_level: assignment.can_edit ? "editor" : "viewer",
+    }
+  })
 }
 
 export async function updateBinderAssignments(
@@ -224,9 +234,19 @@ export async function updateBinderAssignments(
 export async function canUserEditBinder(
   profileId: string,
   binderId: string,
-  role: string
+  role: string,
+  opts?: {
+    can_manage_binders?: boolean
+    can_manage_forms?: boolean
+  }
 ): Promise<boolean> {
-  if (["owner", "admin"].includes(role)) return true
+  if (
+    ["owner", "admin"].includes(role) ||
+    opts?.can_manage_binders ||
+    opts?.can_manage_forms
+  ) {
+    return true
+  }
 
   const { data } = await supabase
     .from("binder_assignments")
@@ -246,10 +266,18 @@ export async function canUserEditBinder(
 export async function getBindersForUser(
   locationId: string,
   profileId: string,
-  role: string
+  role: string,
+  opts?: {
+    can_manage_binders?: boolean
+    can_manage_forms?: boolean
+  }
 ) {
   // Management roles see all binders
-  if (["owner", "admin"].includes(role)) {
+  if (
+    ["owner", "admin"].includes(role) ||
+    opts?.can_manage_binders ||
+    opts?.can_manage_forms
+  ) {
     return listBinders(locationId, { active: true })
   }
 
@@ -311,12 +339,23 @@ export async function getAssignmentsForProfile(
 
   if (error) throw new ApiError("INTERNAL_ERROR", error.message)
 
-  return (data ?? [])
-    .filter((row: any) => row.binders)
-    .map((row: any) => ({
-      binder_id: row.binder_id,
-      binder_name: row.binders.name,
-      binder_color: row.binders.color,
-      can_edit: row.can_edit,
-    }))
+  type AssignmentRow = {
+    binder_id: string
+    can_edit: boolean
+    binders: { name: string; color: string | null }[] | null
+  }
+
+  return ((data ?? []) as AssignmentRow[])
+    .map((row) => {
+      const binder = row.binders?.[0]
+      if (!binder) return null
+
+      return {
+        binder_id: row.binder_id,
+        binder_name: binder.name,
+        binder_color: binder.color,
+        can_edit: row.can_edit,
+      }
+    })
+    .filter((row): row is { binder_id: string; binder_name: string; binder_color: string | null; can_edit: boolean } => row !== null)
 }

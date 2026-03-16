@@ -42,12 +42,25 @@ export const updateFormResponseSchema = z.object({
 
 export type UpdateFormResponseInput = z.infer<typeof updateFormResponseSchema>
 
+const booleanQueryParamSchema = z.preprocess((value) => {
+  if (value === undefined || value === null || value === "") return undefined
+  if (typeof value === "boolean") return value
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase()
+    if (["true", "1", "yes"].includes(normalized)) return true
+    if (["false", "0", "no"].includes(normalized)) return false
+  }
+
+  return value
+}, z.boolean().optional())
+
 export const filterResponsesSchema = z.object({
   binder_id: z.string().uuid().optional(),
   form_template_id: z.string().uuid().optional(),
   submitted_by_profile_id: z.string().uuid().optional(),
   status: responseStatusEnum.optional(),
-  overall_pass: z.coerce.boolean().optional(),
+  overall_pass: booleanQueryParamSchema,
   from: z.string().date().optional(),
   to: z.string().date().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),

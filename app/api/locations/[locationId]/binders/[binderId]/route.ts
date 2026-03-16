@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { requireLocationAccess, requireBinderManagement } from "@/lib/server/auth-helpers"
+import { requireBinderAccess, requireBinderManagement } from "@/lib/server/auth-helpers"
 import { handleError, validationError } from "@/lib/server/errors"
 import { updateBinderSchema } from "@/lib/validations/binder"
 import { getBinder, updateBinder, deleteBinder } from "@/lib/server/services/binders"
@@ -10,7 +10,7 @@ export async function GET(
 ) {
   try {
     const { locationId, binderId } = await params
-    await requireLocationAccess(locationId)
+    await requireBinderAccess(locationId, binderId)
 
     const binder = await getBinder(locationId, binderId)
     return Response.json(binder)

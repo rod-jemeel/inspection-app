@@ -8,10 +8,10 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "name": "Webhook",
+      "name": "Webhook Submitted",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [250, 300],
+      "position": [220, 220],
       "webhookId": "form-response-submitted"
     },
     {
@@ -31,10 +31,10 @@
           "range": "1:2"
         }
       },
-      "name": "Read Sheet Headers",
+      "name": "Read Sheet Headers Submitted",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
-      "position": [500, 300],
+      "position": [460, 220],
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "CONFIGURE_ME",
@@ -44,12 +44,12 @@
     },
     {
       "parameters": {
-        "jsCode": "// Date formatting helpers (match Google Forms format)\nfunction fmtTimestamp(iso) {\n  const d = new Date(iso);\n  if (isNaN(d.getTime())) return iso;\n  const M = d.getMonth() + 1;\n  const D = d.getDate();\n  const Y = d.getFullYear();\n  const h = d.getHours();\n  const m = String(d.getMinutes()).padStart(2, '0');\n  const s = String(d.getSeconds()).padStart(2, '0');\n  return `${M}/${D}/${Y} ${h}:${m}:${s}`;\n}\nfunction fmtDate(val) {\n  const d = new Date(val);\n  if (isNaN(d.getTime())) return String(val);\n  return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;\n}\nfunction fmtTime(val) {\n  const d = new Date(val);\n  if (isNaN(d.getTime())) return String(val);\n  let h = d.getHours();\n  const ap = h >= 12 ? 'PM' : 'AM';\n  h = h % 12 || 12;\n  const m = String(d.getMinutes()).padStart(2, '0');\n  const s = String(d.getSeconds()).padStart(2, '0');\n  return `${h}:${m}:${s} ${ap}`;\n}\n\n// Get sheet column headers (skip n8n metadata 'row_number')\nconst sheetRow = $('Read Sheet Headers').first().json;\nconst headers = Object.keys(sheetRow).filter(h => h !== 'row_number');\n\nconst payload = $('Webhook').first().json.body;\n\n// SPARSE mapping: only include columns that match field responses\n// This prevents overwriting other columns when updating an existing row\n// (e.g., weekly form updating weekly columns without clearing daily columns)\nconst row = {};\nlet lookupColumn = null;\nlet lookupValue = null;\n\n// Set Timestamp in first column\nif (headers.length > 0) {\n  row[headers[0]] = fmtTimestamp(payload.timestamp);\n}\n\n// Name-based matching: match each field to its sheet column\n// Uses sheet_header (exact Google Sheet column name) if available, falls back to label\nfor (const f of payload.field_responses) {\n  const matchName = f.sheet_header || f.label;\n  const matched = headers.find(h =>\n    h === matchName || h.trim() === matchName || h.trim() === matchName.trim()\n  );\n  if (matched) {\n    let value;\n    if (f.value === null || f.value === undefined) {\n      value = '';\n    } else if (f.field_type === 'date') {\n      value = fmtDate(f.value);\n    } else if (f.field_type === 'datetime') {\n      value = fmtTime(f.value);\n    } else {\n      value = String(f.value);\n    }\n    row[matched] = value;\n\n    // Use the first date field as the lookup column for upsert\n    // This allows multiple forms sharing the same sheet to match rows by date\n    if (f.field_type === 'date' && !lookupColumn) {\n      lookupColumn = matched;\n      lookupValue = value;\n    }\n  }\n}\n\n// Add signature/selfie URLs if present\nif (payload.completion_signature) {\n  row['Signature'] = payload.completion_signature;\n}\nif (payload.completion_selfie) {\n  row['Selfie'] = payload.completion_selfie;\n}\n\n// Store lookup info as metadata for the Append Or Update node\nrow['__lookupColumn'] = lookupColumn || headers[0];\nrow['__lookupValue'] = lookupValue || row[headers[0]];\n\nreturn [{ json: { ...row } }];"
+        "jsCode": "function fmtTimestamp(iso) {\n  const d = new Date(iso);\n  if (isNaN(d.getTime())) return iso || '';\n  const M = d.getMonth() + 1;\n  const D = d.getDate();\n  const Y = d.getFullYear();\n  const h = d.getHours();\n  const m = String(d.getMinutes()).padStart(2, '0');\n  const s = String(d.getSeconds()).padStart(2, '0');\n  return `${M}/${D}/${Y} ${h}:${m}:${s}`;\n}\n\nfunction normalizeHeader(value) {\n  return String(value || '')\n    .trim()\n    .toLowerCase()\n    .replace(/[^a-z0-9]+/g, '_')\n    .replace(/^_+|_+$/g, '');\n}\n\nfunction toSheetValue(value) {\n  if (value === null || value === undefined) return '';\n  return String(value);\n}\n\nconst payload = $('Webhook Submitted').first().json.body;\nconst sheetRow = $('Read Sheet Headers Submitted').first().json;\nconst headers = Object.keys(sheetRow).filter((header) => header !== 'row_number');\nconst headerByNormalized = new Map(headers.map((header) => [normalizeHeader(header), header]));\n\nconst row = {};\nconst timestampHeader = headers[0] || 'Timestamp';\nconst timestampValue = fmtTimestamp(payload.original_submitted_at || payload.submitted_at || payload.timestamp);\nrow[timestampHeader] = timestampValue;\n\nfor (const [key, value] of Object.entries(payload.record || {})) {\n  const matchedHeader = headerByNormalized.get(normalizeHeader(key)) || key;\n  row[matchedHeader] = toSheetValue(value);\n}\n\nif (payload.media?.completion_signature) {\n  const signatureHeader = headerByNormalized.get('signature') || 'signature';\n  row[signatureHeader] = payload.media.completion_signature;\n}\n\nif (payload.media?.completion_selfie) {\n  const selfieHeader = headerByNormalized.get('selfie') || 'selfie';\n  row[selfieHeader] = payload.media.completion_selfie;\n}\n\nconst metadata = {\n  form_template_name: payload.form_template_name,\n  binder_name: payload.binder_name,\n  status: payload.status,\n  operation: payload.operation,\n  overall_pass: payload.overall_pass,\n  submitted_by: payload.submitted_by?.name || '',\n  last_edited_by: payload.last_edited_by?.name || '',\n  last_edited_at: payload.last_edited_at || ''\n};\n\nfor (const [key, value] of Object.entries(metadata)) {\n  if (value === null || value === undefined || value === '') continue;\n  const matchedHeader = headerByNormalized.get(normalizeHeader(key)) || key;\n  row[matchedHeader] = toSheetValue(value);\n}\n\nrow.__lookupColumn = timestampHeader;\nrow.__lookupValue = timestampValue;\n\nreturn [{ json: row }];"
       },
-      "name": "Map Fields to Columns",
+      "name": "Map Fields to Columns Submitted",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [750, 300]
+      "position": [700, 220]
     },
     {
       "parameters": {
@@ -57,17 +57,19 @@
         "documentId": {
           "__rl": true,
           "mode": "id",
-          "value": "={{$('Webhook').first().json.body.google_sheet_id}}"
+          "value": "={{$('Webhook Submitted').first().json.body.google_sheet_id}}"
         },
         "sheetName": {
           "__rl": true,
           "mode": "name",
-          "value": "={{$('Webhook').first().json.body.google_sheet_tab || 'Form Responses 1'}}"
+          "value": "={{$('Webhook Submitted').first().json.body.google_sheet_tab || 'Form Responses 1'}}"
         },
         "columns": {
           "mappingMode": "autoMapInputData",
           "value": {},
-          "matchingColumns": ["={{$json.__lookupColumn}}"],
+          "matchingColumns": [
+            "={{$json.__lookupColumn}}"
+          ],
           "schema": []
         },
         "options": {
@@ -75,10 +77,10 @@
           "handlingExtraData": "insertInNewColumn"
         }
       },
-      "name": "Append Or Update",
+      "name": "Append Or Update Submitted",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
-      "position": [1000, 300],
+      "position": [960, 220],
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "CONFIGURE_ME",
@@ -89,29 +91,205 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: true, message: 'Row synced to Google Sheet', response_id: $('Webhook').first().json.body.response_id, lookup_column: $('Map Fields to Columns').first().json.__lookupColumn } }}",
+        "responseBody": "={{ { success: true, message: 'Row synced to Google Sheet', operation: $('Webhook Submitted').first().json.body.operation, lookup_column: $('Map Fields to Columns Submitted').first().json.__lookupColumn } }}",
         "options": {}
       },
-      "name": "Respond Success",
+      "name": "Respond Success Submitted",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1250, 300]
+      "position": [1210, 220]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "form-response-corrected",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Corrected",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 520],
+      "webhookId": "form-response-corrected"
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{$json.body.google_sheet_id}}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{$json.body.google_sheet_tab || 'Form Responses 1'}}"
+        },
+        "options": {
+          "range": "1:2"
+        }
+      },
+      "name": "Read Sheet Headers Corrected",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [460, 520],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CONFIGURE_ME",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function fmtTimestamp(iso) {\n  const d = new Date(iso);\n  if (isNaN(d.getTime())) return iso || '';\n  const M = d.getMonth() + 1;\n  const D = d.getDate();\n  const Y = d.getFullYear();\n  const h = d.getHours();\n  const m = String(d.getMinutes()).padStart(2, '0');\n  const s = String(d.getSeconds()).padStart(2, '0');\n  return `${M}/${D}/${Y} ${h}:${m}:${s}`;\n}\n\nfunction normalizeHeader(value) {\n  return String(value || '')\n    .trim()\n    .toLowerCase()\n    .replace(/[^a-z0-9]+/g, '_')\n    .replace(/^_+|_+$/g, '');\n}\n\nfunction toSheetValue(value) {\n  if (value === null || value === undefined) return '';\n  return String(value);\n}\n\nconst payload = $('Webhook Corrected').first().json.body;\nconst sheetRow = $('Read Sheet Headers Corrected').first().json;\nconst headers = Object.keys(sheetRow).filter((header) => header !== 'row_number');\nconst headerByNormalized = new Map(headers.map((header) => [normalizeHeader(header), header]));\n\nconst row = {};\nconst timestampHeader = headers[0] || 'Timestamp';\nconst timestampValue = fmtTimestamp(payload.original_submitted_at || payload.submitted_at || payload.timestamp);\nrow[timestampHeader] = timestampValue;\n\nfor (const [key, value] of Object.entries(payload.record || {})) {\n  const matchedHeader = headerByNormalized.get(normalizeHeader(key)) || key;\n  row[matchedHeader] = toSheetValue(value);\n}\n\nif (payload.media?.completion_signature) {\n  const signatureHeader = headerByNormalized.get('signature') || 'signature';\n  row[signatureHeader] = payload.media.completion_signature;\n}\n\nif (payload.media?.completion_selfie) {\n  const selfieHeader = headerByNormalized.get('selfie') || 'selfie';\n  row[selfieHeader] = payload.media.completion_selfie;\n}\n\nconst metadata = {\n  form_template_name: payload.form_template_name,\n  binder_name: payload.binder_name,\n  status: payload.status,\n  operation: payload.operation,\n  overall_pass: payload.overall_pass,\n  submitted_by: payload.submitted_by?.name || '',\n  last_edited_by: payload.last_edited_by?.name || '',\n  last_edited_at: payload.last_edited_at || ''\n};\n\nfor (const [key, value] of Object.entries(metadata)) {\n  if (value === null || value === undefined || value === '') continue;\n  const matchedHeader = headerByNormalized.get(normalizeHeader(key)) || key;\n  row[matchedHeader] = toSheetValue(value);\n}\n\nrow.__lookupColumn = timestampHeader;\nrow.__lookupValue = timestampValue;\n\nreturn [{ json: row }];"
+      },
+      "name": "Map Fields to Columns Corrected",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 520]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{$('Webhook Corrected').first().json.body.google_sheet_id}}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{$('Webhook Corrected').first().json.body.google_sheet_tab || 'Form Responses 1'}}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "={{$json.__lookupColumn}}"
+          ],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED",
+          "handlingExtraData": "insertInNewColumn"
+        }
+      },
+      "name": "Append Or Update Corrected",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [960, 520],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CONFIGURE_ME",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, message: 'Row synced to Google Sheet', operation: $('Webhook Corrected').first().json.body.operation, lookup_column: $('Map Fields to Columns Corrected').first().json.__lookupColumn } }}",
+        "options": {}
+      },
+      "name": "Respond Success Corrected",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1210, 520]
     }
   ],
   "connections": {
-    "Webhook": {
-      "main": [[{ "node": "Read Sheet Headers", "type": "main", "index": 0 }]]
+    "Webhook Submitted": {
+      "main": [
+        [
+          {
+            "node": "Read Sheet Headers Submitted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Read Sheet Headers": {
-      "main": [[{ "node": "Map Fields to Columns", "type": "main", "index": 0 }]]
+    "Read Sheet Headers Submitted": {
+      "main": [
+        [
+          {
+            "node": "Map Fields to Columns Submitted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Map Fields to Columns": {
-      "main": [[{ "node": "Append Or Update", "type": "main", "index": 0 }]]
+    "Map Fields to Columns Submitted": {
+      "main": [
+        [
+          {
+            "node": "Append Or Update Submitted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Append Or Update": {
-      "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]]
+    "Append Or Update Submitted": {
+      "main": [
+        [
+          {
+            "node": "Respond Success Submitted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Corrected": {
+      "main": [
+        [
+          {
+            "node": "Read Sheet Headers Corrected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Sheet Headers Corrected": {
+      "main": [
+        [
+          {
+            "node": "Map Fields to Columns Corrected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Fields to Columns Corrected": {
+      "main": [
+        [
+          {
+            "node": "Append Or Update Corrected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Or Update Corrected": {
+      "main": [
+        [
+          {
+            "node": "Respond Success Corrected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "active": false
 }
