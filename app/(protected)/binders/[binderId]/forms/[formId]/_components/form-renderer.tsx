@@ -59,13 +59,38 @@ interface ExistingFieldResponse {
   pass: boolean | null
 }
 
-interface ExistingResponse {
+interface ResponseRevision {
   id: string
+  revision_number: number
+  change_type: "submitted" | "corrected"
+  edited_at: string
+  edited_by_profile_id: string | null
+  edited_by_name: string | null
   status: "draft" | "complete" | "flagged"
+  overall_pass: boolean | null
   remarks: string | null
+  corrective_action: string | null
   completion_signature: string | null
   completion_selfie: string | null
   field_responses: ExistingFieldResponse[]
+  changed_fields: string[]
+}
+
+interface ExistingResponse {
+  id: string
+  submitted_at: string
+  original_submitted_at: string
+  status: "draft" | "complete" | "flagged"
+  overall_pass: boolean | null
+  remarks: string | null
+  corrective_action: string | null
+  completion_signature: string | null
+  completion_selfie: string | null
+  current_revision_number: number
+  last_edited_at: string | null
+  last_edited_by_name?: string | null
+  field_responses: ExistingFieldResponse[]
+  revisions: ResponseRevision[]
 }
 
 interface FormRendererProps {
@@ -73,12 +98,12 @@ interface FormRendererProps {
   template: FormTemplate
   fields: FormField[]
   locationId: string
-  profileId: string
   profileName: string
   inspectionInstanceId?: string | null
   instanceDueDate?: string | null
   canEdit?: boolean
   existingResponse?: ExistingResponse
+  canEditExistingResponse?: boolean
 }
 
 type FieldValues = Record<string, unknown>
@@ -281,9 +306,9 @@ function getInitialValues(fields: FormField[], profileName?: string, instanceDue
   return values
 }
 
-function getValuesFromResponse(fields: FormField[], response: ExistingResponse): FieldValues {
+function getValuesFromFieldResponses(fields: FormField[], fieldResponses: ExistingFieldResponse[]): FieldValues {
   const values: FieldValues = {}
-  const responseMap = new Map(response.field_responses.map((fr) => [fr.form_field_id, fr]))
+  const responseMap = new Map(fieldResponses.map((fr) => [fr.form_field_id, fr]))
 
   for (const field of fields) {
     const fr = responseMap.get(field.id)
@@ -330,43 +355,64 @@ export function FormRenderer({
   template,
   fields,
   locationId,
-  profileId,
   profileName,
   inspectionInstanceId,
   instanceDueDate,
   canEdit,
   existingResponse,
+  canEditExistingResponse = false,
 }: FormRendererProps) {
   const router = useRouter()
   const isEditMode = !!existingResponse
   const isPreviewMode = !inspectionInstanceId && !isEditMode
+  const [selectedRevisionNumber, setSelectedRevisionNumber] = useState<number | null>(
+    existingResponse?.current_revision_number ?? null
+  )
 
   const sortedFields = useMemo(
     () => [...fields].sort((a, b) => a.sort_order - b.sort_order),
     [fields]
   )
 
+  const selectedRevision = useMemo(() => {
+    if (!existingResponse || selectedRevisionNumber === null) return null
+    return existingResponse.revisions.find((revision) => revision.revision_number === selectedRevisionNumber) ?? null
+  }, [existingResponse, selectedRevisionNumber])
+
+  const activeResponseSnapshot = selectedRevision ?? null
+  const isHistoricalRevision =
+    !!existingResponse &&
+    !!activeResponseSnapshot &&
+    activeResponseSnapshot.revision_number !== existingResponse.current_revision_number
+  const isReadOnlyResponse = isEditMode && (!canEditExistingResponse || isHistoricalRevision)
+  const isInteractive = !isPreviewMode && !isReadOnlyResponse
+
   // Build a map of field ID → section header ID (for section toggle)
   // Fields after a section_header belong to that section until the next
   // section_header or the first required field of a different type (e.g.
   // Inspector Name at the end is required text — not part of the weekly section).
   const sectionMap = useMemo(() => {
-    const map: Record<string, string> = {} // fieldId → sectionHeaderId
+    const map: Record<string, string> = {}
     let currentSectionId: string | null = null
+    let sectionFieldType: string | null = null
+
     for (const f of sortedFields) {
       if (f.field_type === "section_header") {
         currentSectionId = f.id
+        sectionFieldType = null
       } else if (currentSectionId) {
-        // End the section when we hit a required field that isn't the same
-        // type as the section's fields (boolean). This prevents trailing
-        // fields like "Inspector Name" from being swallowed by the section.
-        if (f.required) {
+        if (!sectionFieldType) {
+          sectionFieldType = f.field_type
+          map[f.id] = currentSectionId
+        } else if (f.required && f.field_type !== sectionFieldType) {
           currentSectionId = null
+          sectionFieldType = null
         } else {
           map[f.id] = currentSectionId
         }
       }
     }
+
     return map
   }, [sortedFields])
 
@@ -396,7 +442,7 @@ export function FormRenderer({
 
   const [values, setValues] = useState<FieldValues>(() =>
     existingResponse
-      ? getValuesFromResponse(sortedFields, existingResponse)
+      ? getValuesFromFieldResponses(sortedFields, existingResponse.field_responses)
       : getInitialValues(sortedFields, profileName, instanceDueDate)
   )
   const [errors, setErrors] = useState<FieldErrors>({})
@@ -411,6 +457,22 @@ export function FormRenderer({
   const selfieInputRef = useRef<HTMLInputElement>(null)
 
   const binderColor = binder.color || "#6366f1"
+  const displayFieldResponses = activeResponseSnapshot?.field_responses ?? existingResponse?.field_responses ?? []
+  const displayValues = isReadOnlyResponse
+    ? getValuesFromFieldResponses(sortedFields, displayFieldResponses)
+    : values
+  const displayRemarks = isReadOnlyResponse
+    ? (activeResponseSnapshot?.remarks ?? existingResponse?.remarks ?? "")
+    : remarks
+  const displayStatus = activeResponseSnapshot?.status ?? existingResponse?.status ?? "complete"
+  const displayOverallPass =
+    activeResponseSnapshot?.overall_pass ?? existingResponse?.overall_pass ?? null
+  const displaySignature = isReadOnlyResponse
+    ? (activeResponseSnapshot?.completion_signature ?? existingResponse?.completion_signature ?? null)
+    : signaturePreview
+  const displaySelfie = isReadOnlyResponse
+    ? (activeResponseSnapshot?.completion_selfie ?? existingResponse?.completion_selfie ?? null)
+    : selfiePreview
 
   const handleFieldChange = useCallback((fieldId: string, value: unknown) => {
     setValues((prev) => ({ ...prev, [fieldId]: value }))
@@ -445,6 +507,8 @@ export function FormRenderer({
   )
 
   const handleSubmit = useCallback(async () => {
+    if (!isInteractive) return
+
     // Validate all fields (skip collapsed sections)
     const newErrors: FieldErrors = {}
     for (const field of sortedFields) {
@@ -542,7 +606,7 @@ export function FormRenderer({
     } finally {
       setSubmitting(false)
     }
-  }, [sortedFields, values, remarks, template.id, locationId, signaturePreview, selfiePreview, isEditMode, existingResponse, inspectionInstanceId, isSectionCollapsed])
+  }, [sortedFields, values, remarks, template.id, locationId, signaturePreview, selfiePreview, isEditMode, existingResponse, inspectionInstanceId, isSectionCollapsed, isInteractive])
 
   const handleBackToBinder = useCallback(() => {
     router.push(`/binders/${binder.id}?loc=${locationId}`)
@@ -562,12 +626,20 @@ export function FormRenderer({
             </div>
             <div className="space-y-1">
               <h2 className="text-sm font-medium">
-                {isEditMode ? "Response updated" : "Response submitted"}
+                {isEditMode && existingResponse?.status !== "draft"
+                  ? "Correction saved"
+                  : isEditMode
+                    ? "Response updated"
+                    : "Response submitted"}
               </h2>
               <p className="text-xs text-muted-foreground">
                 Your response to{" "}
                 <span className="font-medium text-foreground">{template.name}</span>{" "}
-                has been {isEditMode ? "updated" : "recorded"}.
+                has been {isEditMode && existingResponse?.status !== "draft"
+                  ? "corrected and added to the record history"
+                  : isEditMode
+                    ? "updated"
+                    : "recorded"}.
               </p>
             </div>
             <div className="flex gap-2 pt-2">
@@ -575,19 +647,21 @@ export function FormRenderer({
                 <ChevronLeft className="size-3.5" />
                 Back to binder
               </Button>
-              <Button
-                size="sm"
-                onClick={() => {
-                  setSubmitted(false)
-                  setValues(getInitialValues(sortedFields, profileName, instanceDueDate))
-                  setRemarks("")
-                  setErrors({})
-                  setSubmitError(null)
-                  setSelfiePreview(null)
-                }}
-              >
-                Submit another
-              </Button>
+              {!isEditMode && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setSubmitted(false)
+                    setValues(getInitialValues(sortedFields, profileName, instanceDueDate))
+                    setRemarks("")
+                    setErrors({})
+                    setSubmitError(null)
+                    setSelfiePreview(null)
+                  }}
+                >
+                  Submit another
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -602,7 +676,7 @@ export function FormRenderer({
   const requiredCount = activeFields.filter((f) => f.required).length
   const filledRequiredCount = activeFields.filter((f) => {
     if (!f.required) return false
-    const v = values[f.id]
+    const v = displayValues[f.id]
     if (v === null || v === undefined || v === "") return false
     if (f.field_type === "multi_select" && Array.isArray(v) && v.length === 0) return false
     return true
@@ -681,6 +755,110 @@ export function FormRenderer({
                     <Pencil className="size-3" />
                     Edit Fields
                   </Button>
+                )}
+              </div>
+            )}
+
+            {isReadOnlyResponse && (
+              <div className="flex items-center gap-2 rounded-md bg-muted/60 px-3 py-2">
+                <Eye className="size-3.5 shrink-0 text-muted-foreground" />
+                <p className="text-[11px] text-muted-foreground">
+                  {isHistoricalRevision
+                    ? "Historical revision selected. Older revisions are locked to read-only."
+                    : "Read-only response. Completed submissions can only be edited by users with elevated response access."}
+                </p>
+              </div>
+            )}
+
+            {existingResponse && (
+              <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-medium text-foreground">
+                    Record history
+                  </span>
+                  <span className="rounded-full bg-background px-2 py-0.5 text-[10px] text-muted-foreground">
+                    Version {activeResponseSnapshot?.revision_number ?? existingResponse.current_revision_number}
+                  </span>
+                  <span className="rounded-full bg-background px-2 py-0.5 text-[10px] text-muted-foreground">
+                    {displayStatus}
+                  </span>
+                  {displayOverallPass !== null && (
+                    <span className="rounded-full bg-background px-2 py-0.5 text-[10px] text-muted-foreground">
+                      {displayOverallPass ? "Pass" : "Fail"}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-2 grid gap-1 text-[11px] text-muted-foreground sm:grid-cols-2">
+                  <p>
+                    Original submission:{" "}
+                    <span className="text-foreground">
+                      {new Date(existingResponse.original_submitted_at).toLocaleString([], {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </span>
+                  </p>
+                  <p>
+                    Latest correction:{" "}
+                    <span className="text-foreground">
+                      {existingResponse.last_edited_at
+                        ? `${new Date(existingResponse.last_edited_at).toLocaleString([], {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })}${existingResponse.last_edited_by_name ? ` by ${existingResponse.last_edited_by_name}` : ""}`
+                        : "None"}
+                    </span>
+                  </p>
+                </div>
+                {existingResponse.revisions.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-[11px] font-medium text-foreground">
+                      Revision history
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      {existingResponse.revisions.map((revision) => {
+                        const isActive = revision.revision_number === (activeResponseSnapshot?.revision_number ?? existingResponse.current_revision_number)
+                        return (
+                          <button
+                            key={revision.id}
+                            type="button"
+                            onClick={() => setSelectedRevisionNumber(revision.revision_number)}
+                            className={cn(
+                              "rounded-md border px-3 py-2 text-left transition-colors",
+                              isActive
+                                ? "border-primary bg-primary/5"
+                                : "border-border/60 bg-background hover:bg-muted/40"
+                            )}
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-[11px] font-medium text-foreground">
+                                Version {revision.revision_number}
+                              </span>
+                              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                {revision.change_type === "submitted" ? "Submitted" : "Correction"}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">
+                                {new Date(revision.edited_at).toLocaleString([], {
+                                  dateStyle: "medium",
+                                  timeStyle: "short",
+                                })}
+                              </span>
+                              {revision.edited_by_name && (
+                                <span className="text-[10px] text-muted-foreground">
+                                  by {revision.edited_by_name}
+                                </span>
+                              )}
+                            </div>
+                            {revision.changed_fields.length > 0 && (
+                              <p className="mt-1 text-[10px] text-muted-foreground">
+                                Changed: {revision.changed_fields.join(", ")}
+                              </p>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
                 )}
               </div>
             )}
@@ -767,10 +945,10 @@ export function FormRenderer({
                 {/* Input */}
                 <FieldInput
                   field={field}
-                  value={values[field.id]}
+                  value={displayValues[field.id]}
                   onChange={(v) => handleFieldChange(field.id, v)}
                   error={errors[field.id]}
-                  disabled={isPreviewMode}
+                  disabled={!isInteractive}
                 />
 
                 {/* Error */}
@@ -792,7 +970,7 @@ export function FormRenderer({
         {/* ---------------------------------------------------------------- */}
         {/* Remarks card (fill mode only)                                    */}
         {/* ---------------------------------------------------------------- */}
-        {!isPreviewMode && (
+        {!isPreviewMode && !isReadOnlyResponse && (
         <div className="rounded-md border bg-card px-5 py-4 shadow-sm">
           <div className="space-y-2.5">
             <label className="text-xs font-medium leading-snug">
@@ -808,10 +986,51 @@ export function FormRenderer({
         </div>
         )}
 
+        {isReadOnlyResponse && displayRemarks && (
+          <div className="rounded-md border bg-card px-5 py-4 shadow-sm">
+            <div className="space-y-2">
+              <p className="text-xs font-medium leading-snug">Remarks</p>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                {displayRemarks}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {isReadOnlyResponse && (displaySignature || displaySelfie) && (
+          <div className="rounded-md border bg-card px-5 py-4 shadow-sm">
+            <div className="space-y-3">
+              <p className="text-xs font-medium leading-snug">Completion evidence</p>
+              <div className="grid grid-cols-2 gap-3">
+                {displaySignature && (
+                  <div className="rounded-md border border-border/60 bg-muted/20 p-3">
+                    <p className="mb-2 text-[11px] text-muted-foreground">Signature</p>
+                    <img
+                      src={displaySignature}
+                      alt="Stored signature"
+                      className="h-16 w-full object-contain"
+                    />
+                  </div>
+                )}
+                {displaySelfie && (
+                  <div className="rounded-md border border-border/60 bg-muted/20 p-3">
+                    <p className="mb-2 text-[11px] text-muted-foreground">Selfie</p>
+                    <img
+                      src={displaySelfie}
+                      alt="Stored selfie"
+                      className="h-16 w-full rounded-md object-cover"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ---------------------------------------------------------------- */}
         {/* Completion: Signature/Selfie (fill mode only)                    */}
         {/* ---------------------------------------------------------------- */}
-        {!isPreviewMode && (
+        {!isPreviewMode && !isReadOnlyResponse && (
         <div className="rounded-md border bg-card px-5 py-4 shadow-sm">
           <div className="space-y-4">
             <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -831,19 +1050,19 @@ export function FormRenderer({
                   onClick={() => setShowSignaturePad(true)}
                   className={cn(
                     "flex flex-col items-center gap-1.5 rounded-md border border-dashed border-input px-3 py-4 text-xs text-muted-foreground transition-colors hover:bg-muted/50",
-                    signaturePreview && "border-solid border-primary/50"
+                    displaySignature && "border-solid border-primary/50"
                   )}
                 >
-                  {signaturePreview ? (
+                  {displaySignature ? (
                     <img
-                      src={signaturePreview}
+                      src={displaySignature}
                       alt="Signature"
                       className="h-12 w-32 object-contain"
                     />
                   ) : (
                     <PenLine className="size-5" />
                   )}
-                  <span>{signaturePreview ? "Re-sign" : "Tap to sign"}</span>
+                  <span>{displaySignature ? "Re-sign" : "Tap to sign"}</span>
                 </button>
 
                 {/* Selfie option */}
@@ -852,19 +1071,19 @@ export function FormRenderer({
                   onClick={() => selfieInputRef.current?.click()}
                   className={cn(
                     "relative flex flex-col items-center gap-1.5 rounded-md border border-dashed border-input px-3 py-4 text-xs text-muted-foreground transition-colors hover:bg-muted/50",
-                    selfiePreview && "border-solid border-primary/50"
+                    displaySelfie && "border-solid border-primary/50"
                   )}
                 >
-                  {selfiePreview ? (
+                  {displaySelfie ? (
                     <img
-                      src={selfiePreview}
+                      src={displaySelfie}
                       alt="Selfie"
                       className="size-10 rounded-full object-cover"
                     />
                   ) : (
                     <Camera className="size-5" />
                   )}
-                  <span>{selfiePreview ? "Retake" : "Take selfie"}</span>
+                  <span>{displaySelfie ? "Retake" : "Take selfie"}</span>
                 </button>
                 <input
                   ref={selfieInputRef}
@@ -883,7 +1102,7 @@ export function FormRenderer({
         {/* ---------------------------------------------------------------- */}
         {/* Submit error banner                                              */}
         {/* ---------------------------------------------------------------- */}
-        {!isPreviewMode && submitError && (
+        {!isPreviewMode && !isReadOnlyResponse && submitError && (
           <div className="flex items-start gap-2.5 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3">
             <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
             <div className="space-y-0.5">
@@ -907,7 +1126,7 @@ export function FormRenderer({
             {isPreviewMode ? "Back to binder" : "Cancel"}
           </Button>
 
-          {!isPreviewMode && (
+          {!isPreviewMode && !isReadOnlyResponse && (
           <Button
             size="sm"
             onClick={handleSubmit}
@@ -922,7 +1141,7 @@ export function FormRenderer({
             ) : (
               <>
                 <Send className="size-3.5" />
-                {isEditMode ? "Update" : "Submit"}
+                {isEditMode && existingResponse?.status !== "draft" ? "Save Correction" : isEditMode ? "Update" : "Submit"}
               </>
             )}
           </Button>

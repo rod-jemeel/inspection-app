@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
-import { requireLocationAccess } from "@/lib/server/auth-helpers"
+import { requireBinderAccess } from "@/lib/server/auth-helpers"
 import { getBinder, canUserEditBinder } from "@/lib/server/services/binders"
 import { listFormTemplates } from "@/lib/server/services/form-templates"
 import { LoadingSpinner } from "@/components/loading-spinner"
@@ -10,10 +10,15 @@ import { BinderDetail } from "./_components/binder-detail"
 export const metadata: Metadata = { title: "Binder" }
 
 async function BinderData({ loc, binderId }: { loc: string; binderId: string }) {
-  const { profile } = await requireLocationAccess(loc)
-  const binder = await getBinder(loc, binderId)
-  const templates = await listFormTemplates(loc, binderId, { active: true })
-  const canEdit = await canUserEditBinder(profile.id, binderId, profile.role)
+  const { profile } = await requireBinderAccess(loc, binderId)
+  const [binder, templates] = await Promise.all([
+    getBinder(loc, binderId),
+    listFormTemplates(loc, binderId, { active: true }),
+  ])
+  const canEdit = await canUserEditBinder(profile.id, binderId, profile.role, {
+    can_manage_binders: profile.can_manage_binders,
+    can_manage_forms: profile.can_manage_forms,
+  })
 
   return (
     <>

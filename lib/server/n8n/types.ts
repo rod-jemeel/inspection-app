@@ -25,27 +25,35 @@ export interface InspectionCompletedPayload extends WebhookPayload {
   location_id: string
 }
 
-export interface FormResponseSubmittedPayload extends WebhookPayload {
-  event: "form_response_submitted"
+export interface FormResponseSyncPayload extends WebhookPayload {
+  event: "form_response_submitted" | "form_response_corrected"
+  operation: "submitted" | "corrected"
   response_id: string
+  revision_number: number
   form_template_id: string
   form_template_name: string
   binder_name: string | null
   location_id: string
-  submitted_by_profile_id: string
-  submitted_by_name: string | null
+  submitted_at: string
+  original_submitted_at: string
+  last_edited_at: string | null
   status: string
   overall_pass: boolean | null
-  completion_signature: string | null
-  completion_selfie: string | null
   google_sheet_id: string | null
   google_sheet_tab: string | null
-  field_responses: Array<{
-    label: string
-    field_type: string
-    sheet_header: string | null
-    value: string | number | boolean | null
-  }>
+  submitted_by: {
+    profile_id: string
+    name: string | null
+  }
+  last_edited_by: {
+    profile_id: string | null
+    name: string | null
+  } | null
+  record: Record<string, string | number | boolean | null>
+  media?: {
+    completion_signature: string | null
+    completion_selfie: string | null
+  }
 }
 
 export interface N8nCallbackPayload {

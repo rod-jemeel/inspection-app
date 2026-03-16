@@ -88,6 +88,24 @@ export async function requireLocationAccess(
   return { session, profile }
 }
 
+function hasGlobalBinderAccess(profile: Profile) {
+  return (
+    profile.role === "owner" ||
+    profile.role === "admin" ||
+    profile.can_manage_binders ||
+    profile.can_manage_forms
+  )
+}
+
+export function canEditCompletedResponses(profile: Profile) {
+  return (
+    profile.role === "owner" ||
+    profile.role === "admin" ||
+    profile.can_manage_binders ||
+    profile.can_manage_forms
+  )
+}
+
 /**
  * Simple role check without location verification
  * Use for endpoints that operate across all user's locations
@@ -206,4 +224,46 @@ export async function requireFormEdit(
   if (data?.can_edit) return { session, profile }
 
   throw new ApiError("FORBIDDEN", "Edit permission required for this binder")
+}
+
+/**
+ * Require read access to a binder.
+ * Passes if the user has location access and either:
+ * - global binder/form management access, or
+ * - any binder assignment (viewer/editor)
+ */
+export async function requireBinderAccess(
+  locationId: string,
+  binderId: string
+): Promise<{ session: Session; profile: Profile }> {
+  const session = await getSession()
+  const profile = await getProfile(session.user.id)
+
+  const { data: membership } = await supabase
+    .from("profile_locations")
+    .select("location_id")
+    .eq("profile_id", profile.id)
+    .eq("location_id", locationId)
+    .maybeSingle()
+
+  if (!membership) {
+    throw new ApiError("FORBIDDEN", "No access to this location")
+  }
+
+  if (hasGlobalBinderAccess(profile)) {
+    return { session, profile }
+  }
+
+  const { data: assignment } = await supabase
+    .from("binder_assignments")
+    .select("id")
+    .eq("binder_id", binderId)
+    .eq("profile_id", profile.id)
+    .maybeSingle()
+
+  if (!assignment) {
+    throw new ApiError("FORBIDDEN", "Binder access required")
+  }
+
+  return { session, profile }
 }

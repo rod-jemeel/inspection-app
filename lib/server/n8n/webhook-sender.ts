@@ -1,7 +1,7 @@
 import "server-only"
 import { n8nConfig } from "./config"
 import { createSignedHeaders } from "./webhook-auth"
-import type { AssignmentChangedPayload, InspectionCompletedPayload, FormResponseSubmittedPayload } from "./types"
+import type { AssignmentChangedPayload, InspectionCompletedPayload, FormResponseSyncPayload } from "./types"
 
 export async function sendWebhookToN8n(
   path: string,
@@ -70,20 +70,30 @@ export async function notifyInspectionCompleted(
   }
 }
 
-export async function notifyFormResponseSubmitted(
-  data: FormResponseSubmittedPayload
+async function notifyFormResponseSync(
+  path: string,
+  data: FormResponseSyncPayload
 ): Promise<void> {
   if (!n8nConfig.baseUrl) return
 
   // Only send if form has a linked Google Sheet
   if (!data.google_sheet_id) return
 
-  const result = await sendWebhookToN8n(
-    n8nConfig.webhooks.formResponseSubmitted,
-    data
-  )
+  const result = await sendWebhookToN8n(path, data)
 
   if (!result.success) {
-    console.error("Failed to notify n8n of form response submission:", result.error)
+    console.error("Failed to notify n8n of form response sync:", result.error)
   }
+}
+
+export async function notifyFormResponseSubmitted(
+  data: FormResponseSyncPayload
+): Promise<void> {
+  await notifyFormResponseSync(n8nConfig.webhooks.formResponseSubmitted, data)
+}
+
+export async function notifyFormResponseCorrected(
+  data: FormResponseSyncPayload
+): Promise<void> {
+  await notifyFormResponseSync(n8nConfig.webhooks.formResponseCorrected, data)
 }

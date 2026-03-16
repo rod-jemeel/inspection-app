@@ -55,11 +55,12 @@ export async function listFormFields(formTemplateId: string, opts?: { active?: b
   return getCached()
 }
 
-export async function getFormField(fieldId: string) {
+export async function getFormField(formTemplateId: string, fieldId: string) {
   const { data, error } = await supabase
     .from("form_fields")
     .select("*")
     .eq("id", fieldId)
+    .eq("form_template_id", formTemplateId)
     .single()
 
   if (error || !data) throw new ApiError("NOT_FOUND", "Form field not found")
@@ -90,14 +91,19 @@ export async function createFormField(input: CreateFormFieldInput) {
   return data as FormField
 }
 
-export async function updateFormField(fieldId: string, input: UpdateFormFieldInput) {
+export async function updateFormField(
+  formTemplateId: string,
+  fieldId: string,
+  input: UpdateFormFieldInput
+) {
   // Get existing to know form_template_id for cache invalidation
-  const existing = await getFormField(fieldId)
+  const existing = await getFormField(formTemplateId, fieldId)
 
   const { data, error } = await supabase
     .from("form_fields")
     .update(input)
     .eq("id", fieldId)
+    .eq("form_template_id", formTemplateId)
     .select()
     .single()
 
@@ -107,14 +113,15 @@ export async function updateFormField(fieldId: string, input: UpdateFormFieldInp
   return data as FormField
 }
 
-export async function deleteFormField(fieldId: string) {
-  const existing = await getFormField(fieldId)
+export async function deleteFormField(formTemplateId: string, fieldId: string) {
+  const existing = await getFormField(formTemplateId, fieldId)
 
   // Soft delete
   const { error } = await supabase
     .from("form_fields")
     .update({ active: false })
     .eq("id", fieldId)
+    .eq("form_template_id", formTemplateId)
 
   if (error) throw new ApiError("INTERNAL_ERROR", error.message)
   revalidateFieldsCache(existing.form_template_id)

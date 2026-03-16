@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { requireLocationAccess, requireFormEdit } from "@/lib/server/auth-helpers"
+import { requireBinderAccess, requireFormEdit } from "@/lib/server/auth-helpers"
 import { handleError, validationError } from "@/lib/server/errors"
 import { createFormTemplateSchema } from "@/lib/validations/form-template"
 import { listFormTemplates, createFormTemplate } from "@/lib/server/services/form-templates"
@@ -10,7 +10,7 @@ export async function GET(
 ) {
   try {
     const { locationId, binderId } = await params
-    await requireLocationAccess(locationId)
+    await requireBinderAccess(locationId, binderId)
 
     const templates = await listFormTemplates(locationId, binderId, { active: true })
     return Response.json(templates)

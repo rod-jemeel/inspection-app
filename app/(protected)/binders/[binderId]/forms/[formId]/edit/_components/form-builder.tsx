@@ -63,6 +63,9 @@ interface FormTemplate {
   name: string
   description: string | null
   instructions: string | null
+  frequency: string | null
+  google_sheet_id: string | null
+  google_sheet_tab: string | null
 }
 
 interface FormBuilderProps {
@@ -450,9 +453,12 @@ export function FormBuilder({ binder, template, fields: initialFields, locationI
   const [fields, setFields] = useState(() => initialFields.filter(f => f.active).sort((a, b) => a.sort_order - b.sort_order))
   const [expandedFieldId, setExpandedFieldId] = useState<string | null>(null)
   const [savingFieldId, setSavingFieldId] = useState<string | null>(null)
+  const [templateSaving, setTemplateSaving] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [fieldToDelete, setFieldToDelete] = useState<string | null>(null)
   const [addDialogOpen, setAddDialogOpen] = useState(false)
+  const [googleSheetId, setGoogleSheetId] = useState(template.google_sheet_id ?? "")
+  const [googleSheetTab, setGoogleSheetTab] = useState(template.google_sheet_tab ?? "")
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -551,6 +557,31 @@ export function FormBuilder({ binder, template, fields: initialFields, locationI
     }
   }, [fields, locationId, template.id])
 
+  const handleSaveTemplateSettings = useCallback(async () => {
+    setTemplateSaving(true)
+    try {
+      const response = await fetch(`/api/locations/${locationId}/forms/${template.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          google_sheet_id: googleSheetId.trim() || null,
+          google_sheet_tab: googleSheetTab.trim() || null,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to update Google Sheets settings")
+      }
+
+      toast.success("Google Sheets settings updated")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update Google Sheets settings")
+    } finally {
+      setTemplateSaving(false)
+    }
+  }, [googleSheetId, googleSheetTab, locationId, template.id])
+
   return (
     <div className="container mx-auto max-w-4xl py-6">
       <div className="mb-6 space-y-3">
@@ -575,6 +606,65 @@ export function FormBuilder({ binder, template, fields: initialFields, locationI
         <div>
           <h1 className="text-sm font-medium">{template.name}</h1>
           {template.description && <p className="mt-1 text-xs text-muted-foreground">{template.description}</p>}
+        </div>
+      </div>
+
+      <div className="mb-6 rounded-lg border bg-card p-4 shadow-sm">
+        <div className="mb-4">
+          <h2 className="text-sm font-medium">Google Sheets Sync</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Set the spreadsheet for this form. Field labels are used as the sheet headers by default.
+          </p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-[1fr_220px]">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="googleSheetId" className="text-xs">Google Sheet ID</Label>
+              <Input
+                id="googleSheetId"
+                value={googleSheetId}
+                onChange={(e) => setGoogleSheetId(e.target.value)}
+                placeholder="From URL: docs.google.com/spreadsheets/d/{ID}/..."
+                className="h-8 text-xs font-mono"
+                disabled={templateSaving}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Paste the spreadsheet ID from the Google Sheets URL.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="googleSheetTab" className="text-xs">Sheet Tab Name</Label>
+              <Input
+                id="googleSheetTab"
+                value={googleSheetTab}
+                onChange={(e) => setGoogleSheetTab(e.target.value)}
+                placeholder="e.g., Sheet1"
+                className="h-8 text-xs"
+                disabled={templateSaving}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Optional. Leave blank to use the first tab. Clearing both fields disables sync for this form.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-end">
+            <Button
+              type="button"
+              onClick={handleSaveTemplateSettings}
+              disabled={templateSaving}
+              className="h-8 w-full text-xs"
+            >
+              {templateSaving ? (
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              ) : (
+                <Save className="mr-1 h-3 w-3" />
+              )}
+              Save Sync Settings
+            </Button>
+          </div>
         </div>
       </div>
 
