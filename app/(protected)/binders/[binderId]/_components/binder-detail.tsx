@@ -8,7 +8,6 @@ import {
   Search,
   FileText,
   Settings,
-  ClipboardList,
   ClipboardCheck,
   Calendar,
   User,
@@ -35,7 +34,6 @@ import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ResponseList } from "./response-list";
 import { FormTemplateDialog } from "./form-template-dialog";
-import { TemplateDialog } from "../../../templates/_components/template-dialog";
 import { BinderDialog } from "../../_components/binder-dialog";
 import { BinderAssignmentsTab } from "./binder-assignments-tab";
 import { toast } from "sonner";
@@ -113,16 +111,6 @@ const statusLabels: Record<string, string> = {
   passed: "Passed",
 };
 
-interface InspectionTemplate {
-  id: string;
-  location_id: string;
-  task: string;
-  frequency: string;
-  default_assignee_profile_id: string | null;
-  binder_id: string | null;
-  assignee_name?: string | null;
-}
-
 interface InspectionInstance {
   id: string;
   template_id: string;
@@ -135,107 +123,6 @@ interface InspectionInstance {
   assignee_name?: string | null;
 }
 
-function TemplatesTab({
-  binderId,
-  locationId,
-}: {
-  binderId: string;
-  locationId: string;
-}) {
-  const router = useRouter();
-  const [templates, setTemplates] = useState<InspectionTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchTemplates = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(
-          `/api/locations/${locationId}/templates?binder_id=${binderId}`,
-        );
-        if (res.ok) {
-          const result = await res.json();
-          setTemplates(result.data || []);
-        }
-      } catch (error) {
-        console.error("Failed to fetch templates:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTemplates();
-  }, [binderId, locationId]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <p className="text-xs text-muted-foreground">Loading templates...</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      {templates.length > 0 ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {templates.map((template) => (
-            <button
-              key={template.id}
-              type="button"
-              onClick={() =>
-                router.push(`/templates/${template.id}?loc=${locationId}`)
-              }
-              className="group relative flex w-full cursor-pointer flex-col gap-2 rounded-md border bg-card p-3 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              <div className="flex items-start gap-2">
-                <ClipboardList className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                <h3 className="flex-1 text-xs font-medium leading-tight">
-                  {template.task}
-                </h3>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {template.frequency && (
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "text-[10px] font-medium",
-                      frequencyColors[template.frequency] ||
-                        "bg-gray-100 text-gray-700",
-                    )}
-                  >
-                    {frequencyLabels[template.frequency] || template.frequency}
-                  </Badge>
-                )}
-                {template.assignee_name && (
-                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <User className="size-3" aria-hidden="true" />
-                    <span>{template.assignee_name}</span>
-                  </div>
-                )}
-              </div>
-            </button>
-          ))}
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center rounded-md border border-dashed bg-muted/20 py-16">
-          <ClipboardList className="mb-3 size-8 text-muted-foreground/60" aria-hidden="true" />
-          <p className="mb-1 text-xs font-medium text-muted-foreground">
-            No templates for this binder yet
-          </p>
-        </div>
-      )}
-
-      {templates.length > 0 && (
-        <p className="text-center text-xs text-muted-foreground">
-          Showing {templates.length}{" "}
-          {templates.length === 1 ? "template" : "templates"}
-        </p>
-      )}
-    </div>
-  );
-}
 
 function InspectionsTab({
   binderId,
@@ -441,7 +328,6 @@ export function BinderDetail({
   const [editingTemplate, setEditingTemplate] = useState<FormTemplate | null>(
     null,
   );
-  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [binderDialogOpen, setBinderDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -546,7 +432,7 @@ export function BinderDetail({
         <div className="flex items-center gap-2">
           <div className="border-b">
             <TabsList className="h-8 shrink-0 gap-0 rounded-none bg-transparent p-0">
-            {(["forms", "templates", "inspections", "responses"] as const).map((tab) => (
+            {(["forms", "inspections", "responses"] as const).map((tab) => (
               <TabsTrigger
                 key={tab}
                 value={tab}
@@ -596,17 +482,6 @@ export function BinderDetail({
             </Button>
           )}
 
-          {/* New Template button */}
-          {canEdit && activeTab === "templates" && (
-            <Button
-              size="sm"
-              className="ml-auto h-8 shrink-0 gap-1.5"
-              onClick={() => setTemplateDialogOpen(true)}
-            >
-              <Plus className="size-3.5" aria-hidden="true" />
-              <span className="hidden sm:inline">New Template</span>
-            </Button>
-          )}
         </div>
 
         {/* Forms Tab Content */}
@@ -707,11 +582,6 @@ export function BinderDetail({
           )}
         </TabsContent>
 
-        {/* Templates Tab Content */}
-        <TabsContent value="templates" className="mt-0">
-          <TemplatesTab binderId={binder.id} locationId={locationId} />
-        </TabsContent>
-
         {/* Inspections Tab Content */}
         <TabsContent value="inspections" className="mt-0">
           <InspectionsTab binderId={binder.id} locationId={locationId} />
@@ -744,19 +614,6 @@ export function BinderDetail({
           locationId={locationId}
           binderId={binder.id}
           template={editingTemplate}
-        />
-      )}
-
-      {/* Inspection Template Dialog */}
-      {canEdit && (
-        <TemplateDialog
-          open={templateDialogOpen}
-          onOpenChange={setTemplateDialogOpen}
-          locationId={locationId}
-          binderId={binder.id}
-          binders={[{ id: binder.id, name: binder.name }]}
-          formTemplates={templates.map((t) => ({ id: t.id, name: t.name, binder_id: t.binder_id, binder_name: binder.name }))}
-          onSuccess={() => { setTemplateDialogOpen(false); router.refresh(); }}
         />
       )}
 
