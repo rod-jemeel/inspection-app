@@ -57,6 +57,12 @@ interface Binder {
   location_id: string
 }
 
+interface DueRule {
+  dayOfWeek?: number
+  dayOfMonth?: number
+  month?: number
+}
+
 interface FormTemplate {
   id: string
   binder_id: string
@@ -66,6 +72,8 @@ interface FormTemplate {
   frequency: string | null
   google_sheet_id: string | null
   google_sheet_tab: string | null
+  default_due_rule: DueRule | null
+  scheduling_active: boolean
 }
 
 interface FormBuilderProps {
@@ -75,6 +83,31 @@ interface FormBuilderProps {
   locationId: string
   responseCount?: number
 }
+
+const DAYS_OF_WEEK = [
+  { value: 1, label: "Monday" },
+  { value: 2, label: "Tuesday" },
+  { value: 3, label: "Wednesday" },
+  { value: 4, label: "Thursday" },
+  { value: 5, label: "Friday" },
+  { value: 6, label: "Saturday" },
+  { value: 0, label: "Sunday" },
+]
+
+const MONTHS = [
+  { value: 1, label: "January" },
+  { value: 2, label: "February" },
+  { value: 3, label: "March" },
+  { value: 4, label: "April" },
+  { value: 5, label: "May" },
+  { value: 6, label: "June" },
+  { value: 7, label: "July" },
+  { value: 8, label: "August" },
+  { value: 9, label: "September" },
+  { value: 10, label: "October" },
+  { value: 11, label: "November" },
+  { value: 12, label: "December" },
+]
 
 const fieldTypeConfig: Record<string, { label: string; icon: string; color: string }> = {
   text: { label: "Short Text", icon: "T", color: "bg-blue-100 text-blue-700" },
@@ -459,6 +492,12 @@ export function FormBuilder({ binder, template, fields: initialFields, locationI
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [googleSheetId, setGoogleSheetId] = useState(template.google_sheet_id ?? "")
   const [googleSheetTab, setGoogleSheetTab] = useState(template.google_sheet_tab ?? "")
+  const [schedulingActive, setSchedulingActive] = useState(template.scheduling_active)
+  const [schedulingSaving, setSchedulingSaving] = useState(false)
+  // Due rule fields
+  const [scheduleDayOfWeek, setScheduleDayOfWeek] = useState(template.default_due_rule?.dayOfWeek ?? 1)
+  const [scheduleDayOfMonth, setScheduleDayOfMonth] = useState(template.default_due_rule?.dayOfMonth ?? 1)
+  const [scheduleMonth, setScheduleMonth] = useState(template.default_due_rule?.month ?? 1)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -582,6 +621,40 @@ export function FormBuilder({ binder, template, fields: initialFields, locationI
     }
   }, [googleSheetId, googleSheetTab, locationId, template.id])
 
+  const buildDueRule = useCallback((): DueRule | null => {
+    const freq = template.frequency
+    if (!freq || freq === "as_needed" || freq === "daily") return null
+    if (freq === "weekly") return { dayOfWeek: scheduleDayOfWeek }
+    if (freq === "monthly" || freq === "quarterly") return { dayOfMonth: scheduleDayOfMonth }
+    if (freq === "yearly" || freq === "every_3_years") return { month: scheduleMonth, dayOfMonth: scheduleDayOfMonth }
+    return null
+  }, [template.frequency, scheduleDayOfWeek, scheduleDayOfMonth, scheduleMonth])
+
+  const handleSaveScheduling = useCallback(async () => {
+    setSchedulingSaving(true)
+    try {
+      const response = await fetch(`/api/locations/${locationId}/forms/${template.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scheduling_active: schedulingActive,
+          default_due_rule: buildDueRule(),
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to update scheduling settings")
+      }
+
+      toast.success("Scheduling settings updated")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update scheduling settings")
+    } finally {
+      setSchedulingSaving(false)
+    }
+  }, [schedulingActive, buildDueRule, locationId, template.id])
+
   return (
     <div className="container mx-auto max-w-4xl py-6">
       <div className="mb-6 space-y-3">
@@ -608,6 +681,128 @@ export function FormBuilder({ binder, template, fields: initialFields, locationI
           {template.description && <p className="mt-1 text-xs text-muted-foreground">{template.description}</p>}
         </div>
       </div>
+
+      {/* Scheduling Panel */}
+      {template.frequency && template.frequency !== "as_needed" && (
+        <div className="mb-6 rounded-lg border bg-card p-4 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-medium">Scheduling</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                When active, this form automatically generates inspection instances based on its frequency.
+              </p>
+            </div>
+            <Switch
+              checked={schedulingActive}
+              onCheckedChange={setSchedulingActive}
+              disabled={schedulingSaving}
+            />
+          </div>
+
+          {schedulingActive && template.frequency !== "daily" && (
+            <div className="mb-4 space-y-3">
+              {template.frequency === "weekly" && (
+                <div className="space-y-2">
+                  <Label className="text-xs">Due Day</Label>
+                  <Select
+                    value={String(scheduleDayOfWeek)}
+                    onValueChange={(v) => setScheduleDayOfWeek(Number(v))}
+                    disabled={schedulingSaving}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DAYS_OF_WEEK.map((day) => (
+                        <SelectItem key={day.value} value={String(day.value)} className="text-xs">
+                          {day.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {(template.frequency === "monthly" || template.frequency === "quarterly") && (
+                <div className="space-y-2">
+                  <Label className="text-xs">Due Day of Month</Label>
+                  <Select
+                    value={String(scheduleDayOfMonth)}
+                    onValueChange={(v) => setScheduleDayOfMonth(Number(v))}
+                    disabled={schedulingSaving}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                        <SelectItem key={day} value={String(day)} className="text-xs">
+                          {day}{day === 31 && " (or last day)"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {(template.frequency === "yearly" || template.frequency === "every_3_years") && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Due Month</Label>
+                    <Select
+                      value={String(scheduleMonth)}
+                      onValueChange={(v) => setScheduleMonth(Number(v))}
+                      disabled={schedulingSaving}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MONTHS.map((item) => (
+                          <SelectItem key={item.value} value={String(item.value)} className="text-xs">
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Due Day</Label>
+                    <Select
+                      value={String(scheduleDayOfMonth)}
+                      onValueChange={(v) => setScheduleDayOfMonth(Number(v))}
+                      disabled={schedulingSaving}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                          <SelectItem key={day} value={String(day)} className="text-xs">
+                            {day}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <Button
+            type="button"
+            onClick={handleSaveScheduling}
+            disabled={schedulingSaving}
+            className="h-8 text-xs"
+          >
+            {schedulingSaving ? (
+              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+            ) : (
+              <Save className="mr-1 h-3 w-3" />
+            )}
+            Save Scheduling
+          </Button>
+        </div>
+      )}
 
       <div className="mb-6 rounded-lg border bg-card p-4 shadow-sm">
         <div className="mb-4">
