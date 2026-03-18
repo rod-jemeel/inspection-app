@@ -5,6 +5,7 @@ import { submitFormResponseSchema, filterResponsesSchema } from "@/lib/validatio
 import { submitFormResponse, listFormResponses, uploadFormImage } from "@/lib/server/services/form-responses"
 import { getFormTemplate } from "@/lib/server/services/form-templates"
 import { getBinder } from "@/lib/server/services/binders"
+import { getLocation } from "@/lib/server/services/locations"
 import { notifyFormResponseSubmitted } from "@/lib/server/n8n/webhook-sender"
 import { buildFormResponseSyncPayload } from "@/lib/server/n8n/form-response-sync"
 
@@ -66,18 +67,25 @@ export async function POST(
       after(async () => {
         // Get binder name
         let binderName: string | null = null
+        let locationTimezone: string | null = null
         try {
-          const binder = await getBinder(locationId, template.binder_id)
+          const [binder, location] = await Promise.all([
+            getBinder(locationId, template.binder_id),
+            getLocation(locationId),
+          ])
           binderName = binder.name
+          locationTimezone = location.timezone ?? null
         } catch { /* ignore */ }
 
-        await notifyFormResponseSubmitted(buildFormResponseSyncPayload({
+        const payload = await buildFormResponseSyncPayload({
           operation: "submitted",
           response,
           googleSheetId: template.google_sheet_id,
           googleSheetTab: template.google_sheet_tab,
           binderName,
-        })).catch((err) => console.error("Google Sheets sync webhook failed:", err))
+          locationTimezone,
+        })
+        await notifyFormResponseSubmitted(payload).catch((err) => console.error("Google Sheets sync webhook failed:", err))
       })
     }
 
