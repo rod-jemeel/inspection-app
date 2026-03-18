@@ -8,9 +8,11 @@ import { listFormFields } from "@/lib/server/services/form-fields"
 import { getBinder, canUserEditBinder } from "@/lib/server/services/binders"
 import { getInstance } from "@/lib/server/services/instances"
 import { getFormResponse } from "@/lib/server/services/form-responses"
+import { supabase } from "@/lib/server/db"
 import { LoadingSpinner } from "@/components/loading-spinner"
 import { PageBreadcrumbs } from "@/components/page-breadcrumbs"
 import { FormRenderer } from "./_components/form-renderer"
+import { FormPageTabs } from "./_components/form-page-tabs"
 
 export const metadata: Metadata = {
   title: "Fill Form",
@@ -80,15 +82,20 @@ async function FormData({
         canEditCompletedResponses(profile) ||
         (raw.submitted_by_profile_id === profile.id && raw.status === "draft")
 
-      // Convert storage paths to viewable URLs for the client
+      // Convert storage paths to signed URLs (1 year expiry)
+      const bucket = process.env.SIGNATURES_BUCKET ?? "signatures"
+      const [sigUrl, selfieUrl] = await Promise.all([
+        raw.completion_signature
+          ? supabase.storage.from(bucket).createSignedUrl(raw.completion_signature, 31536000).then(r => r.data?.signedUrl ?? null)
+          : Promise.resolve(null),
+        raw.completion_selfie
+          ? supabase.storage.from(bucket).createSignedUrl(raw.completion_selfie, 31536000).then(r => r.data?.signedUrl ?? null)
+          : Promise.resolve(null),
+      ])
       existingResponse = {
         ...raw,
-        completion_signature: raw.completion_signature
-          ? `/api/files/${raw.id}?type=signature`
-          : null,
-        completion_selfie: raw.completion_selfie
-          ? `/api/files/${raw.id}?type=selfie`
-          : null,
+        completion_signature: sigUrl,
+        completion_selfie: selfieUrl,
       }
 
       template = {
@@ -124,18 +131,42 @@ async function FormData({
           { label: template.name },
         ]}
       />
-      <FormRenderer
-        binder={binder}
-        template={template}
-        fields={fields}
-        locationId={loc}
-        profileName={profile.full_name}
-        inspectionInstanceId={instanceId ?? existingResponse?.inspection_instance_id ?? undefined}
-        instanceDueDate={instanceDueDate}
-        canEdit={canEdit}
-        existingResponse={existingResponse}
-        canEditExistingResponse={canEditExistingResponse}
-      />
+      {responseId ? (
+        <FormRenderer
+          binder={binder}
+          template={template}
+          fields={fields}
+          locationId={loc}
+          profileName={profile.full_name}
+          inspectionInstanceId={instanceId ?? existingResponse?.inspection_instance_id ?? undefined}
+          instanceDueDate={instanceDueDate}
+          canEdit={canEdit}
+          existingResponse={existingResponse}
+          canEditExistingResponse={canEditExistingResponse}
+        />
+      ) : (
+        <FormPageTabs
+          binderId={binderId}
+          locationId={loc}
+          formTemplateId={formId}
+          googleSheetId={liveTemplate.google_sheet_id}
+          canEdit={canEdit}
+          formContent={
+            <FormRenderer
+              binder={binder}
+              template={template}
+              fields={fields}
+              locationId={loc}
+              profileName={profile.full_name}
+              inspectionInstanceId={instanceId ?? existingResponse?.inspection_instance_id ?? undefined}
+              instanceDueDate={instanceDueDate}
+              canEdit={canEdit}
+              existingResponse={existingResponse}
+              canEditExistingResponse={canEditExistingResponse}
+            />
+          }
+        />
+      )}
     </>
   )
 }

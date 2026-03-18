@@ -1,12 +1,26 @@
-"use client"
+"use client";
 
-import { useState, useMemo, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Plus, Search, FileText, Settings, ClipboardList, ClipboardCheck, Calendar, User, Pencil, Trash2, Users2, ListChecks } from "lucide-react"
-import { getBinderIconOption } from "@/components/binder-icon"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
+import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { parseAsString, useQueryState } from "nuqs";
+import {
+  Plus,
+  Search,
+  FileText,
+  Settings,
+  ClipboardList,
+  ClipboardCheck,
+  Calendar,
+  User,
+  Pencil,
+  Trash2,
+  Users2,
+  ListChecks,
+} from "lucide-react";
+import { getBinderIconOption } from "@/components/binder-icon";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,53 +30,60 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { cn } from "@/lib/utils"
-import { ResponseList } from "./response-list"
-import { FormTemplateDialog } from "./form-template-dialog"
-import { BinderDialog } from "../../_components/binder-dialog"
-import { BinderAssignmentsTab } from "./binder-assignments-tab"
-import { toast } from "sonner"
+} from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ResponseList } from "./response-list";
+import { FormTemplateDialog } from "./form-template-dialog";
+import { TemplateDialog } from "../../../templates/_components/template-dialog";
+import { BinderDialog } from "../../_components/binder-dialog";
+import { BinderAssignmentsTab } from "./binder-assignments-tab";
+import { toast } from "sonner";
 
 interface FormTemplate {
-  id: string
-  binder_id: string
-  name: string
-  description: string | null
-  instructions: string | null
-  frequency: string | null
-  sort_order: number
-  active: boolean
-  google_sheet_id: string | null
-  google_sheet_tab: string | null
+  id: string;
+  binder_id: string;
+  name: string;
+  description: string | null;
+  instructions: string | null;
+  frequency: string | null;
+  sort_order: number;
+  active: boolean;
+  google_sheet_id: string | null;
+  google_sheet_tab: string | null;
 }
 
 interface Binder {
-  id: string
-  name: string
-  description: string | null
-  color: string | null
-  icon: string | null
+  id: string;
+  name: string;
+  description: string | null;
+  color: string | null;
+  icon: string | null;
 }
 
 interface BinderDetailProps {
-  binder: Binder
-  templates: FormTemplate[]
-  locationId: string
-  canEdit: boolean
-  profileId: string
+  binder: Binder;
+  templates: FormTemplate[];
+  locationId: string;
+  canEdit: boolean;
+  profileId: string;
 }
 
 const frequencyColors: Record<string, string> = {
   daily: "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400",
   weekly: "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400",
-  monthly: "bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-400",
-  quarterly: "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400",
-  annual: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400",
-  yearly: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400",
-  every_3_years: "bg-teal-100 text-teal-700 dark:bg-teal-950/50 dark:text-teal-400",
+  monthly:
+    "bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-400",
+  quarterly:
+    "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400",
+  annual:
+    "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400",
+  yearly:
+    "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400",
+  every_3_years:
+    "bg-teal-100 text-teal-700 dark:bg-teal-950/50 dark:text-teal-400",
   as_needed: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400",
-}
+};
 
 const frequencyLabels: Record<string, string> = {
   daily: "Daily",
@@ -73,81 +94,85 @@ const frequencyLabels: Record<string, string> = {
   yearly: "Yearly",
   every_3_years: "Every 3 Years",
   as_needed: "As Needed",
-}
+  other: "Other",
+};
 
 const statusColors: Record<string, string> = {
   pending: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400",
-  in_progress: "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400",
+  in_progress:
+    "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400",
   failed: "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400",
-  passed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400",
-}
+  passed:
+    "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400",
+};
 
 const statusLabels: Record<string, string> = {
   pending: "Pending",
   in_progress: "In Progress",
   failed: "Failed",
   passed: "Passed",
-}
+};
 
 interface InspectionTemplate {
-  id: string
-  location_id: string
-  task: string
-  frequency: string
-  default_assignee_profile_id: string | null
-  binder_id: string | null
-  assignee_name?: string | null
+  id: string;
+  location_id: string;
+  task: string;
+  frequency: string;
+  default_assignee_profile_id: string | null;
+  binder_id: string | null;
+  assignee_name?: string | null;
 }
 
 interface InspectionInstance {
-  id: string
-  template_id: string
-  location_id: string
-  due_at: string
-  status: string
-  assigned_to_profile_id: string | null
-  template_task?: string
-  assignee_name?: string | null
+  id: string;
+  template_id: string;
+  location_id: string;
+  due_at: string;
+  status: string;
+  template_frequency?: string | null;
+  assigned_to_profile_id: string | null;
+  template_task?: string;
+  assignee_name?: string | null;
 }
 
 function TemplatesTab({
   binderId,
   locationId,
 }: {
-  binderId: string
-  locationId: string
+  binderId: string;
+  locationId: string;
 }) {
-  const router = useRouter()
-  const [templates, setTemplates] = useState<InspectionTemplate[]>([])
-  const [loading, setLoading] = useState(true)
+  const router = useRouter();
+  const [templates, setTemplates] = useState<InspectionTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchTemplates = async () => {
-      setLoading(true)
+      setLoading(true);
       try {
         const res = await fetch(
-          `/api/locations/${locationId}/templates?binder_id=${binderId}`
-        )
+          `/api/locations/${locationId}/templates?binder_id=${binderId}`,
+        );
         if (res.ok) {
-          const result = await res.json()
-          setTemplates(result.data || [])
+          const result = await res.json();
+          setTemplates(result.data || []);
         }
       } catch (error) {
-        console.error("Failed to fetch templates:", error)
+        console.error("Failed to fetch templates:", error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchTemplates()
-  }, [binderId, locationId])
+    fetchTemplates();
+  }, [binderId, locationId]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
         <p className="text-xs text-muted-foreground">Loading templates...</p>
       </div>
-    )
+    );
   }
 
   return (
@@ -155,16 +180,17 @@ function TemplatesTab({
       {templates.length > 0 ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {templates.map((template) => (
-            <div
+            <button
               key={template.id}
+              type="button"
               onClick={() =>
                 router.push(`/templates/${template.id}?loc=${locationId}`)
               }
-              className="group relative flex cursor-pointer flex-col gap-2 rounded-md border bg-card p-3 shadow-sm transition-shadow hover:shadow-md"
+              className="group relative flex w-full cursor-pointer flex-col gap-2 rounded-md border bg-card p-3 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <div className="flex items-start gap-2">
-                <ClipboardList className="size-4 shrink-0 text-muted-foreground" />
-                <h3 className="flex-1 text-sm font-medium leading-tight">
+                <ClipboardList className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <h3 className="flex-1 text-xs font-medium leading-tight">
                   {template.task}
                 </h3>
               </div>
@@ -176,7 +202,7 @@ function TemplatesTab({
                     className={cn(
                       "text-[10px] font-medium",
                       frequencyColors[template.frequency] ||
-                        "bg-gray-100 text-gray-700"
+                        "bg-gray-100 text-gray-700",
                     )}
                   >
                     {frequencyLabels[template.frequency] || template.frequency}
@@ -184,18 +210,18 @@ function TemplatesTab({
                 )}
                 {template.assignee_name && (
                   <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <User className="size-3" />
+                    <User className="size-3" aria-hidden="true" />
                     <span>{template.assignee_name}</span>
                   </div>
                 )}
               </div>
-            </div>
+            </button>
           ))}
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center rounded-md border border-dashed bg-muted/20 py-16">
-          <ClipboardList className="mb-3 size-8 text-muted-foreground/60" />
-          <p className="mb-1 text-sm font-medium text-muted-foreground">
+          <ClipboardList className="mb-3 size-8 text-muted-foreground/60" aria-hidden="true" />
+          <p className="mb-1 text-xs font-medium text-muted-foreground">
             No templates for this binder yet
           </p>
         </div>
@@ -203,113 +229,199 @@ function TemplatesTab({
 
       {templates.length > 0 && (
         <p className="text-center text-xs text-muted-foreground">
-          Showing {templates.length} {templates.length === 1 ? "template" : "templates"}
+          Showing {templates.length}{" "}
+          {templates.length === 1 ? "template" : "templates"}
         </p>
       )}
     </div>
-  )
+  );
 }
 
 function InspectionsTab({
   binderId,
   locationId,
 }: {
-  binderId: string
-  locationId: string
+  binderId: string;
+  locationId: string;
 }) {
-  const router = useRouter()
-  const [instances, setInstances] = useState<InspectionInstance[]>([])
-  const [loading, setLoading] = useState(true)
+  const router = useRouter();
+  const [instances, setInstances] = useState<InspectionInstance[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [freqFilter, setFreqFilter] = useState<string>("all");
 
   useEffect(() => {
     const fetchInstances = async () => {
-      setLoading(true)
+      setLoading(true);
       try {
         const res = await fetch(
-          `/api/locations/${locationId}/instances?binder_id=${binderId}`
-        )
+          `/api/locations/${locationId}/instances?binder_id=${binderId}`,
+        );
         if (res.ok) {
-          const result = await res.json()
-          setInstances(result.data || [])
+          const result = await res.json();
+          setInstances(result.data || []);
         }
       } catch (error) {
-        console.error("Failed to fetch instances:", error)
+        console.error("Failed to fetch instances:", error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchInstances()
-  }, [binderId, locationId])
+    fetchInstances();
+  }, [binderId, locationId]);
+
+  // Derive the set of frequencies that actually appear in the data
+  const availableFreqs = useMemo(() => {
+    const freqs = new Set<string>();
+    instances.forEach((i) => { if (i.template_frequency) freqs.add(i.template_frequency); });
+    return Array.from(freqs).sort();
+  }, [instances]);
+
+  const grouped = useMemo(() => {
+    const toGroup = freqFilter === "all"
+      ? instances
+      : instances.filter((i) => i.template_frequency === freqFilter);
+
+    if (freqFilter !== "all") return [{ freq: freqFilter, items: toGroup }];
+
+    const map = new Map<string, InspectionInstance[]>();
+    for (const i of toGroup) {
+      const key = i.template_frequency || "other";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(i);
+    }
+    return Array.from(map.entries()).map(([freq, items]) => ({ freq, items }));
+  }, [instances, freqFilter]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <p className="text-xs text-muted-foreground">Loading inspections...</p>
+        <p className="text-xs text-muted-foreground">Loading inspections…</p>
       </div>
-    )
+    );
   }
+
+  const totalFiltered = grouped.reduce((sum, g) => sum + g.items.length, 0);
 
   return (
     <div className="space-y-4">
-      {instances.length > 0 ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {instances.map((instance) => (
-            <div
-              key={instance.id}
-              onClick={() =>
-                router.push(`/inspections/${instance.id}?loc=${locationId}`)
-              }
-              className="group relative flex cursor-pointer flex-col gap-2 rounded-md border bg-card p-3 shadow-sm transition-shadow hover:shadow-md"
-            >
-              <div className="flex items-start gap-2">
-                <ClipboardCheck className="size-4 shrink-0 text-muted-foreground" />
-                <h3 className="flex-1 text-sm font-medium leading-tight">
-                  {instance.template_task}
-                </h3>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge
-                  variant={instance.status === "pending" ? "outline" : instance.status === "in_progress" ? "secondary" : instance.status === "failed" ? "destructive" : "default"}
-                  className={cn(
-                    "text-[10px] font-medium",
-                    statusColors[instance.status] || "bg-gray-100 text-gray-700"
-                  )}
-                >
-                  {statusLabels[instance.status] || instance.status}
-                </Badge>
-                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                  <Calendar className="size-3" />
-                  <span>{new Date(instance.due_at).toLocaleDateString()}</span>
-                </div>
-              </div>
-
-              {instance.assignee_name && (
-                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                  <User className="size-3" />
-                  <span>{instance.assignee_name}</span>
-                </div>
+      {/* Frequency filter pills */}
+      {availableFreqs.length > 1 && (
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            onClick={() => setFreqFilter("all")}
+            className={cn(
+              "h-6 rounded-md border px-2.5 text-[10px] font-medium transition-colors",
+              freqFilter === "all"
+                ? "border-foreground bg-foreground text-background"
+                : "border-border bg-transparent text-muted-foreground hover:border-foreground/50 hover:text-foreground",
+            )}
+          >
+            All
+          </button>
+          {availableFreqs.map((freq) => (
+            <button
+              key={freq}
+              type="button"
+              onClick={() => setFreqFilter(freq)}
+              className={cn(
+                "h-6 rounded-md border px-2.5 text-[10px] font-medium transition-colors",
+                freqFilter === freq
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border bg-transparent text-muted-foreground hover:border-foreground/50 hover:text-foreground",
               )}
+            >
+              {frequencyLabels[freq] || freq}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {totalFiltered > 0 ? (
+        <div className="space-y-6">
+          {grouped.map(({ freq, items }) => (
+            <div key={freq} className="space-y-2">
+              {/* Section divider with label */}
+              <div className="flex items-center gap-2">
+                <h4 className="text-xs font-semibold text-foreground">
+                  {frequencyLabels[freq] || freq}
+                </h4>
+                <span className="text-[10px] text-muted-foreground">
+                  {items.length} {items.length === 1 ? "inspection" : "inspections"}
+                </span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+                {items.map((instance) => (
+                  <button
+                    key={instance.id}
+                    type="button"
+                    onClick={() =>
+                      router.push(`/inspections/${instance.id}?loc=${locationId}`)
+                    }
+                    className="group relative flex w-full cursor-pointer flex-col gap-2 rounded-md border bg-card p-3 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <div className="flex items-start gap-2">
+                      <ClipboardCheck className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                      <h3 className="flex-1 text-xs font-medium leading-tight">
+                        {instance.template_task}
+                      </h3>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge
+                        variant={
+                          instance.status === "pending"
+                            ? "outline"
+                            : instance.status === "in_progress"
+                              ? "secondary"
+                              : instance.status === "failed"
+                                ? "destructive"
+                                : "default"
+                        }
+                        className={cn(
+                          "text-[10px] font-medium",
+                          statusColors[instance.status] || "bg-gray-100 text-gray-700",
+                        )}
+                      >
+                        {statusLabels[instance.status] || instance.status}
+                      </Badge>
+                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <Calendar className="size-3" aria-hidden="true" />
+                        <span>{new Intl.DateTimeFormat("en-US", { month: "numeric", day: "numeric", year: "numeric" }).format(new Date(instance.due_at))}</span>
+                      </div>
+                    </div>
+
+                    {instance.assignee_name && (
+                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <User className="size-3" aria-hidden="true" />
+                        <span>{instance.assignee_name}</span>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
           ))}
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center rounded-md border border-dashed bg-muted/20 py-16">
-          <ClipboardCheck className="mb-3 size-8 text-muted-foreground/60" />
-          <p className="mb-1 text-sm font-medium text-muted-foreground">
-            No inspections for this binder yet
+          <ClipboardCheck className="mb-3 size-8 text-muted-foreground/60" aria-hidden="true" />
+          <p className="mb-1 text-xs font-medium text-muted-foreground">
+            {freqFilter === "all" ? "No inspections for this binder yet" : `No ${frequencyLabels[freqFilter] || freqFilter} inspections`}
           </p>
         </div>
       )}
 
       {instances.length > 0 && (
         <p className="text-center text-xs text-muted-foreground">
-          Showing {instances.length} {instances.length === 1 ? "inspection" : "inspections"}
+          Showing {totalFiltered} of {instances.length}{" "}
+          {instances.length === 1 ? "inspection" : "inspections"}
         </p>
       )}
     </div>
-  )
+  );
 }
 
 export function BinderDetail({
@@ -318,47 +430,58 @@ export function BinderDetail({
   locationId,
   canEdit,
 }: BinderDetailProps) {
-  const router = useRouter()
-  const binderIcon = getBinderIconOption(binder.icon)
-  const [activeTab, setActiveTab] = useState<"forms" | "templates" | "inspections" | "responses" | "assignments">("forms")
-  const [searchQuery, setSearchQuery] = useState("")
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingTemplate, setEditingTemplate] = useState<FormTemplate | null>(null)
-  const [binderDialogOpen, setBinderDialogOpen] = useState(false)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
+  const router = useRouter();
+  const binderIcon = getBinderIconOption(binder.icon);
+  const [activeTab, setActiveTab] = useQueryState(
+    "tab",
+    parseAsString.withDefault("forms"),
+  );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<FormTemplate | null>(
+    null,
+  );
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [binderDialogOpen, setBinderDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filteredTemplates = useMemo(() => {
-    if (!searchQuery.trim()) return templates
+    if (!searchQuery.trim()) return templates;
 
-    const query = searchQuery.toLowerCase()
+    const query = searchQuery.toLowerCase();
     return templates.filter(
       (t) =>
         t.name.toLowerCase().includes(query) ||
-        t.description?.toLowerCase().includes(query)
-    )
-  }, [templates, searchQuery])
+        t.description?.toLowerCase().includes(query),
+    );
+  }, [templates, searchQuery]);
 
   const handleFormClick = (formId: string) => {
-    router.push(`/binders/${binder.id}/forms/${formId}?loc=${locationId}`)
-  }
+    router.push(`/binders/${binder.id}/forms/${formId}?loc=${locationId}`);
+  };
 
   const handleDeleteBinder = async () => {
-    setIsDeleting(true)
+    setIsDeleting(true);
     try {
-      const res = await fetch(`/api/locations/${locationId}/binders/${binder.id}`, {
-        method: "DELETE",
-      })
-      if (!res.ok) throw new Error("Failed to delete binder")
-      toast.success("Binder deleted")
-      router.push(`/binders?loc=${locationId}`)
+      const res = await fetch(
+        `/api/locations/${locationId}/binders/${binder.id}`,
+        {
+          method: "DELETE",
+        },
+      );
+      if (!res.ok) throw new Error("Failed to delete binder");
+      toast.success("Binder deleted");
+      router.push(`/binders?loc=${locationId}`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to delete binder")
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete binder",
+      );
     } finally {
-      setIsDeleting(false)
-      setDeleteDialogOpen(false)
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
     }
-  }
+  };
 
   return (
     <div className="space-y-4">
@@ -366,17 +489,19 @@ export function BinderDetail({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 items-start gap-4">
             <div
-              className="flex size-12 shrink-0 items-center justify-center rounded-2xl ring-1 ring-border/60"
+              className="flex size-12 shrink-0 items-center justify-center rounded-md ring-1 ring-border/60"
               style={{
                 backgroundColor: binder.color ? `${binder.color}22` : undefined,
                 color: binder.color ?? undefined,
               }}
             >
-              <binderIcon.Icon className="size-5" />
+              <binderIcon.Icon className="size-5" aria-hidden="true" />
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-lg font-semibold tracking-tight">{binder.name}</h1>
+                <h1 className="text-lg font-semibold tracking-tight">
+                  {binder.name}
+                </h1>
                 <Badge variant="outline" className="text-[10px]">
                   Binder
                 </Badge>
@@ -411,162 +536,167 @@ export function BinderDetail({
         </div>
       </header>
 
-      {/* Tab Switcher */}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant={activeTab === "forms" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setActiveTab("forms")}
-          className="h-8 text-xs"
-        >
-          Forms
-        </Button>
-        <Button
-          variant={activeTab === "templates" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setActiveTab("templates")}
-          className="h-8 text-xs"
-        >
-          Templates
-        </Button>
-        <Button
-          variant={activeTab === "inspections" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setActiveTab("inspections")}
-          className="h-8 text-xs"
-        >
-          Inspections
-        </Button>
-        <Button
-          variant={activeTab === "responses" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setActiveTab("responses")}
-          className="h-8 text-xs"
-        >
-          Responses
-        </Button>
-        {canEdit && (
-          <Button
-            variant={activeTab === "assignments" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setActiveTab("assignments")}
-            className="h-8 text-xs"
-          >
-            <Users2 className="mr-1 size-3.5" />
-            Assignments
-          </Button>
-        )}
-      </div>
-
-      {/* Forms Tab Content */}
-      {activeTab === "forms" && (
-        <>
-          <div className="flex items-center justify-between gap-3">
-            {/* Search */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search forms..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 pl-9 text-xs"
-              />
-            </div>
-            {canEdit && (
-              <Button
-                size="sm"
-                className="gap-1.5"
-                onClick={() => {
-                  setEditingTemplate(null)
-                  setDialogOpen(true)
-                }}
+      {/* Tabs */}
+      <Tabs
+        value={activeTab ?? "forms"}
+        onValueChange={(v) => { setActiveTab(v); setSearchQuery(""); }}
+        className="space-y-4"
+      >
+        {/* Tab bar: tabs on left, search + action on right */}
+        <div className="flex items-center gap-2">
+          <div className="border-b">
+            <TabsList className="h-8 shrink-0 gap-0 rounded-none bg-transparent p-0">
+            {(["forms", "templates", "inspections", "responses"] as const).map((tab) => (
+              <TabsTrigger
+                key={tab}
+                value={tab}
+                className="h-8 rounded-none border-0 border-b-2 border-transparent bg-transparent px-3 text-xs font-medium text-muted-foreground shadow-none data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
               >
-                <Plus className="size-4" />
-                New Form
-              </Button>
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </TabsTrigger>
+            ))}
+            {canEdit && (
+              <TabsTrigger
+                value="assignments"
+                className="h-8 rounded-none border-0 border-b-2 border-transparent bg-transparent px-3 text-xs font-medium text-muted-foreground shadow-none data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+              >
+                <Users2 className="mr-1 size-3.5" aria-hidden="true" />
+                Assignments
+              </TabsTrigger>
             )}
+          </TabsList>
           </div>
 
-          {/* Forms Grid */}
-      {filteredTemplates.length > 0 ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredTemplates.map((template) => (
-            <div
-              key={template.id}
-              onClick={() => handleFormClick(template.id)}
-              className="group relative flex cursor-pointer flex-col gap-2 rounded-md border bg-card p-3 shadow-sm transition-shadow hover:shadow-md"
-            >
-              {/* Form Name */}
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="flex-1 text-sm font-medium leading-tight">
-                  {template.name}
-                </h3>
-                {canEdit && (
-                  <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      title="Edit fields"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        router.push(`/binders/${binder.id}/forms/${template.id}/edit?loc=${locationId}`)
-                      }}
-                    >
-                      <ListChecks className="size-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      title="Form settings"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setEditingTemplate(template)
-                        setDialogOpen(true)
-                      }}
-                    >
-                      <Settings className="size-3" />
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              {/* Description */}
-              {template.description && (
-                <p className="line-clamp-2 text-xs text-muted-foreground">
-                  {template.description}
-                </p>
-              )}
-
-              {/* Frequency Badge */}
-              {template.frequency && (
-                <div className="mt-auto">
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "text-[10px] font-medium",
-                      frequencyColors[template.frequency] || "bg-gray-100 text-gray-700"
-                    )}
-                  >
-                    {frequencyLabels[template.frequency] || template.frequency}
-                  </Badge>
-                </div>
-              )}
+          {/* Search — only shown on searchable tabs */}
+          {(activeTab === "forms" || activeTab === null) && (
+            <div className="relative ml-auto w-40 sm:w-52">
+              <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+              <Input
+                aria-label="Search forms"
+                placeholder="Search forms…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-8 pl-8 text-xs"
+              />
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center rounded-md border border-dashed bg-muted/20 py-16">
-          <FileText className="mb-3 size-8 text-muted-foreground/60" />
-          <p className="mb-1 text-sm font-medium text-muted-foreground">
-            {searchQuery ? "No forms found" : "No forms in this binder yet"}
-          </p>
-          {!searchQuery && canEdit && (
-            <p className="text-xs text-muted-foreground">
-              Create your first form to get started
-            </p>
+          )}
+
+          {/* New Form button */}
+          {canEdit && (activeTab === "forms" || activeTab === null) && (
+            <Button
+              size="sm"
+              className="h-8 shrink-0 gap-1.5"
+              onClick={() => {
+                setEditingTemplate(null);
+                setDialogOpen(true);
+              }}
+            >
+              <Plus className="size-3.5" aria-hidden="true" />
+              <span className="hidden sm:inline">New Form</span>
+            </Button>
+          )}
+
+          {/* New Template button */}
+          {canEdit && activeTab === "templates" && (
+            <Button
+              size="sm"
+              className="ml-auto h-8 shrink-0 gap-1.5"
+              onClick={() => setTemplateDialogOpen(true)}
+            >
+              <Plus className="size-3.5" aria-hidden="true" />
+              <span className="hidden sm:inline">New Template</span>
+            </Button>
           )}
         </div>
-      )}
+
+        {/* Forms Tab Content */}
+        <TabsContent value="forms" className="mt-0 space-y-4">
+          {filteredTemplates.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredTemplates.map((template) => (
+                <div
+                  key={template.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleFormClick(template.id)}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleFormClick(template.id); } }}
+                  className="group relative flex cursor-pointer flex-col gap-2 rounded-md border bg-card p-3 shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  {/* Form Name */}
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="flex-1 text-xs font-medium leading-tight">
+                      {template.name}
+                    </h3>
+                    {canEdit && (
+                      <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          aria-label="Edit fields"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(
+                              `/binders/${binder.id}/forms/${template.id}/edit?loc=${locationId}`,
+                            );
+                          }}
+                        >
+                          <ListChecks className="size-3" aria-hidden="true" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          aria-label="Form settings"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingTemplate(template);
+                            setDialogOpen(true);
+                          }}
+                        >
+                          <Settings className="size-3" aria-hidden="true" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Description */}
+                  {template.description && (
+                    <p className="line-clamp-2 text-xs text-muted-foreground">
+                      {template.description}
+                    </p>
+                  )}
+
+                  {/* Frequency Badge */}
+                  {template.frequency && (
+                    <div className="mt-auto">
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-[10px] font-medium",
+                          frequencyColors[template.frequency] ||
+                            "bg-gray-100 text-gray-700",
+                        )}
+                      >
+                        {frequencyLabels[template.frequency] ||
+                          template.frequency}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center rounded-md border border-dashed bg-muted/20 py-16">
+              <FileText className="mb-3 size-8 text-muted-foreground/60" aria-hidden="true" />
+              <p className="mb-1 text-xs font-medium text-muted-foreground">
+                {searchQuery ? "No forms found" : "No forms in this binder yet"}
+              </p>
+              {!searchQuery && canEdit && (
+                <p className="text-xs text-muted-foreground">
+                  Create your first form to get started
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Results count */}
           {templates.length > 0 && (
@@ -575,45 +705,58 @@ export function BinderDetail({
               {templates.length === 1 ? "form" : "forms"}
             </p>
           )}
-        </>
-      )}
+        </TabsContent>
 
-      {/* Templates Tab Content */}
-      {activeTab === "templates" && (
-        <TemplatesTab
-          binderId={binder.id}
-          locationId={locationId}
-        />
-      )}
+        {/* Templates Tab Content */}
+        <TabsContent value="templates" className="mt-0">
+          <TemplatesTab binderId={binder.id} locationId={locationId} />
+        </TabsContent>
 
-      {/* Inspections Tab Content */}
-      {activeTab === "inspections" && (
-        <InspectionsTab binderId={binder.id} locationId={locationId} />
-      )}
+        {/* Inspections Tab Content */}
+        <TabsContent value="inspections" className="mt-0">
+          <InspectionsTab binderId={binder.id} locationId={locationId} />
+        </TabsContent>
 
-      {/* Responses Tab Content */}
-      {activeTab === "responses" && (
-        <ResponseList binderId={binder.id} locationId={locationId} />
-      )}
+        {/* Responses Tab Content */}
+        <TabsContent value="responses" className="mt-0">
+          <ResponseList binderId={binder.id} locationId={locationId} />
+        </TabsContent>
 
-      {/* Assignments Tab Content */}
-      {activeTab === "assignments" && canEdit && (
-        <BinderAssignmentsTab
-          binderId={binder.id}
-          locationId={locationId}
-          canEdit={canEdit}
-        />
-      )}
+        {/* Assignments Tab Content */}
+        <TabsContent value="assignments" className="mt-0">
+          {canEdit && (
+            <BinderAssignmentsTab
+              binderId={binder.id}
+              locationId={locationId}
+              canEdit={canEdit}
+            />
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* Form Template Dialog */}
       {canEdit && (
         <FormTemplateDialog
+          key={editingTemplate?.id ?? "new"}
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           onSuccess={() => router.refresh()}
           locationId={locationId}
           binderId={binder.id}
           template={editingTemplate}
+        />
+      )}
+
+      {/* Inspection Template Dialog */}
+      {canEdit && (
+        <TemplateDialog
+          open={templateDialogOpen}
+          onOpenChange={setTemplateDialogOpen}
+          locationId={locationId}
+          binderId={binder.id}
+          binders={[{ id: binder.id, name: binder.name }]}
+          formTemplates={templates.map((t) => ({ id: t.id, name: t.name, binder_id: t.binder_id, binder_name: binder.name }))}
+          onSuccess={() => { setTemplateDialogOpen(false); router.refresh(); }}
         />
       )}
 
@@ -634,7 +777,9 @@ export function BinderDetail({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Binder</AlertDialogTitle>
             <AlertDialogDescription>
-              This will deactivate the binder &quot;{binder.name}&quot; and hide it from all users. This action can be reversed by an administrator.
+              This will deactivate the binder &quot;{binder.name}&quot; and hide
+              it from all users. This action can be reversed by an
+              administrator.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -650,5 +795,5 @@ export function BinderDetail({
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
+  );
 }

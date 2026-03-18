@@ -1,24 +1,30 @@
-import type { Metadata } from "next"
-import { Suspense } from "react"
-import { requireBinderAccess } from "@/lib/server/auth-helpers"
-import { getBinder, canUserEditBinder } from "@/lib/server/services/binders"
-import { listFormTemplates } from "@/lib/server/services/form-templates"
-import { LoadingSpinner } from "@/components/loading-spinner"
-import { PageBreadcrumbs } from "@/components/page-breadcrumbs"
-import { BinderDetail } from "./_components/binder-detail"
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import { requireBinderAccess } from "@/lib/server/auth-helpers";
+import { getBinder, canUserEditBinder } from "@/lib/server/services/binders";
+import { listFormTemplates } from "@/lib/server/services/form-templates";
+import { LoadingSpinner } from "@/components/loading-spinner";
+import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
+import { BinderDetail } from "./_components/binder-detail";
 
-export const metadata: Metadata = { title: "Binder" }
+export const metadata: Metadata = { title: "Binder" };
 
-async function BinderData({ loc, binderId }: { loc: string; binderId: string }) {
-  const { profile } = await requireBinderAccess(loc, binderId)
-  const [binder, templates] = await Promise.all([
+async function BinderData({
+  loc,
+  binderId,
+}: {
+  loc: string;
+  binderId: string;
+}) {
+  const { profile } = await requireBinderAccess(loc, binderId);
+  const [binder, templates, canEdit] = await Promise.all([
     getBinder(loc, binderId),
     listFormTemplates(loc, binderId, { active: true }),
-  ])
-  const canEdit = await canUserEditBinder(profile.id, binderId, profile.role, {
-    can_manage_binders: profile.can_manage_binders,
-    can_manage_forms: profile.can_manage_forms,
-  })
+    canUserEditBinder(profile.id, binderId, profile.role, {
+      can_manage_binders: profile.can_manage_binders,
+      can_manage_forms: profile.can_manage_forms,
+    }),
+  ]);
 
   return (
     <>
@@ -36,25 +42,25 @@ async function BinderData({ loc, binderId }: { loc: string; binderId: string }) 
         profileId={profile.id}
       />
     </>
-  )
+  );
 }
 
 export default async function BinderPage({
   params,
   searchParams,
 }: {
-  params: Promise<{ binderId: string }>
-  searchParams: Promise<{ loc?: string }>
+  params: Promise<{ binderId: string }>;
+  searchParams: Promise<{ loc?: string }>;
 }) {
-  const { binderId } = await params
-  const { loc } = await searchParams
+  const { binderId } = await params;
+  const { loc } = await searchParams;
 
   if (!loc) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
         <p className="text-sm">Select a location to view this binder</p>
       </div>
-    )
+    );
   }
 
   return (
@@ -67,5 +73,5 @@ export default async function BinderPage({
     >
       <BinderData loc={loc} binderId={binderId} />
     </Suspense>
-  )
+  );
 }
