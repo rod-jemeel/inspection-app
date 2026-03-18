@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=gexqnquzrnlrurxusvrl"
+    },
+    "next-devtools": {
+      "command": "npx",
+      "args": ["-y", "next-devtools-mcp@latest"]
+    },
+    "shadcn": {
+      "command": "npx",
+      "args": ["shadcn@latest", "mcp"]
+    },
+    "n8n-mcp": {
+      "command": "npx",
+      "args": ["n8n-mcp"],
+      "env": {
+        "MCP_MODE": "stdio",
+        "LOG_LEVEL": "error",
+        "DISABLE_CONSOLE_OUTPUT": "true",
+        "N8N_API_URL": "https://rfoadbjzzz.app.n8n.cloud",
+        "N8N_API_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwZWNkMzI1Yy0zODUyLTRlMTQtOWY0Yy02NGE1ZWE3ZWQwYjgiLCJpc3MiOiJuOG4iLCJhdWQiOiJtY3Atc2VydmVyLWFwaSIsImp0aSI6IjU4ZDIwYmNkLTQyMTMtNGQxOS1iNDZiLWJlNDIxZjA1NmFkMiIsImlhdCI6MTc3MzczMTI5Nn0.rUz9t6JOtojMEUThdrDO_0lb3xH0a57WmgGdrtS541Y"
+      }
+    }
+  }
+}
