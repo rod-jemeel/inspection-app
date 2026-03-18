@@ -85,7 +85,8 @@ export function InspectionDetail({
 
       if (!response.ok) {
         const err = await response.json()
-        throw new Error(err.message || "Failed to update status")
+        // Server returns { error: { code, message } } — read the nested message
+        throw new Error(err.error?.message || err.message || "Failed to update status")
       }
 
       const json = await response.json()
@@ -95,16 +96,25 @@ export function InspectionDetail({
       // Show signature pad if marking as passed
       if (newStatus === "passed") {
         setShowSignature(true)
-      } else if (newStatus === "in_progress" && updatedInstance.form_binder_id && updatedInstance.form_template_id) {
-        // Navigate directly to the linked form
+      } else if (newStatus === "in_progress" && instance.form_binder_id && instance.form_template_id) {
+        // Navigate directly to the linked form using current instance state (has view fields)
         router.push(
-          `/binders/${updatedInstance.form_binder_id}/forms/${updatedInstance.form_template_id}?loc=${locationId}&instanceId=${updatedInstance.id}`
+          `/binders/${instance.form_binder_id}/forms/${instance.form_template_id}?loc=${locationId}&instanceId=${instance.id}`
         )
       } else {
         router.refresh()
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred")
+      // Fetch fresh instance state from the view so React state matches DB
+      // (router.refresh() alone won't reset useState)
+      try {
+        const freshRes = await fetch(`/api/locations/${locationId}/instances/${instance.id}`)
+        if (freshRes.ok) {
+          const fresh = await freshRes.json()
+          setInstance(fresh.data ?? fresh)
+        }
+      } catch { /* ignore */ }
     } finally {
       setLoading(false)
     }

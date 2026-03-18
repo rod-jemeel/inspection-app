@@ -630,24 +630,33 @@ export function FormRenderer({
                   ? "Correction saved"
                   : isEditMode
                     ? "Response updated"
-                    : "Response submitted"}
+                    : inspectionInstanceId
+                      ? "Inspection complete"
+                      : "Response submitted"}
               </h2>
               <p className="text-xs text-muted-foreground">
-                Your response to{" "}
-                <span className="font-medium text-foreground">{template.name}</span>{" "}
-                has been {isEditMode && existingResponse?.status !== "draft"
-                  ? "corrected and added to the record history"
-                  : isEditMode
-                    ? "updated"
-                    : "recorded"}.
+                {inspectionInstanceId
+                  ? <>Your inspection form <span className="font-medium text-foreground">{template.name}</span> has been submitted and the inspection has been closed.</>
+                  : <>Your response to{" "}<span className="font-medium text-foreground">{template.name}</span>{" "}has been {isEditMode && existingResponse?.status !== "draft" ? "corrected and added to the record history" : isEditMode ? "updated" : "recorded"}.</>
+                }
               </p>
             </div>
             <div className="flex gap-2 pt-2">
-              <Button variant="outline" size="sm" onClick={handleBackToBinder}>
-                <ChevronLeft className="size-3.5" />
-                Back to binder
-              </Button>
-              {!isEditMode && (
+              {inspectionInstanceId ? (
+                <Button
+                  size="sm"
+                  onClick={() => router.push(`/inspections/${inspectionInstanceId}?loc=${locationId}`)}
+                >
+                  <ChevronLeft className="size-3.5" />
+                  Back to Inspection
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" onClick={handleBackToBinder}>
+                  <ChevronLeft className="size-3.5" />
+                  Back to binder
+                </Button>
+              )}
+              {!isEditMode && !inspectionInstanceId && (
                 <Button
                   size="sm"
                   onClick={() => {

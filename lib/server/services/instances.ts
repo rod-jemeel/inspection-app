@@ -6,7 +6,7 @@ import type { CreateInstanceInput, UpdateInstanceInput, InstanceFilters } from "
 
 // Helper to revalidate instances cache
 function revalidateInstancesCache() {
-  revalidateTag("instances", "max")
+  revalidateTag("instances")
 }
 
 export interface Instance {

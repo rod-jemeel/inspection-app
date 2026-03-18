@@ -150,12 +150,11 @@ export function FullscreenSignaturePad({
     if (!canvas) return null
 
     const rect = canvas.getBoundingClientRect()
-    const localX = event.clientX - rect.left
-    const localY = event.clientY - rect.top
-
+    // Context is already scaled by devicePixelRatio via ctx.scale(), so
+    // context coordinates equal CSS pixels — do not multiply by ratio.
     return {
-      x: localX * (canvas.width / rect.width),
-      y: localY * (canvas.height / rect.height),
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
     }
   }, [])
 
