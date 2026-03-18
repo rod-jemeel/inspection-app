@@ -30,7 +30,6 @@ import { InspectionTimeline } from "./inspection-timeline"
 
 interface Instance {
   id: string
-  template_id: string | null
   form_template_id: string | null
   form_binder_id: string | null
   template_task?: string
@@ -73,7 +72,6 @@ const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
 
 interface PreloadedInstance {
   id: string
-  template_id: string | null
   form_template_id?: string | null
   form_binder_id?: string | null
   template_task?: string
@@ -138,7 +136,6 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
         // Use pre-loaded data - instant modal open!
         setInstance({
           id: preloaded.id,
-          template_id: preloaded.template_id,
           form_template_id: preloaded.form_template_id ?? null,
           form_binder_id: preloaded.form_binder_id ?? null,
           template_task: preloaded.template_task,

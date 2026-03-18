@@ -27,7 +27,6 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
 
 export interface Instance {
   id: string
-  template_id: string
   template_task?: string
   template_description?: string | null
   template_frequency?: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years" | null

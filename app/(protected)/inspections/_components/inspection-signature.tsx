@@ -4,7 +4,6 @@ import { PenTool } from "lucide-react"
 
 interface Instance {
   id: string
-  template_id: string
   template_task?: string
   template_frequency?: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years" | null
   location_id: string

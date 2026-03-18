@@ -32,7 +32,7 @@ async function InspectionDetailData({
       <PageBreadcrumbs
         items={[
           { label: "Inspections", href: `/inspections?loc=${loc}` },
-          { label: template?.task ?? "Inspection Detail" },
+          { label: instance.template_task ?? "Inspection Detail" },
         ]}
       />
       <InspectionDetail
