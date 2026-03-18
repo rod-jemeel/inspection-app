@@ -30,8 +30,11 @@ import { InspectionTimeline } from "./inspection-timeline"
 
 interface Instance {
   id: string
-  template_id: string
+  template_id: string | null
+  form_template_id: string | null
+  form_binder_id: string | null
   template_task?: string
+  template_description?: string | null
   template_frequency?: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years" | null
   location_id: string
   due_at: string
@@ -42,15 +45,6 @@ interface Instance {
   inspected_at: string | null
   failed_at: string | null
   passed_at: string | null
-}
-
-interface Template {
-  id: string
-  task: string
-  description: string | null
-  frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years"
-  form_template_id?: string | null
-  binder_id?: string | null
 }
 
 interface InspectionEvent {
@@ -79,7 +73,9 @@ const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
 
 interface PreloadedInstance {
   id: string
-  template_id: string
+  template_id: string | null
+  form_template_id?: string | null
+  form_binder_id?: string | null
   template_task?: string
   template_description?: string | null
   template_frequency?: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years" | null
@@ -107,7 +103,6 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
   const [instanceId, setInstanceId] = useQueryState("instance", parseAsString)
 
   const [instance, setInstance] = useState<Instance | null>(null)
-  const [template, setTemplate] = useState<Template | null>(null)
   const [events, setEvents] = useState<InspectionEvent[]>([])
   const [signatures, setSignatures] = useState<Signature[]>([])
   const [remarks, setRemarks] = useState("")
@@ -126,7 +121,6 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
   useEffect(() => {
     if (!instanceId) {
       setInstance(null)
-      setTemplate(null)
       setEvents([])
       setSignatures([])
       setRemarks("")
@@ -145,7 +139,10 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
         setInstance({
           id: preloaded.id,
           template_id: preloaded.template_id,
+          form_template_id: preloaded.form_template_id ?? null,
+          form_binder_id: preloaded.form_binder_id ?? null,
           template_task: preloaded.template_task,
+          template_description: preloaded.template_description ?? null,
           template_frequency: preloaded.template_frequency,
           location_id: preloaded.location_id ?? locationId,
           due_at: preloaded.due_at,
@@ -159,60 +156,41 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
         })
         setRemarks(preloaded.remarks ?? "")
 
-        // Set template from preloaded data
-        if (preloaded.template_task) {
-          setTemplate({
-            id: preloaded.template_id,
-            task: preloaded.template_task,
-            description: preloaded.template_description ?? null,
-            frequency: preloaded.template_frequency ?? "monthly",
-          })
-        }
-
-        // Fetch template (for form_template_id/binder_id), events, and signatures
+        // Fetch events and signatures (no longer need a template fetch)
         const needsEvents = (preloaded.event_count ?? 1) > 0
         const needsSignatures = (preloaded.signature_count ?? 0) > 0 || preloaded.status === "passed"
 
-        setFetching(true)
-        try {
-          const promises: Promise<Response | null>[] = [
-            // Always fetch template to get form_template_id and binder_id
-            fetch(`/api/locations/${locationId}/templates/${preloaded.template_id}`).catch(() => null),
-          ]
-          if (needsEvents) {
-            promises.push(fetch(`/api/locations/${locationId}/instances/${instanceId}/events`))
-          }
-          if (needsSignatures) {
-            promises.push(fetch(`/api/locations/${locationId}/instances/${instanceId}/sign`))
-          }
+        if (needsEvents || needsSignatures) {
+          setFetching(true)
+          try {
+            const promises: Promise<Response>[] = []
+            if (needsEvents) {
+              promises.push(fetch(`/api/locations/${locationId}/instances/${instanceId}/events`))
+            }
+            if (needsSignatures) {
+              promises.push(fetch(`/api/locations/${locationId}/instances/${instanceId}/sign`))
+            }
 
-          const responses = await Promise.all(promises)
-          let idx = 0
+            const responses = await Promise.all(promises)
+            let idx = 0
 
-          // Template response
-          if (responses[idx]?.ok) {
-            const templateJson = await responses[idx]!.json()
-            const templateData = templateJson.data ?? templateJson
-            setTemplate(templateData)
-          }
-          idx++
+            if (needsEvents && responses[idx]?.ok) {
+              const eventsData = await responses[idx]!.json()
+              setEvents(eventsData.data ?? [])
+              idx++
+            } else if (needsEvents) {
+              idx++
+            }
 
-          if (needsEvents && responses[idx]?.ok) {
-            const eventsData = await responses[idx]!.json()
-            setEvents(eventsData.data ?? [])
-            idx++
-          } else if (needsEvents) {
-            idx++
+            if (needsSignatures && responses[idx]?.ok) {
+              const sigsData = await responses[idx]!.json()
+              setSignatures(sigsData.data ?? [])
+            }
+          } catch {
+            // Non-critical - events/signatures can fail silently
+          } finally {
+            setFetching(false)
           }
-
-          if (needsSignatures && responses[idx]?.ok) {
-            const sigsData = await responses[idx]!.json()
-            setSignatures(sigsData.data ?? [])
-          }
-        } catch {
-          // Non-critical - template/events/signatures can fail silently
-        } finally {
-          setFetching(false)
         }
       } else {
         // No pre-loaded data - fetch everything (e.g., direct URL access)
@@ -229,17 +207,11 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
           // Initialize remarks from instance
           setRemarks(instanceData.remarks ?? "")
 
-          // Fetch template, events, signatures in parallel
-          const [templateRes, eventsRes, signaturesRes] = await Promise.all([
-            fetch(`/api/locations/${locationId}/templates/${instanceData.template_id}`).catch(() => null),
+          // Fetch events and signatures in parallel
+          const [eventsRes, signaturesRes] = await Promise.all([
             fetch(`/api/locations/${locationId}/instances/${instanceId}/events`),
             fetch(`/api/locations/${locationId}/instances/${instanceId}/sign`),
           ])
-
-          if (templateRes?.ok) {
-            const templateJson = await templateRes.json()
-            setTemplate(templateJson.data ?? templateJson)
-          }
 
           if (eventsRes.ok) {
             const eventsData = await eventsRes.json()
@@ -274,7 +246,7 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
     router.refresh()
   }, [setInstanceId, router])
 
-  const hasLinkedForm = !!(template?.form_template_id && template?.binder_id)
+  const hasLinkedForm = !!(instance?.form_template_id && instance?.form_binder_id)
 
   const handleStatusChange = async (newStatus: string) => {
     if (!instance) return
@@ -302,7 +274,7 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
 
       // If starting inspection with linked form, navigate to form
       if (newStatus === "in_progress" && hasLinkedForm) {
-        router.push(`/binders/${template!.binder_id}/forms/${template!.form_template_id}?loc=${locationId}&instanceId=${instance.id}`)
+        router.push(`/binders/${instance.form_binder_id}/forms/${instance.form_template_id}?loc=${locationId}&instanceId=${instance.id}`)
         return
       }
 
@@ -320,8 +292,8 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
   }
 
   const handleNavigateToForm = () => {
-    if (!instance || !template?.form_template_id || !template?.binder_id) return
-    router.push(`/binders/${template.binder_id}/forms/${template.form_template_id}?loc=${locationId}&instanceId=${instance.id}`)
+    if (!instance?.form_template_id || !instance?.form_binder_id) return
+    router.push(`/binders/${instance.form_binder_id}/forms/${instance.form_template_id}?loc=${locationId}&instanceId=${instance.id}`)
   }
 
   const handleSignatureSave = async (data: { imageBlob: Blob; points: unknown; signerName: string }) => {
@@ -478,15 +450,15 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
               <div className="flex items-start justify-between gap-4 pr-6">
                 <div className="space-y-1">
                   <DialogTitle className="text-base">
-                    {template?.task ?? instance.template_task ?? "Inspection Task"}
+                    {instance.template_task ?? "Inspection Task"}
                   </DialogTitle>
-                  {template?.description && (
-                    <DialogDescription>{template.description}</DialogDescription>
+                  {instance.template_description && (
+                    <DialogDescription>{instance.template_description}</DialogDescription>
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  {(template?.frequency || instance.template_frequency) && (
-                    <FrequencyBadge frequency={template?.frequency ?? instance.template_frequency ?? ""} />
+                  {instance.template_frequency && (
+                    <FrequencyBadge frequency={instance.template_frequency} />
                   )}
                   <StatusBadge status={instance.status} />
                 </div>
