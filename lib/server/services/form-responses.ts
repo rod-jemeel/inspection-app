@@ -74,9 +74,10 @@ export async function uploadFormImage(
  * The /api/files/:responseId?type=signature|selfie endpoint
  * creates a short-lived signed URL on demand and redirects.
  */
-export function getFormImageUrl(responseId: string, type: "signature" | "selfie"): string {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
-  return `${baseUrl}/api/files/${responseId}?type=${type}`
+export async function getFormImageUrl(storagePath: string): Promise<string | null> {
+  const bucket = process.env.SIGNATURES_BUCKET ?? "signatures"
+  const { data } = await supabase.storage.from(bucket).createSignedUrl(storagePath, 31536000)
+  return data?.signedUrl ?? null
 }
 
 function getFormRevisionImageUrl(
@@ -558,7 +559,7 @@ async function getStoredRevisionRows(responseId: string): Promise<StoredRevision
 function mapResponseBaseRow(row: Record<string, unknown>): Omit<FormResponse, "template_snapshot" | "field_responses" | "revisions"> {
   const submittedBy = row.submitted_by as { full_name?: string } | null
   const formTemplate = row.form_template as { name?: string; binder_id?: string } | null
-  const lastEditedBy = row.last_edited_by as { full_name?: string } | null
+
 
   return {
     id: String(row.id),
@@ -584,7 +585,7 @@ function mapResponseBaseRow(row: Record<string, unknown>): Omit<FormResponse, "t
     submitted_by_name: submittedBy?.full_name ?? null,
     form_template_name: formTemplate?.name ?? null,
     binder_name: undefined,
-    last_edited_by_name: lastEditedBy?.full_name ?? null,
+    last_edited_by_name: null,
   }
 }
 
@@ -594,7 +595,6 @@ async function getFormResponseRow(locationId: string, responseId: string) {
     .select(`
       *,
       submitted_by:profiles!form_responses_submitted_by_profile_id_fkey(full_name),
-      last_edited_by:profiles!form_responses_last_edited_by_profile_id_fkey(full_name),
       form_template:form_templates!form_responses_form_template_id_fkey(name, binder_id)
     `)
     .eq("id", responseId)
@@ -730,7 +730,6 @@ async function fetchResponses(locationId: string, filters: FilterResponsesInput)
     .select(`
       *,
       submitted_by:profiles!form_responses_submitted_by_profile_id_fkey(full_name),
-      last_edited_by:profiles!form_responses_last_edited_by_profile_id_fkey(full_name),
       form_template:form_templates!form_responses_form_template_id_fkey(name, binder_id)
     `, { count: "exact" })
     .eq("location_id", locationId)
@@ -744,7 +743,7 @@ async function fetchResponses(locationId: string, filters: FilterResponsesInput)
   if (filters.from) query = query.gte("submitted_at", filters.from)
   if (filters.to) query = query.lte("submitted_at", `${filters.to}T23:59:59.999Z`)
 
-  if (filters.binder_id) {
+  if (filters.binder_id && !filters.form_template_id) {
     const { data: templates } = await supabase
       .from("form_templates")
       .select("id")

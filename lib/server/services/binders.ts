@@ -1,36 +1,41 @@
-import "server-only"
-import { unstable_cache, revalidateTag } from "next/cache"
-import { supabase } from "@/lib/server/db"
-import { ApiError } from "@/lib/server/errors"
-import type { CreateBinderInput, UpdateBinderInput, UpdateBinderAssignmentsInput } from "@/lib/validations/binder"
+import "server-only";
+import { cache } from "react";
+import { unstable_cache, revalidateTag } from "next/cache";
+import { supabase } from "@/lib/server/db";
+import { ApiError } from "@/lib/server/errors";
+import type {
+  CreateBinderInput,
+  UpdateBinderInput,
+  UpdateBinderAssignmentsInput,
+} from "@/lib/validations/binder";
 
 function revalidateBindersCache(locationId: string) {
-  revalidateTag("binders", "max")
-  revalidateTag(`binders-${locationId}`, "max")
+  revalidateTag("binders", "max");
+  revalidateTag(`binders-${locationId}`, "max");
 }
 
 export interface Binder {
-  id: string
-  location_id: string
-  name: string
-  description: string | null
-  color: string | null
-  icon: string | null
-  sort_order: number
-  active: boolean
-  created_at: string
-  updated_at: string
-  created_by_profile_id: string | null
-  form_count?: number
+  id: string;
+  location_id: string;
+  name: string;
+  description: string | null;
+  color: string | null;
+  icon: string | null;
+  sort_order: number;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by_profile_id: string | null;
+  form_count?: number;
 }
 
 export interface BinderAssignment {
-  id: string
-  binder_id: string
-  profile_id: string
-  can_edit: boolean
-  assigned_at: string
-  assigned_by_profile_id: string | null
+  id: string;
+  binder_id: string;
+  profile_id: string;
+  can_edit: boolean;
+  assigned_at: string;
+  assigned_by_profile_id: string | null;
 }
 
 async function fetchBinders(locationId: string, active?: boolean) {
@@ -39,61 +44,68 @@ async function fetchBinders(locationId: string, active?: boolean) {
     .select("*")
     .eq("location_id", locationId)
     .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true })
+    .order("created_at", { ascending: true });
 
   if (active !== undefined) {
-    query = query.eq("active", active)
+    query = query.eq("active", active);
   }
 
-  const { data, error } = await query
-  if (error) throw new ApiError("INTERNAL_ERROR", error.message)
+  const { data, error } = await query;
+  if (error) throw new ApiError("INTERNAL_ERROR", error.message);
 
   // Get form counts for each binder
-  const binders = data ?? []
-  if (binders.length === 0) return [] as Binder[]
+  const binders = data ?? [];
+  if (binders.length === 0) return [] as Binder[];
 
-  const binderIds = binders.map((b: { id: string }) => b.id)
+  const binderIds = binders.map((b: { id: string }) => b.id);
   const { data: formCounts, error: countError } = await supabase
     .from("form_templates")
     .select("binder_id")
     .in("binder_id", binderIds)
-    .eq("active", true)
+    .eq("active", true);
 
-  if (countError) throw new ApiError("INTERNAL_ERROR", countError.message)
+  if (countError) throw new ApiError("INTERNAL_ERROR", countError.message);
 
-  const countMap: Record<string, number> = {}
+  const countMap: Record<string, number> = {};
   for (const row of formCounts ?? []) {
-    countMap[row.binder_id] = (countMap[row.binder_id] || 0) + 1
+    countMap[row.binder_id] = (countMap[row.binder_id] || 0) + 1;
   }
 
   return binders.map((b: Record<string, unknown>) => ({
     ...b,
     form_count: countMap[b.id as string] || 0,
-  })) as Binder[]
+  })) as Binder[];
 }
 
-export async function listBinders(locationId: string, opts?: { active?: boolean }) {
+export async function listBinders(
+  locationId: string,
+  opts?: { active?: boolean },
+) {
   const getCachedBinders = unstable_cache(
     () => fetchBinders(locationId, opts?.active),
     ["binders", locationId, String(opts?.active)],
-    { revalidate: 60, tags: ["binders", `binders-${locationId}`] }
-  )
-  return getCachedBinders()
+    { revalidate: 60, tags: ["binders", `binders-${locationId}`] },
+  );
+  return getCachedBinders();
 }
 
-export async function getBinder(locationId: string, binderId: string) {
+export const getBinder = cache(async (locationId: string, binderId: string) => {
   const { data, error } = await supabase
     .from("binders")
     .select("*")
     .eq("id", binderId)
     .eq("location_id", locationId)
-    .single()
+    .single();
 
-  if (error || !data) throw new ApiError("NOT_FOUND", "Binder not found")
-  return data as Binder
-}
+  if (error || !data) throw new ApiError("NOT_FOUND", "Binder not found");
+  return data as Binder;
+})
 
-export async function createBinder(locationId: string, profileId: string, input: CreateBinderInput) {
+export async function createBinder(
+  locationId: string,
+  profileId: string,
+  input: CreateBinderInput,
+) {
   const { data, error } = await supabase
     .from("binders")
     .insert({
@@ -102,32 +114,39 @@ export async function createBinder(locationId: string, profileId: string, input:
       ...input,
     })
     .select()
-    .single()
+    .single();
 
   if (error) {
     if (error.code === "23505") {
-      throw new ApiError("VALIDATION_ERROR", `A binder named "${input.name}" already exists at this location`)
+      throw new ApiError(
+        "VALIDATION_ERROR",
+        `A binder named "${input.name}" already exists at this location`,
+      );
     }
-    throw new ApiError("INTERNAL_ERROR", error.message)
+    throw new ApiError("INTERNAL_ERROR", error.message);
   }
 
-  revalidateBindersCache(locationId)
-  return { ...data, form_count: 0 } as Binder
+  revalidateBindersCache(locationId);
+  return { ...data, form_count: 0 } as Binder;
 }
 
-export async function updateBinder(locationId: string, binderId: string, input: UpdateBinderInput) {
+export async function updateBinder(
+  locationId: string,
+  binderId: string,
+  input: UpdateBinderInput,
+) {
   const { data, error } = await supabase
     .from("binders")
     .update(input)
     .eq("id", binderId)
     .eq("location_id", locationId)
     .select()
-    .single()
+    .single();
 
-  if (error || !data) throw new ApiError("NOT_FOUND", "Binder not found")
+  if (error || !data) throw new ApiError("NOT_FOUND", "Binder not found");
 
-  revalidateBindersCache(locationId)
-  return data as Binder
+  revalidateBindersCache(locationId);
+  return data as Binder;
 }
 
 export async function deleteBinder(locationId: string, binderId: string) {
@@ -136,10 +155,10 @@ export async function deleteBinder(locationId: string, binderId: string) {
     .from("binders")
     .update({ active: false })
     .eq("id", binderId)
-    .eq("location_id", locationId)
+    .eq("location_id", locationId);
 
-  if (error) throw new ApiError("INTERNAL_ERROR", error.message)
-  revalidateBindersCache(locationId)
+  if (error) throw new ApiError("INTERNAL_ERROR", error.message);
+  revalidateBindersCache(locationId);
 }
 
 // ============================================================================
@@ -149,18 +168,21 @@ export async function deleteBinder(locationId: string, binderId: string) {
 export async function getBinderAssignments(binderId: string) {
   const { data, error } = await supabase
     .from("binder_assignments")
-    .select("id, binder_id, profile_id, can_edit, assigned_at, assigned_by_profile_id")
+    .select(
+      "id, binder_id, profile_id, can_edit, assigned_at, assigned_by_profile_id",
+    )
     .eq("binder_id", binderId)
-    .order("assigned_at", { ascending: true })
+    .order("assigned_at", { ascending: true });
 
-  if (error) throw new ApiError("INTERNAL_ERROR", error.message)
-  return (data ?? []) as BinderAssignment[]
+  if (error) throw new ApiError("INTERNAL_ERROR", error.message);
+  return (data ?? []) as BinderAssignment[];
 }
 
 export async function getMemberBinderAssignments(profileId: string) {
   const { data, error } = await supabase
     .from("binder_assignments")
-    .select(`
+    .select(
+      `
       id,
       binder_id,
       profile_id,
@@ -171,42 +193,43 @@ export async function getMemberBinderAssignments(profileId: string) {
         name,
         color
       )
-    `)
+    `,
+    )
     .eq("profile_id", profileId)
-    .order("assigned_at", { ascending: true })
+    .order("assigned_at", { ascending: true });
 
-  if (error) throw new ApiError("INTERNAL_ERROR", error.message)
+  if (error) throw new ApiError("INTERNAL_ERROR", error.message);
 
   type AssignmentRow = {
-    binder_id: string
-    can_edit: boolean
-    binders: { id: string; name: string; color: string | null }[] | null
-  }
+    binder_id: string;
+    can_edit: boolean;
+    binders: { id: string; name: string; color: string | null }[] | null;
+  };
 
   return ((data ?? []) as AssignmentRow[]).map((assignment) => {
-    const binder = assignment.binders?.[0] ?? null
+    const binder = assignment.binders?.[0] ?? null;
 
     return {
       binder_id: assignment.binder_id,
       binder_name: binder?.name ?? "Unknown Binder",
       binder_color: binder?.color || "#6b7280",
       access_level: assignment.can_edit ? "editor" : "viewer",
-    }
-  })
+    };
+  });
 }
 
 export async function updateBinderAssignments(
   binderId: string,
   input: UpdateBinderAssignmentsInput,
-  assignedByProfileId: string
+  assignedByProfileId: string,
 ) {
   // Delete existing assignments
   const { error: deleteError } = await supabase
     .from("binder_assignments")
     .delete()
-    .eq("binder_id", binderId)
+    .eq("binder_id", binderId);
 
-  if (deleteError) throw new ApiError("INTERNAL_ERROR", deleteError.message)
+  if (deleteError) throw new ApiError("INTERNAL_ERROR", deleteError.message);
 
   // Insert new assignments
   if (input.assignments.length > 0) {
@@ -215,16 +238,16 @@ export async function updateBinderAssignments(
       profile_id: a.profile_id,
       can_edit: a.can_edit,
       assigned_by_profile_id: assignedByProfileId,
-    }))
+    }));
 
     const { error: insertError } = await supabase
       .from("binder_assignments")
-      .insert(rows)
+      .insert(rows);
 
-    if (insertError) throw new ApiError("INTERNAL_ERROR", insertError.message)
+    if (insertError) throw new ApiError("INTERNAL_ERROR", insertError.message);
   }
 
-  return getBinderAssignments(binderId)
+  return getBinderAssignments(binderId);
 }
 
 /**
@@ -236,16 +259,16 @@ export async function canUserEditBinder(
   binderId: string,
   role: string,
   opts?: {
-    can_manage_binders?: boolean
-    can_manage_forms?: boolean
-  }
+    can_manage_binders?: boolean;
+    can_manage_forms?: boolean;
+  },
 ): Promise<boolean> {
   if (
     ["owner", "admin"].includes(role) ||
     opts?.can_manage_binders ||
     opts?.can_manage_forms
   ) {
-    return true
+    return true;
   }
 
   const { data } = await supabase
@@ -253,9 +276,9 @@ export async function canUserEditBinder(
     .select("can_edit")
     .eq("binder_id", binderId)
     .eq("profile_id", profileId)
-    .single()
+    .single();
 
-  return data?.can_edit === true
+  return data?.can_edit === true;
 }
 
 /**
@@ -268,9 +291,9 @@ export async function getBindersForUser(
   profileId: string,
   role: string,
   opts?: {
-    can_manage_binders?: boolean
-    can_manage_forms?: boolean
-  }
+    can_manage_binders?: boolean;
+    can_manage_forms?: boolean;
+  },
 ) {
   // Management roles see all binders
   if (
@@ -278,84 +301,102 @@ export async function getBindersForUser(
     opts?.can_manage_binders ||
     opts?.can_manage_forms
   ) {
-    return listBinders(locationId, { active: true })
+    return listBinders(locationId, { active: true });
   }
 
   // Other roles only see assigned binders
   const { data: assignments, error } = await supabase
     .from("binder_assignments")
     .select("binder_id")
-    .eq("profile_id", profileId)
+    .eq("profile_id", profileId);
 
-  if (error) throw new ApiError("INTERNAL_ERROR", error.message)
+  if (error) throw new ApiError("INTERNAL_ERROR", error.message);
 
-  if (!assignments || assignments.length === 0) return [] as Binder[]
+  if (!assignments || assignments.length === 0) return [] as Binder[];
 
-  const binderIds = assignments.map((a: { binder_id: string }) => a.binder_id)
+  const binderIds = assignments.map((a: { binder_id: string }) => a.binder_id);
   const { data: binders, error: binderError } = await supabase
     .from("binders")
     .select("*")
     .in("id", binderIds)
     .eq("location_id", locationId)
     .eq("active", true)
-    .order("sort_order", { ascending: true })
+    .order("sort_order", { ascending: true });
 
-  if (binderError) throw new ApiError("INTERNAL_ERROR", binderError.message)
+  if (binderError) throw new ApiError("INTERNAL_ERROR", binderError.message);
 
   // Add form counts
-  const assignedBinders = binders ?? []
-  if (assignedBinders.length === 0) return [] as Binder[]
+  const assignedBinders = binders ?? [];
+  if (assignedBinders.length === 0) return [] as Binder[];
 
-  const ids = assignedBinders.map((b: { id: string }) => b.id)
+  const ids = assignedBinders.map((b: { id: string }) => b.id);
   const { data: formCounts } = await supabase
     .from("form_templates")
     .select("binder_id")
     .in("binder_id", ids)
-    .eq("active", true)
+    .eq("active", true);
 
-  const countMap: Record<string, number> = {}
+  const countMap: Record<string, number> = {};
   for (const row of formCounts ?? []) {
-    countMap[row.binder_id] = (countMap[row.binder_id] || 0) + 1
+    countMap[row.binder_id] = (countMap[row.binder_id] || 0) + 1;
   }
 
   return assignedBinders.map((b: Record<string, unknown>) => ({
     ...b,
     form_count: countMap[b.id as string] || 0,
-  })) as Binder[]
+  })) as Binder[];
 }
 
 export async function getAssignmentsForProfile(
   locationId: string,
-  profileId: string
-): Promise<{ binder_id: string; binder_name: string; binder_color: string | null; can_edit: boolean }[]> {
+  profileId: string,
+): Promise<
+  {
+    binder_id: string;
+    binder_name: string;
+    binder_color: string | null;
+    can_edit: boolean;
+  }[]
+> {
   const { data, error } = await supabase
     .from("binder_assignments")
-    .select(`
+    .select(
+      `
       binder_id,
       can_edit,
       binders (name, color)
-    `)
-    .eq("profile_id", profileId)
+    `,
+    )
+    .eq("profile_id", profileId);
 
-  if (error) throw new ApiError("INTERNAL_ERROR", error.message)
+  if (error) throw new ApiError("INTERNAL_ERROR", error.message);
 
   type AssignmentRow = {
-    binder_id: string
-    can_edit: boolean
-    binders: { name: string; color: string | null }[] | null
-  }
+    binder_id: string;
+    can_edit: boolean;
+    binders: { name: string; color: string | null }[] | null;
+  };
 
   return ((data ?? []) as AssignmentRow[])
     .map((row) => {
-      const binder = row.binders?.[0]
-      if (!binder) return null
+      const binder = row.binders?.[0];
+      if (!binder) return null;
 
       return {
         binder_id: row.binder_id,
         binder_name: binder.name,
         binder_color: binder.color,
         can_edit: row.can_edit,
-      }
+      };
     })
-    .filter((row): row is { binder_id: string; binder_name: string; binder_color: string | null; can_edit: boolean } => row !== null)
+    .filter(
+      (
+        row,
+      ): row is {
+        binder_id: string;
+        binder_name: string;
+        binder_color: string | null;
+        can_edit: boolean;
+      } => row !== null,
+    );
 }
