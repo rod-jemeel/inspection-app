@@ -52,7 +52,6 @@ export function SignaturePad({ onSave, onCancel, disabled, className }: Signatur
       }
 
       resizeCanvas()
-      window.addEventListener("resize", resizeCanvas, { passive: true })
 
       pad.addEventListener("endStroke", () => {
         if (mounted) setIsEmpty(pad.isEmpty())
@@ -62,7 +61,6 @@ export function SignaturePad({ onSave, onCancel, disabled, className }: Signatur
       setLoaded(true)
 
       return () => {
-        window.removeEventListener("resize", resizeCanvas)
         pad.off()
       }
     }
