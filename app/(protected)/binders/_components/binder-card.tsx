@@ -29,11 +29,12 @@ export function BinderCard({ binder, onClick }: BinderCardProps) {
   const { Icon } = getBinderIconOption(binder.icon)
 
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick}
       style={{ borderLeftColor: binder.color || "#6B7280" }}
       className={cn(
-        "group relative flex cursor-pointer flex-col gap-2 rounded-md border border-l-4 bg-card p-4 shadow-sm transition-shadow hover:shadow-md",
+        "group relative flex w-full cursor-pointer flex-col gap-2 rounded-md border border-l-4 bg-card p-4 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         !binder.active && "opacity-60"
       )}
     >
@@ -45,6 +46,7 @@ export function BinderCard({ binder, onClick }: BinderCardProps) {
         >
           <Icon
             className="size-4"
+            aria-hidden="true"
             style={{ color: binder.color || "#6B7280" }}
           />
         </div>
@@ -68,11 +70,11 @@ export function BinderCard({ binder, onClick }: BinderCardProps) {
       {/* Footer: Form count + Arrow */}
       <div className="mt-auto flex items-center justify-between">
         <Badge variant="outline" className="bg-muted/50 text-[10px] font-medium">
-          <FileText className="mr-1 size-3" />
+          <FileText className="mr-1 size-3" aria-hidden="true" />
           {binder.form_count || 0} {binder.form_count === 1 ? "form" : "forms"}
         </Badge>
-        <ArrowRight className="size-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+        <ArrowRight className="size-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
       </div>
-    </div>
+    </button>
   )
 }

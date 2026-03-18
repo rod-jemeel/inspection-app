@@ -811,53 +811,21 @@ export function FormRenderer({
                   </p>
                 </div>
                 {existingResponse.revisions.length > 0 && (
-                  <div className="mt-3 space-y-2">
+                  <div className="mt-3 space-y-1.5">
                     <p className="text-[11px] font-medium text-foreground">
                       Revision history
                     </p>
-                    <div className="flex flex-col gap-2">
-                      {existingResponse.revisions.map((revision) => {
-                        const isActive = revision.revision_number === (activeResponseSnapshot?.revision_number ?? existingResponse.current_revision_number)
-                        return (
-                          <button
-                            key={revision.id}
-                            type="button"
-                            onClick={() => setSelectedRevisionNumber(revision.revision_number)}
-                            className={cn(
-                              "rounded-md border px-3 py-2 text-left transition-colors",
-                              isActive
-                                ? "border-primary bg-primary/5"
-                                : "border-border/60 bg-background hover:bg-muted/40"
-                            )}
-                          >
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-[11px] font-medium text-foreground">
-                                Version {revision.revision_number}
-                              </span>
-                              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                                {revision.change_type === "submitted" ? "Submitted" : "Correction"}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground">
-                                {new Date(revision.edited_at).toLocaleString([], {
-                                  dateStyle: "medium",
-                                  timeStyle: "short",
-                                })}
-                              </span>
-                              {revision.edited_by_name && (
-                                <span className="text-[10px] text-muted-foreground">
-                                  by {revision.edited_by_name}
-                                </span>
-                              )}
-                            </div>
-                            {revision.changed_fields.length > 0 && (
-                              <p className="mt-1 text-[10px] text-muted-foreground">
-                                Changed: {revision.changed_fields.join(", ")}
-                              </p>
-                            )}
-                          </button>
-                        )
-                      })}
-                    </div>
+                    <select
+                      value={activeResponseSnapshot?.revision_number ?? existingResponse.current_revision_number}
+                      onChange={(e) => setSelectedRevisionNumber(Number(e.target.value))}
+                      className="w-full rounded-md border border-border/60 bg-background px-2.5 py-1.5 text-[11px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      {existingResponse.revisions.map((revision) => (
+                        <option key={revision.id} value={revision.revision_number}>
+                          v{revision.revision_number} · {revision.change_type === "submitted" ? "Submitted" : "Correction"} · {new Date(revision.edited_at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}{revision.edited_by_name ? ` by ${revision.edited_by_name}` : ""}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 )}
               </div>

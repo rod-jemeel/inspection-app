@@ -1,11 +1,18 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
-import { Plus, MoreHorizontal, Pencil, Trash2, Loader2, ChevronRight } from "lucide-react"
-import { toast } from "sonner"
-import { getBinderIconOption } from "@/components/binder-icon"
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  Plus,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Loader2,
+  ChevronRight,
+} from "lucide-react";
+import { toast } from "sonner";
+import { getBinderIconOption } from "@/components/binder-icon";
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -13,19 +20,19 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuAction,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible"
+} from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -33,56 +40,59 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface Binder {
-  id: string
-  name: string
-  color: string | null
-  icon: string | null
+  id: string;
+  name: string;
+  color: string | null;
+  icon: string | null;
 }
 
 interface NavBindersProps {
-  binders: Binder[]
-  locationId: string | null
+  binders: Binder[];
+  locationId: string | null;
 }
 
 export function NavBinders({ binders, locationId }: NavBindersProps) {
-  const pathname = usePathname()
-  const router = useRouter()
-  const [deletingBinder, setDeletingBinder] = useState<Binder | null>(null)
-  const [confirmName, setConfirmName] = useState("")
-  const [isDeleting, setIsDeleting] = useState(false)
+  const pathname = usePathname();
+  const router = useRouter();
+  const [deletingBinder, setDeletingBinder] = useState<Binder | null>(null);
+  const [confirmName, setConfirmName] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async () => {
-    if (!deletingBinder || !locationId) return
-    setIsDeleting(true)
+    if (!deletingBinder || !locationId) return;
+    setIsDeleting(true);
     try {
       const res = await fetch(
         `/api/locations/${locationId}/binders/${deletingBinder.id}`,
-        { method: "DELETE" }
-      )
-      if (!res.ok) throw new Error("Failed to delete binder")
-      toast.success(`Binder "${deletingBinder.name}" deleted`)
-      setDeletingBinder(null)
-      setConfirmName("")
-      router.refresh()
+        { method: "DELETE" },
+      );
+      if (!res.ok) throw new Error("Failed to delete binder");
+      toast.success(`Binder "${deletingBinder.name}" deleted`);
+      setDeletingBinder(null);
+      setConfirmName("");
+      router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to delete")
+      toast.error(error instanceof Error ? error.message : "Failed to delete");
     } finally {
-      setIsDeleting(false)
+      setIsDeleting(false);
     }
-  }
+  };
 
-  if (binders.length === 0) return null
+  if (binders.length === 0) return null;
 
   return (
     <>
       <Collapsible defaultOpen className="group/binders">
         <SidebarGroup>
-          <SidebarGroupLabel className="flex items-center justify-between" asChild>
+          <SidebarGroupLabel
+            className="flex items-center justify-between"
+            asChild
+          >
             <div>
               <CollapsibleTrigger className="flex items-center gap-1 [&[data-state=open]>svg]:rotate-90">
                 <ChevronRight className="size-3 transition-transform" />
@@ -90,22 +100,22 @@ export function NavBinders({ binders, locationId }: NavBindersProps) {
               </CollapsibleTrigger>
               <button
                 onClick={() => router.push(`/binders?loc=${locationId}`)}
+                aria-label="Manage binders"
                 className="flex size-5 items-center justify-center rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                title="Manage binders"
               >
-                <Plus className="size-3.5" />
+                <Plus className="size-3.5" aria-hidden="true" />
               </button>
             </div>
           </SidebarGroupLabel>
           <CollapsibleContent>
             <SidebarMenu>
               {binders.map((binder) => {
-                const binderIcon = getBinderIconOption(binder.icon)
-                const binderPath = `/binders/${binder.id}`
+                const binderIcon = getBinderIconOption(binder.icon);
+                const binderPath = `/binders/${binder.id}`;
                 const href = locationId
                   ? `${binderPath}?loc=${locationId}`
-                  : binderPath
-                const isActive = pathname.startsWith(binderPath)
+                  : binderPath;
+                const isActive = pathname.startsWith(binderPath);
 
                 return (
                   <SidebarMenuItem key={binder.id}>
@@ -118,7 +128,9 @@ export function NavBinders({ binders, locationId }: NavBindersProps) {
                         <span
                           className="flex size-5 shrink-0 items-center justify-center rounded-md ring-1 ring-sidebar-border/60"
                           style={{
-                            backgroundColor: binder.color ? `${binder.color}22` : undefined,
+                            backgroundColor: binder.color
+                              ? `${binder.color}22`
+                              : undefined,
                             color: binder.color ?? undefined,
                           }}
                         >
@@ -134,9 +146,7 @@ export function NavBinders({ binders, locationId }: NavBindersProps) {
                         </SidebarMenuAction>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent side="right" align="start">
-                        <DropdownMenuItem
-                          onClick={() => router.push(href)}
-                        >
+                        <DropdownMenuItem onClick={() => router.push(href)}>
                           <Pencil className="mr-2 size-4" />
                           Edit
                         </DropdownMenuItem>
@@ -144,8 +154,8 @@ export function NavBinders({ binders, locationId }: NavBindersProps) {
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
                           onClick={() => {
-                            setDeletingBinder(binder)
-                            setConfirmName("")
+                            setDeletingBinder(binder);
+                            setConfirmName("");
                           }}
                         >
                           <Trash2 className="mr-2 size-4" />
@@ -154,7 +164,7 @@ export function NavBinders({ binders, locationId }: NavBindersProps) {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </SidebarMenuItem>
-                )
+                );
               })}
             </SidebarMenu>
           </CollapsibleContent>
@@ -166,8 +176,8 @@ export function NavBinders({ binders, locationId }: NavBindersProps) {
         open={!!deletingBinder}
         onOpenChange={(open) => {
           if (!open) {
-            setDeletingBinder(null)
-            setConfirmName("")
+            setDeletingBinder(null);
+            setConfirmName("");
           }
         }}
       >
@@ -193,8 +203,8 @@ export function NavBinders({ binders, locationId }: NavBindersProps) {
             <Button
               variant="outline"
               onClick={() => {
-                setDeletingBinder(null)
-                setConfirmName("")
+                setDeletingBinder(null);
+                setConfirmName("");
               }}
             >
               Cancel
@@ -215,5 +225,5 @@ export function NavBinders({ binders, locationId }: NavBindersProps) {
         </AlertDialogContent>
       </AlertDialog>
     </>
-  )
+  );
 }

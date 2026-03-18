@@ -1,87 +1,97 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react"
-import { useRouter } from "next/navigation"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { LoadingSpinner } from "@/components/loading-spinner"
-import { cn } from "@/lib/utils"
-import type { ResponseStatus } from "@/lib/validations/form-response"
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { LoadingSpinner } from "@/components/loading-spinner";
+import { cn } from "@/lib/utils";
+import type { ResponseStatus } from "@/lib/validations/form-response";
 
 interface FormResponse {
-  id: string
-  form_template_id: string
-  location_id: string
-  submitted_by_profile_id: string
-  submitted_at: string
-  original_submitted_at: string
-  status: ResponseStatus
-  overall_pass: boolean | null
-  remarks: string | null
-  current_revision_number: number
-  last_edited_at: string | null
-  last_edited_by_name: string | null
-  submitted_by_name: string | null
-  form_template_name: string | null
+  id: string;
+  form_template_id: string;
+  location_id: string;
+  submitted_by_profile_id: string;
+  submitted_at: string;
+  original_submitted_at: string;
+  status: ResponseStatus;
+  overall_pass: boolean | null;
+  remarks: string | null;
+  current_revision_number: number;
+  last_edited_at: string | null;
+  last_edited_by_name: string | null;
+  submitted_by_name: string | null;
+  form_template_name: string | null;
 }
 
 interface ResponseListProps {
-  binderId: string
-  locationId: string
+  binderId: string;
+  locationId: string;
+  formTemplateId?: string;
 }
 
 const statusColors = {
   draft: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400",
   complete: "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400",
-  flagged: "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400",
-}
+  flagged:
+    "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400",
+};
 
 const statusLabels = {
   draft: "Draft",
   complete: "Complete",
   flagged: "Flagged",
-}
+};
 
-export function ResponseList({ binderId, locationId }: ResponseListProps) {
-  const router = useRouter()
-  const [responses, setResponses] = useState<FormResponse[]>([])
-  const [loading, setLoading] = useState(true)
-  const [statusFilter, setStatusFilter] = useState<ResponseStatus | "all">("all")
+export function ResponseList({ binderId, locationId, formTemplateId }: ResponseListProps) {
+  const router = useRouter();
+  const [responses, setResponses] = useState<FormResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<ResponseStatus | "all">(
+    "all",
+  );
 
   const fetchResponses = useCallback(async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const url = new URL(`/api/locations/${locationId}/binders/${binderId}/responses`, window.location.origin)
-      url.searchParams.set("limit", "50")
+      const url = new URL(
+        `/api/locations/${locationId}/binders/${binderId}/responses`,
+        window.location.origin,
+      );
+      url.searchParams.set("limit", "50");
+      if (formTemplateId) {
+        url.searchParams.set("form_template_id", formTemplateId);
+      }
 
-      const res = await fetch(url.toString())
-      if (!res.ok) throw new Error("Failed to fetch responses")
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error("Failed to fetch responses");
 
-      const data = await res.json()
-      setResponses(data.responses || [])
+      const data = await res.json();
+      setResponses(data.responses || []);
     } catch (error) {
-      console.error("Error fetching responses:", error)
-      setResponses([])
+      console.error("Error fetching responses:", error);
+      setResponses([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [binderId, locationId])
+  }, [binderId, locationId, formTemplateId]);
 
   useEffect(() => {
-    fetchResponses()
-  }, [fetchResponses])
+    fetchResponses();
+  }, [fetchResponses]);
 
   const filteredResponses = useMemo(() => {
-    if (statusFilter === "all") return responses
-    return responses.filter((r) => r.status === statusFilter)
-  }, [responses, statusFilter])
+    if (statusFilter === "all") return responses;
+    return responses.filter((r) => r.status === statusFilter);
+  }, [responses, statusFilter]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
         <LoadingSpinner />
       </div>
-    )
+    );
   }
 
   return (
@@ -131,8 +141,8 @@ export function ResponseList({ binderId, locationId }: ResponseListProps) {
               className="group flex cursor-pointer items-center gap-3 rounded-md border bg-card p-3 shadow-sm transition-shadow hover:shadow-md"
               onClick={() => {
                 router.push(
-                  `/binders/${binderId}/forms/${response.form_template_id}?loc=${locationId}&responseId=${response.id}`
-                )
+                  `/binders/${binderId}/forms/${response.form_template_id}?loc=${locationId}&responseId=${response.id}`,
+                );
               }}
             >
               {/* Form Name & Submitted By */}
@@ -149,15 +159,24 @@ export function ResponseList({ binderId, locationId }: ResponseListProps) {
                     {response.last_edited_at
                       ? ` corrected ${new Date(response.last_edited_at).toLocaleDateString()}`
                       : ""}
-                    {response.last_edited_by_name ? ` by ${response.last_edited_by_name}` : ""}
+                    {response.last_edited_by_name
+                      ? ` by ${response.last_edited_by_name}`
+                      : ""}
                   </p>
                 )}
               </div>
 
               {/* Date & Time */}
               <div className="text-right text-xs text-muted-foreground">
-                <div>{new Date(response.submitted_at).toLocaleDateString()}</div>
-                <div>{new Date(response.submitted_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</div>
+                <div>
+                  {new Date(response.submitted_at).toLocaleDateString()}
+                </div>
+                <div>
+                  {new Date(response.submitted_at).toLocaleTimeString([], {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </div>
               </div>
 
               {/* Status Badge */}
@@ -165,7 +184,7 @@ export function ResponseList({ binderId, locationId }: ResponseListProps) {
                 variant="outline"
                 className={cn(
                   "text-[10px] font-medium",
-                  statusColors[response.status]
+                  statusColors[response.status],
                 )}
               >
                 {statusLabels[response.status]}
@@ -179,7 +198,7 @@ export function ResponseList({ binderId, locationId }: ResponseListProps) {
                     "text-[10px] font-medium",
                     response.overall_pass
                       ? "bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-400"
-                      : "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400"
+                      : "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400",
                   )}
                 >
                   {response.overall_pass ? "Pass" : "Fail"}
@@ -187,10 +206,7 @@ export function ResponseList({ binderId, locationId }: ResponseListProps) {
               )}
 
               {response.current_revision_number > 1 && (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] font-medium"
-                >
+                <Badge variant="outline" className="text-[10px] font-medium">
                   v{response.current_revision_number}
                 </Badge>
               )}
@@ -217,7 +233,6 @@ export function ResponseList({ binderId, locationId }: ResponseListProps) {
           {responses.length === 1 ? "response" : "responses"}
         </p>
       )}
-
     </div>
-  )
+  );
 }
