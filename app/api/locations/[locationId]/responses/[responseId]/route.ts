@@ -10,6 +10,7 @@ import {
 } from "@/lib/server/services/form-responses"
 import { getFormTemplate } from "@/lib/server/services/form-templates"
 import { getBinder } from "@/lib/server/services/binders"
+import { getLocation } from "@/lib/server/services/locations"
 import { buildFormResponseSyncPayload } from "@/lib/server/n8n/form-response-sync"
 import {
   notifyFormResponseCorrected,
@@ -94,18 +95,24 @@ export async function PATCH(
       if (template.google_sheet_id) {
         after(async () => {
           let binderName: string | null = null
+          let locationTimezone: string | null = null
           try {
-            const binder = await getBinder(locationId, template.binder_id)
+            const [binder, location] = await Promise.all([
+              getBinder(locationId, template.binder_id),
+              getLocation(locationId),
+            ])
             binderName = binder.name
+            locationTimezone = location.timezone ?? null
           } catch { /* ignore */ }
 
           const operation = existing.status === "draft" ? "submitted" : "corrected"
-          const payload = buildFormResponseSyncPayload({
+          const payload = await buildFormResponseSyncPayload({
             operation,
             response,
             googleSheetId: template.google_sheet_id,
             googleSheetTab: template.google_sheet_tab,
             binderName,
+            locationTimezone,
           })
 
           const notify = operation === "submitted"

@@ -36,7 +36,8 @@ export async function GET(
 
     if (error) {
       // Fallback to direct query if RPC doesn't exist
-      if (error.code === "42883") { // function does not exist
+      // PostgREST returns PGRST202 (HTTP 404) when the function doesn't exist
+      if (error.code === "42883" || error.code === "PGRST202") { // function does not exist
         const startOfDay = `${date}T00:00:00.000Z`
         const endOfDay = `${date}T23:59:59.999Z`
 

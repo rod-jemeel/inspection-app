@@ -1,11 +1,13 @@
 import { NextRequest } from "next/server"
 import { requireBinderAccess } from "@/lib/server/auth-helpers"
 import { supabase } from "@/lib/server/db"
+import { handleError } from "@/lib/server/errors"
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ responseId: string }> }
 ) {
+  try {
   const { responseId } = await params
   const type = request.nextUrl.searchParams.get("type")
   const revisionParam = request.nextUrl.searchParams.get("revision")
@@ -69,4 +71,7 @@ export async function GET(
 
   // Redirect to the signed URL
   return Response.redirect(signedData.signedUrl, 302)
+  } catch (err) {
+    return handleError(err)
+  }
 }
