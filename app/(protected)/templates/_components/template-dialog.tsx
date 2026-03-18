@@ -342,33 +342,37 @@ function TemplateBinderFields({
 }) {
   if (!binders || binders.length === 0) return null
 
+  const showBinderPicker = binders.length > 1
+
   return (
     <>
-      <Field>
-        <FieldLabel>Binder</FieldLabel>
-        <Select
-          value={selectedBinderId || "__none__"}
-          onValueChange={(value) => onBinderChange(value === "__none__" ? "" : value)}
-          disabled={loading}
-        >
-          <SelectTrigger className="h-8 w-full text-xs">
-            <SelectValue placeholder="Select a binder (optional)" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__" className="text-xs text-muted-foreground">
-              None
-            </SelectItem>
-            {binders.map((binder) => (
-              <SelectItem key={binder.id} value={binder.id} className="text-xs">
-                {binder.name}
+      {showBinderPicker && (
+        <Field>
+          <FieldLabel>Binder</FieldLabel>
+          <Select
+            value={selectedBinderId || "__none__"}
+            onValueChange={(value) => onBinderChange(value === "__none__" ? "" : value)}
+            disabled={loading}
+          >
+            <SelectTrigger className="h-8 w-full text-xs">
+              <SelectValue placeholder="Select a binder (optional)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__" className="text-xs text-muted-foreground">
+                None
               </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <FieldDescription>
-          Associate this template with a binder
-        </FieldDescription>
-      </Field>
+              {binders.map((binder) => (
+                <SelectItem key={binder.id} value={binder.id} className="text-xs">
+                  {binder.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <FieldDescription>
+            Associate this template with a binder
+          </FieldDescription>
+        </Field>
+      )}
 
       {selectedBinderId && filteredForms.length > 0 && (
         <Field>
