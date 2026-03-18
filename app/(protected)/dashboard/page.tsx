@@ -10,14 +10,14 @@ export const metadata: Metadata = {
   title: "Dashboard",
 }
 
-// Type for inspection instance with template relation
+// Type for inspection instance with form template relation
 interface InspectionInstanceRow {
   id: string
   due_at: string
   status: "pending" | "in_progress" | "failed" | "passed" | "void"
   assigned_to_email: string | null
-  inspection_templates: {
-    task: string
+  form_templates: {
+    name: string
     frequency: string | null
   } | null
 }
@@ -52,7 +52,7 @@ interface RecentInspection {
 
 // Supabase may return single relation as object or array, handle both
 function normalizeInstance(inst: Record<string, unknown>): InspectionInstanceRow {
-  const template = inst.inspection_templates
+  const template = inst.form_templates
   const normalizedTemplate = Array.isArray(template)
     ? template[0] ?? null
     : template ?? null
@@ -62,7 +62,7 @@ function normalizeInstance(inst: Record<string, unknown>): InspectionInstanceRow
     due_at: inst.due_at as string,
     status: inst.status as InspectionInstanceRow["status"],
     assigned_to_email: inst.assigned_to_email as string | null,
-    inspection_templates: normalizedTemplate as InspectionInstanceRow["inspection_templates"],
+    form_templates: normalizedTemplate as InspectionInstanceRow["form_templates"],
   }
 }
 
@@ -210,7 +210,7 @@ async function DashboardData({ loc }: { loc: string }) {
     addInspectorFilter(
       supabase
         .from("inspection_instances")
-        .select("id, due_at, status, assigned_to_email, inspection_templates(task, frequency)")
+        .select("id, due_at, status, assigned_to_email, form_templates!form_template_id(name, frequency)")
         .eq("location_id", loc)
         .gte("due_at", threeMonthsAgo.toISOString())
         .lte("due_at", threeMonthsAhead.toISOString())
@@ -222,7 +222,7 @@ async function DashboardData({ loc }: { loc: string }) {
     addInspectorFilter(
       supabase
         .from("inspection_instances")
-        .select("id, due_at, status, assigned_to_email, inspection_templates(task, frequency)")
+        .select("id, due_at, status, assigned_to_email, form_templates!form_template_id(name, frequency)")
         .eq("location_id", loc)
         .in("status", ["pending", "in_progress"])
         .lt("due_at", now.toISOString())
@@ -261,7 +261,7 @@ async function DashboardData({ loc }: { loc: string }) {
     addInspectorFilter(
       supabase
         .from("inspection_instances")
-        .select("id, due_at, status, passed_at, assigned_to_email, inspection_templates(task)")
+        .select("id, due_at, status, passed_at, assigned_to_email, form_templates!form_template_id(name)")
         .eq("location_id", loc)
         .neq("status", "void")
         .order("due_at", { ascending: false })
@@ -362,11 +362,11 @@ async function DashboardData({ loc }: { loc: string }) {
 
   // Process recent inspections for export
   const recentInspectionsList: RecentInspection[] = ((recentInspections ?? []) as Record<string, unknown>[]).map((row) => {
-    const template = row.inspection_templates
+    const template = row.form_templates
     const normalizedTemplate = Array.isArray(template) ? template[0] : template
     return {
       id: row.id as string,
-      task: (normalizedTemplate as { task?: string } | null)?.task ?? "Inspection",
+      task: (normalizedTemplate as { name?: string } | null)?.name ?? "Inspection",
       dueAt: row.due_at as string,
       status: row.status as string,
       assignee: row.assigned_to_email as string | null,
@@ -388,21 +388,21 @@ async function DashboardData({ loc }: { loc: string }) {
         const inst = normalizeInstance(row)
         return {
           id: inst.id,
-          task: inst.inspection_templates?.task ?? "Inspection",
+          task: inst.form_templates?.name ?? "Inspection",
           dueAt: inst.due_at,
           status: inst.status,
           assignee: inst.assigned_to_email,
-          frequency: inst.inspection_templates?.frequency ?? null,
+          frequency: inst.form_templates?.frequency ?? null,
         }
       })}
       overdueAlerts={((overdueInstances ?? []) as Record<string, unknown>[]).map((row) => {
         const inst = normalizeInstance(row)
         return {
           id: inst.id,
-          task: inst.inspection_templates?.task ?? "Inspection",
+          task: inst.form_templates?.name ?? "Inspection",
           dueAt: inst.due_at,
           assignee: inst.assigned_to_email,
-          frequency: inst.inspection_templates?.frequency ?? null,
+          frequency: inst.form_templates?.frequency ?? null,
           daysOverdue: Math.floor((now.getTime() - new Date(inst.due_at).getTime()) / (1000 * 60 * 60 * 24)),
         }
       })}
