@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
@@ -20,6 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+
+interface DueRule {
+  dayOfWeek?: number
+  dayOfMonth?: number
+  month?: number
+}
 
 interface FormTemplate {
   id: string
@@ -32,7 +39,34 @@ interface FormTemplate {
   active: boolean
   google_sheet_id: string | null
   google_sheet_tab: string | null
+  default_due_rule?: DueRule | null
+  scheduling_active?: boolean
 }
+
+const DAYS_OF_WEEK = [
+  { value: 1, label: "Monday" },
+  { value: 2, label: "Tuesday" },
+  { value: 3, label: "Wednesday" },
+  { value: 4, label: "Thursday" },
+  { value: 5, label: "Friday" },
+  { value: 6, label: "Saturday" },
+  { value: 0, label: "Sunday" },
+]
+
+const MONTHS = [
+  { value: 1, label: "January" },
+  { value: 2, label: "February" },
+  { value: 3, label: "March" },
+  { value: 4, label: "April" },
+  { value: 5, label: "May" },
+  { value: 6, label: "June" },
+  { value: 7, label: "July" },
+  { value: 8, label: "August" },
+  { value: 9, label: "September" },
+  { value: 10, label: "October" },
+  { value: 11, label: "November" },
+  { value: 12, label: "December" },
+]
 
 interface FormTemplateDialogProps {
   open: boolean
@@ -69,7 +103,21 @@ export function FormTemplateDialog({
   const [frequency, setFrequency] = useState(template?.frequency || "")
   const [googleSheetId, setGoogleSheetId] = useState(template?.google_sheet_id || "")
   const [googleSheetTab, setGoogleSheetTab] = useState(template?.google_sheet_tab || "")
+  const [schedulingActive, setSchedulingActive] = useState(template?.scheduling_active ?? false)
+  const [dayOfWeek, setDayOfWeek] = useState(template?.default_due_rule?.dayOfWeek ?? 1)
+  const [dayOfMonth, setDayOfMonth] = useState(template?.default_due_rule?.dayOfMonth ?? 1)
+  const [month, setMonth] = useState(template?.default_due_rule?.month ?? 1)
   const [isLoading, setIsLoading] = useState(false)
+
+  const showScheduling = frequency && frequency !== "as_needed"
+
+  const buildDueRule = (): DueRule | null => {
+    if (!frequency || frequency === "as_needed" || frequency === "daily") return null
+    if (frequency === "weekly") return { dayOfWeek }
+    if (frequency === "monthly" || frequency === "quarterly") return { dayOfMonth }
+    if (frequency === "yearly" || frequency === "every_3_years") return { month, dayOfMonth }
+    return null
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -88,7 +136,7 @@ export function FormTemplateDialog({
 
       const method = isEditMode ? "PATCH" : "POST"
 
-      const body: Record<string, string> = {
+      const body: Record<string, unknown> = {
         name: name.trim(),
       }
 
@@ -104,12 +152,17 @@ export function FormTemplateDialog({
         body.frequency = frequency
       }
 
-      if (googleSheetId.trim()) {
-        body.google_sheet_id = googleSheetId.trim()
-      }
+      // Scheduling
+      body.scheduling_active = showScheduling ? schedulingActive : false
+      body.default_due_rule = showScheduling && schedulingActive ? buildDueRule() : null
 
-      if (googleSheetTab.trim()) {
-        body.google_sheet_tab = googleSheetTab.trim()
+      // Always send google_sheet_id so users can clear it by emptying the field
+      if (isEditMode) {
+        body.google_sheet_id = googleSheetId.trim() || null
+        body.google_sheet_tab = googleSheetTab.trim() || null
+      } else {
+        if (googleSheetId.trim()) body.google_sheet_id = googleSheetId.trim()
+        if (googleSheetTab.trim()) body.google_sheet_tab = googleSheetTab.trim()
       }
 
       const response = await fetch(url, {
@@ -142,6 +195,10 @@ export function FormTemplateDialog({
         setFrequency("")
         setGoogleSheetId("")
         setGoogleSheetTab("")
+        setSchedulingActive(false)
+        setDayOfWeek(1)
+        setDayOfMonth(1)
+        setMonth(1)
       }
     } catch (error) {
       toast.error(
@@ -163,6 +220,10 @@ export function FormTemplateDialog({
         setFrequency("")
         setGoogleSheetId("")
         setGoogleSheetTab("")
+        setSchedulingActive(false)
+        setDayOfWeek(1)
+        setDayOfMonth(1)
+        setMonth(1)
       }
     }
   }
@@ -240,6 +301,79 @@ export function FormTemplateDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {showScheduling && (
+            <div className="space-y-3 rounded-md border p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-xs font-medium">Auto-schedule inspections</Label>
+                  <p className="text-[11px] text-muted-foreground">Generate inspection instances automatically</p>
+                </div>
+                <Switch
+                  checked={schedulingActive}
+                  onCheckedChange={setSchedulingActive}
+                  disabled={isLoading}
+                />
+              </div>
+
+              {schedulingActive && frequency !== "daily" && (
+                <>
+                  {frequency === "weekly" && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Due Day</Label>
+                      <Select value={String(dayOfWeek)} onValueChange={(v) => setDayOfWeek(Number(v))} disabled={isLoading}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {DAYS_OF_WEEK.map((day) => (
+                            <SelectItem key={day.value} value={String(day.value)} className="text-xs">{day.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {(frequency === "monthly" || frequency === "quarterly") && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Due Day of Month</Label>
+                      <Select value={String(dayOfMonth)} onValueChange={(v) => setDayOfMonth(Number(v))} disabled={isLoading}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                            <SelectItem key={day} value={String(day)} className="text-xs">{day}{day === 31 && " (or last day)"}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {(frequency === "yearly" || frequency === "every_3_years") && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Due Month</Label>
+                        <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))} disabled={isLoading}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {MONTHS.map((item) => (
+                              <SelectItem key={item.value} value={String(item.value)} className="text-xs">{item.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Due Day</Label>
+                        <Select value={String(dayOfMonth)} onValueChange={(v) => setDayOfMonth(Number(v))} disabled={isLoading}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                              <SelectItem key={day} value={String(day)} className="text-xs">{day}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="googleSheetId" className="text-xs">
