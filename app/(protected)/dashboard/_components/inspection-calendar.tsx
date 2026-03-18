@@ -219,8 +219,7 @@ export function InspectionCalendar({ events, locationId, locationName }: Inspect
   }, [setCalendarDate, setCalendarEvent])
 
   const handleViewDetails = (eventId: string) => {
-    handleCloseModal()
-    router.push(`/inspections?loc=${locationId}&instance=${eventId}`)
+    router.push(`/inspections/${eventId}?loc=${locationId}`)
   }
 
   const handleSelectEventFromList = (event: CalendarEvent) => {
