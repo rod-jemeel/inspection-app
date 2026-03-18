@@ -498,7 +498,7 @@ export function HelpContent() {
               <div className="rounded-md border bg-muted/30 p-4">
                 <h3 className="mb-2 font-medium text-foreground">Mobile Signing Tips</h3>
                 <ul className="list-inside list-disc space-y-1">
-                  <li>On phones, the signature pad rotates to landscape for easier signing</li>
+                  <li>The signature pad adapts to your device orientation</li>
                   <li>Use your finger or a stylus for best results</li>
                   <li>The canvas detects touch gestures - sign naturally</li>
                   <li>A baseline guide shows where to sign</li>
@@ -749,7 +749,7 @@ export function HelpContent() {
               <div className="rounded-md border bg-muted/30 p-4">
                 <h3 className="mb-2 font-medium text-foreground">Mobile Signing</h3>
                 <ul className="list-inside list-disc space-y-1">
-                  <li>The signature pad automatically rotates to landscape on phones</li>
+                  <li>The signature pad adapts to your device orientation</li>
                   <li>Use your finger to sign naturally</li>
                   <li>The canvas is optimized for touch input</li>
                 </ul>

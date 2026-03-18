@@ -1,10 +1,9 @@
 "use client"
 
 import { useRef, useEffect, useState, useCallback } from "react"
-import { X, Eraser, Check, Undo2, ArrowUp, ArrowRight } from "lucide-react"
+import { X, Eraser, Check, Undo2, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { cn } from "@/lib/utils"
 import { trimCanvas } from "@/lib/trim-canvas"
 
 interface FullscreenSignaturePadProps {
@@ -19,11 +18,6 @@ interface FullscreenSignaturePadProps {
 interface StrokePoint {
   x: number
   y: number
-}
-
-function getIsMobile() {
-  if (typeof window === "undefined") return false
-  return window.innerWidth < 768
 }
 
 function drawStroke(
@@ -83,20 +77,6 @@ export function FullscreenSignaturePad({
   const [loaded, setLoaded] = useState(false)
   const [isDrawing, setIsDrawing] = useState(false)
   const [strokeCount, setStrokeCount] = useState(0)
-  const [isMobile, setIsMobile] = useState(() => getIsMobile())
-  const [isLandscape, setIsLandscape] = useState(false)
-
-  useEffect(() => {
-    const checkOrientation = () => {
-      const mobile = getIsMobile()
-      setIsMobile(mobile)
-      setIsLandscape(mobile ? window.innerWidth > window.innerHeight : false)
-    }
-
-    checkOrientation()
-    window.addEventListener("resize", checkOrientation, { passive: true })
-    return () => window.removeEventListener("resize", checkOrientation)
-  }, [])
 
   useEffect(() => {
     document.body.style.overflow = "hidden"
@@ -105,7 +85,6 @@ export function FullscreenSignaturePad({
     }
   }, [])
 
-  const shouldRotate = isMobile && !isLandscape
   const isEmpty = strokeCount === 0
   const canUndo = strokeCount > 0
 
@@ -138,8 +117,8 @@ export function FullscreenSignaturePad({
       if (!canvas || !container) return
 
       const ratio = Math.max(window.devicePixelRatio || 1, 1)
-      const logicalWidth = shouldRotate ? container.offsetHeight : container.offsetWidth
-      const logicalHeight = shouldRotate ? container.offsetWidth : container.offsetHeight
+      const logicalWidth = container.offsetWidth
+      const logicalHeight = container.offsetHeight
 
       canvas.width = Math.max(1, Math.floor(logicalWidth * ratio))
       canvas.height = Math.max(1, Math.floor(logicalHeight * ratio))
@@ -164,7 +143,7 @@ export function FullscreenSignaturePad({
       window.removeEventListener("resize", resizeCanvas)
       window.removeEventListener("orientationchange", resizeCanvas)
     }
-  }, [redraw, shouldRotate, step])
+  }, [redraw, step])
 
   const getCanvasPoint = useCallback((event: PointerEvent | React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
@@ -174,18 +153,11 @@ export function FullscreenSignaturePad({
     const localX = event.clientX - rect.left
     const localY = event.clientY - rect.top
 
-    if (shouldRotate) {
-      return {
-        x: localY * (canvas.width / rect.height),
-        y: (rect.width - localX) * (canvas.height / rect.width),
-      }
-    }
-
     return {
       x: localX * (canvas.width / rect.width),
       y: localY * (canvas.height / rect.height),
     }
-  }, [shouldRotate])
+  }, [])
 
   const commitActiveStroke = useCallback(() => {
     if (!activeStrokeRef.current || activeStrokeRef.current.length === 0) return
@@ -322,17 +294,12 @@ export function FullscreenSignaturePad({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
     >
       <div
-        className={cn(
-          "flex bg-background",
-          shouldRotate
-            ? "h-[100vw] w-[100vh] origin-center rotate-90 flex-col"
-            : "h-full w-full flex-col md:h-[80vh] md:max-h-[600px] md:w-[90vw] md:max-w-2xl md:rounded-lg md:border md:shadow-lg"
-        )}
+        className="flex h-full w-full flex-col bg-background md:h-[80vh] md:max-h-[600px] md:w-[90vw] md:max-w-2xl md:rounded-lg md:border md:shadow-lg"
       >
         <div className="flex shrink-0 items-center justify-between border-b px-4 py-3">
           <Button variant="ghost" size="sm" onClick={() => setStep("name")} disabled={disabled}>
             <X className="size-4" />
-            <span className={cn(shouldRotate && "hidden sm:inline")}>Back</span>
+            <span>Back</span>
           </Button>
           <div className="text-center">
             <span className="text-sm font-medium">Sign as: {signerName}</span>
@@ -343,7 +310,7 @@ export function FullscreenSignaturePad({
             disabled={isEmpty || disabled}
           >
             <Check className="size-4" />
-            <span className={cn(shouldRotate && "hidden sm:inline")}>Done</span>
+            <span>Done</span>
           </Button>
         </div>
 
@@ -353,7 +320,7 @@ export function FullscreenSignaturePad({
             className="absolute left-1/2 top-1/2 touch-none"
             style={{
               touchAction: "none",
-              transform: shouldRotate ? "translate(-50%, -50%) rotate(-90deg)" : "translate(-50%, -50%)",
+              transform: "translate(-50%, -50%)",
             }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
@@ -371,13 +338,6 @@ export function FullscreenSignaturePad({
           {loaded && isEmpty && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-muted-foreground">
               <span className="text-lg">Sign here</span>
-            </div>
-          )}
-
-          {shouldRotate && loaded && (
-            <div className="pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 flex-col items-center gap-1 text-muted-foreground/50">
-              <ArrowUp className="size-6" />
-              <span className="text-[10px] font-medium uppercase tracking-wide">Top</span>
             </div>
           )}
 
