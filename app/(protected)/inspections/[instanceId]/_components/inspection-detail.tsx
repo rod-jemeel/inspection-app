@@ -88,14 +88,19 @@ export function InspectionDetail({
         throw new Error(err.message || "Failed to update status")
       }
 
-      const updated = await response.json()
-      setInstance(updated)
+      const json = await response.json()
+      const updatedInstance = json.data ?? json
+      setInstance(updatedInstance)
 
       // Show signature pad if marking as passed
       if (newStatus === "passed") {
         setShowSignature(true)
+      } else if (newStatus === "in_progress" && updatedInstance.form_binder_id && updatedInstance.form_template_id) {
+        // Navigate directly to the linked form
+        router.push(
+          `/binders/${updatedInstance.form_binder_id}/forms/${updatedInstance.form_template_id}?loc=${locationId}&instanceId=${updatedInstance.id}`
+        )
       } else {
-        // Refresh the page to show new events
         router.refresh()
       }
     } catch (err) {
