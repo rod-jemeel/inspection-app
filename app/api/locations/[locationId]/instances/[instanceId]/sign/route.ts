@@ -35,8 +35,9 @@ export async function POST(
     // Verify instance exists and belongs to location
     const instance = await getInstance(locationId, instanceId)
 
-    // AUTHORIZATION: Only assigned inspector can sign
-    if (instance.assigned_to_profile_id !== profile.id) {
+    // AUTHORIZATION: Only the assigned inspector can sign; if no assignee, any location member can sign
+    const hasAssignee = !!instance.assigned_to_profile_id
+    if (hasAssignee && instance.assigned_to_profile_id !== profile.id) {
       return Response.json(
         { error: { code: "FORBIDDEN", message: "Only the assigned inspector can sign this inspection" } },
         { status: 403 }

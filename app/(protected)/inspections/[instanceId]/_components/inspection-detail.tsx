@@ -67,7 +67,9 @@ export function InspectionDetail({
 
   const isTerminal = instance.status === "passed" || instance.status === "void"
   const isAssignedInspector = instance.assigned_to_profile_id === profileId
-  const canSign = instance.status === "passed" && signatures.length === 0 && isAssignedInspector
+  // Can sign if: passed + no signatures yet + (assigned to me OR no assignee)
+  const canSign = instance.status === "passed" && signatures.length === 0 &&
+    (!instance.assigned_to_profile_id || isAssignedInspector)
 
   const handleStatusChange = async (newStatus: string) => {
     setLoading(true)
@@ -407,7 +409,7 @@ export function InspectionDetail({
                 <PenTool className="size-3.5" />
                 Add Signature
               </Button>
-            ) : instance.status === "passed" && !isAssignedInspector && signatures.length === 0 ? (
+            ) : instance.status === "passed" && instance.assigned_to_profile_id && !isAssignedInspector && signatures.length === 0 ? (
               <p className="text-xs text-muted-foreground">
                 Only the assigned inspector ({instance.assigned_to_email ?? "unassigned"}) can sign this inspection.
               </p>

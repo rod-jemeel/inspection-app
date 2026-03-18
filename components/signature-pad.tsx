@@ -24,6 +24,7 @@ export function SignaturePad({ onSave, onCancel, disabled, className }: Signatur
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
+    if (step !== "signature") return
     let mounted = true
 
     async function initPad() {
@@ -69,7 +70,7 @@ export function SignaturePad({ onSave, onCancel, disabled, className }: Signatur
     return () => {
       mounted = false
     }
-  }, [])
+  }, [step])
 
   const handleClear = useCallback(() => {
     padRef.current?.clear()
@@ -158,7 +159,7 @@ export function SignaturePad({ onSave, onCancel, disabled, className }: Signatur
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => setStep("name")}
+          onClick={() => { setStep("name"); setLoaded(false); setIsEmpty(true) }}
           disabled={disabled}
         >
           Back
