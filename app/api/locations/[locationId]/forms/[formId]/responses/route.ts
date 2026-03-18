@@ -4,6 +4,7 @@ import { handleError, validationError } from "@/lib/server/errors"
 import { submitFormResponseSchema, filterResponsesSchema } from "@/lib/validations/form-response"
 import { submitFormResponse, listFormResponses, uploadFormImage } from "@/lib/server/services/form-responses"
 import { getFormTemplate } from "@/lib/server/services/form-templates"
+import { updateInstance } from "@/lib/server/services/instances"
 import { getBinder } from "@/lib/server/services/binders"
 import { getLocation } from "@/lib/server/services/locations"
 import { notifyFormResponseSubmitted } from "@/lib/server/n8n/webhook-sender"
@@ -61,6 +62,14 @@ export async function POST(
     }
 
     const response = await submitFormResponse(locationId, profile.id, parsed.data)
+
+    // Auto-close linked inspection instance when form is submitted (not draft)
+    if (response.inspection_instance_id && response.status !== "draft") {
+      const newStatus = response.overall_pass === false ? "failed" : "passed"
+      await updateInstance(locationId, response.inspection_instance_id, { status: newStatus }).catch(
+        (err) => console.error("Failed to auto-close inspection instance:", err)
+      )
+    }
 
     // Fire-and-forget: sync only completed/flagged records to Google Sheets
     if (template.google_sheet_id && response.status !== "draft") {
