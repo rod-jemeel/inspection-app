@@ -11,7 +11,9 @@ function revalidateInstancesCache() {
 
 export interface Instance {
   id: string
-  template_id: string
+  template_id: string | null
+  form_template_id?: string | null
+  form_binder_id?: string | null
   template_task?: string
   template_description?: string | null
   template_frequency?: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years" | null
@@ -43,16 +45,16 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 }
 
 async function fetchInstances(locationId: string, filters: InstanceFilters) {
-  // If binder_id filter is set, we need to find template IDs in that binder first
-  let templateIdsInBinder: string[] | null = null
+  // If binder_id filter is set, find form_template IDs in that binder
+  let formTemplateIdsInBinder: string[] | null = null
   if (filters.binder_id) {
-    const { data: tplRows } = await supabase
-      .from("inspection_templates")
+    const { data: ftRows } = await supabase
+      .from("form_templates")
       .select("id")
       .eq("location_id", locationId)
       .eq("binder_id", filters.binder_id)
-    templateIdsInBinder = (tplRows ?? []).map((r: any) => r.id)
-    if (templateIdsInBinder.length === 0) return []
+    formTemplateIdsInBinder = (ftRows ?? []).map((r: any) => r.id)
+    if (formTemplateIdsInBinder.length === 0) return []
   }
 
   // Try to use the optimized view first, fallback to base table with JOIN
@@ -68,7 +70,7 @@ async function fetchInstances(locationId: string, filters: InstanceFilters) {
   if (filters.to) query = query.lte("due_at", filters.to)
   if (filters.assignee) query = query.eq("assigned_to_profile_id", filters.assignee)
   if (filters.cursor) query = query.gt("due_at", filters.cursor)
-  if (templateIdsInBinder) query = query.in("template_id", templateIdsInBinder)
+  if (formTemplateIdsInBinder) query = query.in("form_template_id", formTemplateIdsInBinder)
 
   const { data, error } = await query
 
@@ -87,7 +89,7 @@ async function fetchInstances(locationId: string, filters: InstanceFilters) {
     if (filters.to) fallbackQuery = fallbackQuery.lte("due_at", filters.to)
     if (filters.assignee) fallbackQuery = fallbackQuery.eq("assigned_to_profile_id", filters.assignee)
     if (filters.cursor) fallbackQuery = fallbackQuery.gt("due_at", filters.cursor)
-    if (templateIdsInBinder) fallbackQuery = fallbackQuery.in("template_id", templateIdsInBinder)
+    if (formTemplateIdsInBinder) fallbackQuery = fallbackQuery.in("form_template_id", formTemplateIdsInBinder)
 
     const { data: fallbackData, error: fallbackError } = await fallbackQuery
     if (fallbackError) throw new ApiError("INTERNAL_ERROR", fallbackError.message)
@@ -137,9 +139,10 @@ export const listInstances = unstable_cache(
 )
 
 export async function getInstance(locationId: string, instanceId: string) {
+  // Use the detailed view to get form_template_id, form_binder_id, and template fields
   const { data, error } = await supabase
-    .from("inspection_instances")
-    .select("id, template_id, location_id, due_at, assigned_to_profile_id, assigned_to_email, status, remarks, inspected_at, failed_at, passed_at, created_by, created_at")
+    .from("inspection_instances_detailed")
+    .select("*")
     .eq("id", instanceId)
     .eq("location_id", locationId)
     .single()
