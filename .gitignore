@@ -48,3 +48,4 @@ next-env.d.ts
 
 # old individual plan files (consolidated into PLANS.md)
 /PLANS/
+.mcp.json
