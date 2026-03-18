@@ -2,7 +2,6 @@
 
 import {
   Home,
-  ClipboardList,
   ClipboardCheck,
   FileSpreadsheet,
   Users,
@@ -49,7 +48,6 @@ export function AppSidebar({
 
   const mainItems = [
     { title: "Dashboard", url: "/dashboard", icon: Home },
-    { title: "Templates", url: "/templates", icon: ClipboardList },
     { title: "Inspections", url: "/inspections", icon: ClipboardCheck },
     { title: "Logs", url: "/logs", icon: FileSpreadsheet },
   ]
