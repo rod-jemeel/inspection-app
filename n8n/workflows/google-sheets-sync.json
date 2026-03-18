@@ -11,7 +11,10 @@
       "name": "Webhook Submitted",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [220, 220],
+      "position": [
+        220,
+        220
+      ],
       "webhookId": "form-response-submitted"
     },
     {
@@ -34,7 +37,10 @@
       "name": "Read Sheet Headers Submitted",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
-      "position": [460, 220],
+      "position": [
+        460,
+        220
+      ],
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "CONFIGURE_ME",
@@ -44,12 +50,15 @@
     },
     {
       "parameters": {
-        "jsCode": "function fmtTimestamp(iso) {\n  const d = new Date(iso);\n  if (isNaN(d.getTime())) return iso || '';\n  const M = d.getMonth() + 1;\n  const D = d.getDate();\n  const Y = d.getFullYear();\n  const h = d.getHours();\n  const m = String(d.getMinutes()).padStart(2, '0');\n  const s = String(d.getSeconds()).padStart(2, '0');\n  return `${M}/${D}/${Y} ${h}:${m}:${s}`;\n}\n\nfunction normalizeHeader(value) {\n  return String(value || '')\n    .trim()\n    .toLowerCase()\n    .replace(/[^a-z0-9]+/g, '_')\n    .replace(/^_+|_+$/g, '');\n}\n\nfunction toSheetValue(value) {\n  if (value === null || value === undefined) return '';\n  return String(value);\n}\n\nconst payload = $('Webhook Submitted').first().json.body;\nconst sheetRow = $('Read Sheet Headers Submitted').first().json;\nconst headers = Object.keys(sheetRow).filter((header) => header !== 'row_number');\nconst headerByNormalized = new Map(headers.map((header) => [normalizeHeader(header), header]));\n\nconst row = {};\nconst timestampHeader = headers[0] || 'Timestamp';\nconst timestampValue = fmtTimestamp(payload.original_submitted_at || payload.submitted_at || payload.timestamp);\nrow[timestampHeader] = timestampValue;\n\nfor (const [key, value] of Object.entries(payload.record || {})) {\n  const matchedHeader = headerByNormalized.get(normalizeHeader(key)) || key;\n  row[matchedHeader] = toSheetValue(value);\n}\n\nif (payload.media?.completion_signature) {\n  const signatureHeader = headerByNormalized.get('signature') || 'signature';\n  row[signatureHeader] = payload.media.completion_signature;\n}\n\nif (payload.media?.completion_selfie) {\n  const selfieHeader = headerByNormalized.get('selfie') || 'selfie';\n  row[selfieHeader] = payload.media.completion_selfie;\n}\n\nconst metadata = {\n  form_template_name: payload.form_template_name,\n  binder_name: payload.binder_name,\n  status: payload.status,\n  operation: payload.operation,\n  overall_pass: payload.overall_pass,\n  submitted_by: payload.submitted_by?.name || '',\n  last_edited_by: payload.last_edited_by?.name || '',\n  last_edited_at: payload.last_edited_at || ''\n};\n\nfor (const [key, value] of Object.entries(metadata)) {\n  if (value === null || value === undefined || value === '') continue;\n  const matchedHeader = headerByNormalized.get(normalizeHeader(key)) || key;\n  row[matchedHeader] = toSheetValue(value);\n}\n\nrow.__lookupColumn = timestampHeader;\nrow.__lookupValue = timestampValue;\n\nreturn [{ json: row }];"
+        "jsCode": "function fmtTimestamp(iso, timezone) {\n  const d = new Date(iso);\n  if (isNaN(d.getTime())) return iso || '';\n  try {\n    return d.toLocaleString('en-US', {\n      timeZone: timezone || 'UTC',\n      month: 'numeric', day: 'numeric', year: 'numeric',\n      hour: 'numeric', minute: '2-digit', second: '2-digit',\n      hour12: false,\n    });\n  } catch {\n    return d.toISOString();\n  }\n}\n\nfunction normalizeHeader(value) {\n  return String(value || '')\n    .trim()\n    .toLowerCase()\n    .replace(/[^a-z0-9]+/g, '_')\n    .replace(/^_+|_+$/g, '');\n}\n\nfunction toSheetValue(value) {\n  if (value === null || value === undefined) return '';\n  return String(value);\n}\n\nfunction similarity(a, b) {\n  if (a === b) return 1;\n  if (a.length < 2 || b.length < 2) return 0;\n  if (a.length > b.length) { const t = a; a = b; b = t; }\n  const bBigrams = new Map();\n  for (let i = 0; i < b.length - 1; i++) {\n    const bg = b.slice(i, i + 2);\n    bBigrams.set(bg, (bBigrams.get(bg) || 0) + 1);\n  }\n  let intersectionSize = 0;\n  const bCopy = new Map(bBigrams);\n  for (let i = 0; i < a.length - 1; i++) {\n    const bg = a.slice(i, i + 2);\n    const cnt = bCopy.get(bg) || 0;\n    if (cnt > 0) { bCopy.set(bg, cnt - 1); intersectionSize++; }\n  }\n  const aLen = a.length - 1;\n  const bLen = b.length - 1;\n  const dice = (2 * intersectionSize) / (aLen + bLen);\n  const containment = intersectionSize / aLen;\n  return Math.max(dice, containment);\n}\n\nfunction findHeader(key, headerByNormalized, threshold) {\n  const normalizedKey = normalizeHeader(key);\n  if (headerByNormalized.has(normalizedKey)) return headerByNormalized.get(normalizedKey);\n  let bestScore = 0;\n  let bestHeader = null;\n  for (const [normHeader, origHeader] of headerByNormalized) {\n    const score = similarity(normalizedKey, normHeader);\n    if (score > bestScore) {\n      bestScore = score;\n      bestHeader = origHeader;\n    }\n  }\n  return bestScore >= threshold ? bestHeader : null;\n}\n\nconst FUZZY_THRESHOLD = 0.75;\n\nconst payload = $('Webhook Submitted').first().json.body;\nconst sheetRow = $('Read Sheet Headers Submitted').first().json;\nconst headers = Object.keys(sheetRow).filter((header) => header !== 'row_number');\nconst headerByNormalized = new Map(headers.map((header) => [normalizeHeader(header), header]));\n\nconst row = {};\nconst timestampHeader = headers[0] || 'Timestamp';\nconst timestampValue = fmtTimestamp(payload.original_submitted_at || payload.submitted_at || payload.timestamp, payload.location_timezone);\nrow[timestampHeader] = timestampValue;\nrow[\"response_id\"] = payload.response_id;\n\nfor (const [key, value] of Object.entries(payload.record || {})) {\n  const matchedHeader = findHeader(key, headerByNormalized, FUZZY_THRESHOLD) || key;\n  row[matchedHeader] = toSheetValue(value);\n}\n\nif (payload.media?.completion_signature) {\n  const signatureHeader = findHeader('signature', headerByNormalized, FUZZY_THRESHOLD) || 'signature';\n  row[signatureHeader] = payload.media.completion_signature;\n}\n\nif (payload.media?.completion_selfie) {\n  const selfieHeader = findHeader('selfie', headerByNormalized, FUZZY_THRESHOLD) || 'selfie';\n  row[selfieHeader] = payload.media.completion_selfie;\n}\n\nreturn [{ json: row }];"
       },
       "name": "Map Fields to Columns Submitted",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [700, 220]
+      "position": [
+        700,
+        220
+      ]
     },
     {
       "parameters": {
@@ -68,7 +77,7 @@
           "mappingMode": "autoMapInputData",
           "value": {},
           "matchingColumns": [
-            "={{$json.__lookupColumn}}"
+            "response_id"
           ],
           "schema": []
         },
@@ -80,7 +89,10 @@
       "name": "Append Or Update Submitted",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
-      "position": [960, 220],
+      "position": [
+        960,
+        220
+      ],
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "CONFIGURE_ME",
@@ -97,7 +109,10 @@
       "name": "Respond Success Submitted",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1210, 220]
+      "position": [
+        1210,
+        220
+      ]
     },
     {
       "parameters": {
@@ -109,7 +124,10 @@
       "name": "Webhook Corrected",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [220, 520],
+      "position": [
+        220,
+        520
+      ],
       "webhookId": "form-response-corrected"
     },
     {
@@ -132,7 +150,10 @@
       "name": "Read Sheet Headers Corrected",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
-      "position": [460, 520],
+      "position": [
+        460,
+        520
+      ],
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "CONFIGURE_ME",
@@ -142,12 +163,15 @@
     },
     {
       "parameters": {
-        "jsCode": "function fmtTimestamp(iso) {\n  const d = new Date(iso);\n  if (isNaN(d.getTime())) return iso || '';\n  const M = d.getMonth() + 1;\n  const D = d.getDate();\n  const Y = d.getFullYear();\n  const h = d.getHours();\n  const m = String(d.getMinutes()).padStart(2, '0');\n  const s = String(d.getSeconds()).padStart(2, '0');\n  return `${M}/${D}/${Y} ${h}:${m}:${s}`;\n}\n\nfunction normalizeHeader(value) {\n  return String(value || '')\n    .trim()\n    .toLowerCase()\n    .replace(/[^a-z0-9]+/g, '_')\n    .replace(/^_+|_+$/g, '');\n}\n\nfunction toSheetValue(value) {\n  if (value === null || value === undefined) return '';\n  return String(value);\n}\n\nconst payload = $('Webhook Corrected').first().json.body;\nconst sheetRow = $('Read Sheet Headers Corrected').first().json;\nconst headers = Object.keys(sheetRow).filter((header) => header !== 'row_number');\nconst headerByNormalized = new Map(headers.map((header) => [normalizeHeader(header), header]));\n\nconst row = {};\nconst timestampHeader = headers[0] || 'Timestamp';\nconst timestampValue = fmtTimestamp(payload.original_submitted_at || payload.submitted_at || payload.timestamp);\nrow[timestampHeader] = timestampValue;\n\nfor (const [key, value] of Object.entries(payload.record || {})) {\n  const matchedHeader = headerByNormalized.get(normalizeHeader(key)) || key;\n  row[matchedHeader] = toSheetValue(value);\n}\n\nif (payload.media?.completion_signature) {\n  const signatureHeader = headerByNormalized.get('signature') || 'signature';\n  row[signatureHeader] = payload.media.completion_signature;\n}\n\nif (payload.media?.completion_selfie) {\n  const selfieHeader = headerByNormalized.get('selfie') || 'selfie';\n  row[selfieHeader] = payload.media.completion_selfie;\n}\n\nconst metadata = {\n  form_template_name: payload.form_template_name,\n  binder_name: payload.binder_name,\n  status: payload.status,\n  operation: payload.operation,\n  overall_pass: payload.overall_pass,\n  submitted_by: payload.submitted_by?.name || '',\n  last_edited_by: payload.last_edited_by?.name || '',\n  last_edited_at: payload.last_edited_at || ''\n};\n\nfor (const [key, value] of Object.entries(metadata)) {\n  if (value === null || value === undefined || value === '') continue;\n  const matchedHeader = headerByNormalized.get(normalizeHeader(key)) || key;\n  row[matchedHeader] = toSheetValue(value);\n}\n\nrow.__lookupColumn = timestampHeader;\nrow.__lookupValue = timestampValue;\n\nreturn [{ json: row }];"
+        "jsCode": "function fmtTimestamp(iso, timezone) {\n  const d = new Date(iso);\n  if (isNaN(d.getTime())) return iso || '';\n  try {\n    return d.toLocaleString('en-US', {\n      timeZone: timezone || 'UTC',\n      month: 'numeric', day: 'numeric', year: 'numeric',\n      hour: 'numeric', minute: '2-digit', second: '2-digit',\n      hour12: false,\n    });\n  } catch {\n    return d.toISOString();\n  }\n}\n\nfunction normalizeHeader(value) {\n  return String(value || '')\n    .trim()\n    .toLowerCase()\n    .replace(/[^a-z0-9]+/g, '_')\n    .replace(/^_+|_+$/g, '');\n}\n\nfunction toSheetValue(value) {\n  if (value === null || value === undefined) return '';\n  return String(value);\n}\n\nfunction similarity(a, b) {\n  if (a === b) return 1;\n  if (a.length < 2 || b.length < 2) return 0;\n  if (a.length > b.length) { const t = a; a = b; b = t; }\n  const bBigrams = new Map();\n  for (let i = 0; i < b.length - 1; i++) {\n    const bg = b.slice(i, i + 2);\n    bBigrams.set(bg, (bBigrams.get(bg) || 0) + 1);\n  }\n  let intersectionSize = 0;\n  const bCopy = new Map(bBigrams);\n  for (let i = 0; i < a.length - 1; i++) {\n    const bg = a.slice(i, i + 2);\n    const cnt = bCopy.get(bg) || 0;\n    if (cnt > 0) { bCopy.set(bg, cnt - 1); intersectionSize++; }\n  }\n  const aLen = a.length - 1;\n  const bLen = b.length - 1;\n  const dice = (2 * intersectionSize) / (aLen + bLen);\n  const containment = intersectionSize / aLen;\n  return Math.max(dice, containment);\n}\n\nfunction findHeader(key, headerByNormalized, threshold) {\n  const normalizedKey = normalizeHeader(key);\n  if (headerByNormalized.has(normalizedKey)) return headerByNormalized.get(normalizedKey);\n  let bestScore = 0;\n  let bestHeader = null;\n  for (const [normHeader, origHeader] of headerByNormalized) {\n    const score = similarity(normalizedKey, normHeader);\n    if (score > bestScore) {\n      bestScore = score;\n      bestHeader = origHeader;\n    }\n  }\n  return bestScore >= threshold ? bestHeader : null;\n}\n\nconst FUZZY_THRESHOLD = 0.75;\n\nconst payload = $('Webhook Corrected').first().json.body;\nconst sheetRow = $('Read Sheet Headers Corrected').first().json;\nconst headers = Object.keys(sheetRow).filter((header) => header !== 'row_number');\nconst headerByNormalized = new Map(headers.map((header) => [normalizeHeader(header), header]));\n\nconst row = {};\nconst timestampHeader = headers[0] || 'Timestamp';\nconst timestampValue = fmtTimestamp(payload.original_submitted_at || payload.submitted_at || payload.timestamp, payload.location_timezone);\nrow[timestampHeader] = timestampValue;\nrow[\"response_id\"] = payload.response_id;\n\nfor (const [key, value] of Object.entries(payload.record || {})) {\n  const matchedHeader = findHeader(key, headerByNormalized, FUZZY_THRESHOLD) || key;\n  row[matchedHeader] = toSheetValue(value);\n}\n\nif (payload.media?.completion_signature) {\n  const signatureHeader = findHeader('signature', headerByNormalized, FUZZY_THRESHOLD) || 'signature';\n  row[signatureHeader] = payload.media.completion_signature;\n}\n\nif (payload.media?.completion_selfie) {\n  const selfieHeader = findHeader('selfie', headerByNormalized, FUZZY_THRESHOLD) || 'selfie';\n  row[selfieHeader] = payload.media.completion_selfie;\n}\n\nreturn [{ json: row }];"
       },
       "name": "Map Fields to Columns Corrected",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [700, 520]
+      "position": [
+        700,
+        520
+      ]
     },
     {
       "parameters": {
@@ -166,7 +190,7 @@
           "mappingMode": "autoMapInputData",
           "value": {},
           "matchingColumns": [
-            "={{$json.__lookupColumn}}"
+            "response_id"
           ],
           "schema": []
         },
@@ -178,7 +202,10 @@
       "name": "Append Or Update Corrected",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
-      "position": [960, 520],
+      "position": [
+        960,
+        520
+      ],
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "CONFIGURE_ME",
@@ -195,7 +222,10 @@
       "name": "Respond Success Corrected",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1210, 520]
+      "position": [
+        1210,
+        520
+      ]
     }
   ],
   "connections": {
