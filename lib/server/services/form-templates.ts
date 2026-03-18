@@ -32,6 +32,8 @@ export interface FormTemplate {
   created_by_profile_id: string | null
   google_sheet_id: string | null
   google_sheet_tab: string | null
+  default_due_rule: Record<string, unknown> | null
+  scheduling_active: boolean
   field_count?: number
 }
 
