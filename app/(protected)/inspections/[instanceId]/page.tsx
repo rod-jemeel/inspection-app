@@ -2,7 +2,6 @@ import { Suspense } from "react"
 import type { Metadata } from "next"
 import { requireLocationAccess } from "@/lib/server/auth-helpers"
 import { getInstance } from "@/lib/server/services/instances"
-import { getTemplate } from "@/lib/server/services/templates"
 import { listEvents } from "@/lib/server/services/events"
 import { getSignatures } from "@/lib/server/services/signatures"
 import { LoadingSpinner } from "@/components/loading-spinner"
@@ -23,8 +22,7 @@ async function InspectionDetailData({
   const { profile } = await requireLocationAccess(loc)
   const instance = await getInstance(loc, instanceId)
 
-  const [template, events, signatures] = await Promise.all([
-    instance.template_id ? getTemplate(loc, instance.template_id).catch(() => null) : Promise.resolve(null),
+  const [events, signatures] = await Promise.all([
     listEvents(instanceId),
     getSignatures(instanceId),
   ])
@@ -39,7 +37,6 @@ async function InspectionDetailData({
       />
       <InspectionDetail
         instance={instance}
-        template={template}
         events={events}
         signatures={signatures}
         locationId={loc}

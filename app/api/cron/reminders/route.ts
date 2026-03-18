@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
         assigned_to_email,
         assigned_to_profile_id,
         location_id,
-        inspection_templates(task, frequency),
+        form_templates!form_template_id(name, frequency),
         locations(name)
       `
       )
@@ -102,8 +102,8 @@ export async function POST(request: NextRequest) {
     }> = []
 
     for (const instance of allInstances ?? []) {
-      const task = ((instance as any).inspection_templates as any)?.task ?? "Inspection"
-      const frequency = ((instance as any).inspection_templates as any)?.frequency as "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years" | null
+      const task = ((instance as any).form_templates as any)?.name ?? "Inspection"
+      const frequency = ((instance as any).form_templates as any)?.frequency as "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years" | null
       const locationName = ((instance as any).locations as any)?.name ?? undefined
 
       if (!frequency) continue

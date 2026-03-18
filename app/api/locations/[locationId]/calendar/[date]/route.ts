@@ -50,7 +50,7 @@ export async function GET(
             assigned_to_email,
             passed_at,
             failed_at,
-            inspection_templates(task, description, frequency)
+            form_templates!form_template_id(name, description, frequency)
           `)
           .eq("location_id", locationId)
           .gte("due_at", startOfDay)
@@ -70,10 +70,10 @@ export async function GET(
 
         // Transform to expected format
         const events = (fallbackData ?? []).map((row: Record<string, unknown>) => {
-          const template = row.inspection_templates as { task?: string; description?: string | null; frequency?: string } | null
+          const template = row.form_templates as { name?: string; description?: string | null; frequency?: string } | null
           return {
             id: row.id,
-            task: template?.task ?? "Inspection",
+            task: template?.name ?? "Inspection",
             description: template?.description ?? null,
             dueAt: row.due_at,
             status: row.status,

@@ -11,7 +11,6 @@ function revalidateInstancesCache() {
 
 export interface Instance {
   id: string
-  template_id: string | null
   form_template_id?: string | null
   form_binder_id?: string | null
   template_task?: string
@@ -73,37 +72,6 @@ async function fetchInstances(locationId: string, filters: InstanceFilters) {
   if (formTemplateIdsInBinder) query = query.in("form_template_id", formTemplateIdsInBinder)
 
   const { data, error } = await query
-
-  // Fallback to base table if view doesn't exist yet
-  if (error?.code === "42P01") {
-    // relation does not exist
-    let fallbackQuery = supabase
-      .from("inspection_instances")
-      .select("*, inspection_templates(task, description, frequency), assignee_profile:profiles!inspection_instances_assigned_to_profile_id_fkey(full_name)")
-      .eq("location_id", locationId)
-      .order("due_at", { ascending: true })
-      .limit(filters.limit)
-
-    if (filters.status) fallbackQuery = fallbackQuery.eq("status", filters.status)
-    if (filters.from) fallbackQuery = fallbackQuery.gte("due_at", filters.from)
-    if (filters.to) fallbackQuery = fallbackQuery.lte("due_at", filters.to)
-    if (filters.assignee) fallbackQuery = fallbackQuery.eq("assigned_to_profile_id", filters.assignee)
-    if (filters.cursor) fallbackQuery = fallbackQuery.gt("due_at", filters.cursor)
-    if (formTemplateIdsInBinder) fallbackQuery = fallbackQuery.in("form_template_id", formTemplateIdsInBinder)
-
-    const { data: fallbackData, error: fallbackError } = await fallbackQuery
-    if (fallbackError) throw new ApiError("INTERNAL_ERROR", fallbackError.message)
-
-    return (fallbackData ?? []).map((row: any) => ({
-      ...row,
-      template_task: row.inspection_templates?.task ?? null,
-      template_description: row.inspection_templates?.description ?? null,
-      template_frequency: row.inspection_templates?.frequency ?? null,
-      assignee_name: row.assignee_profile?.full_name ?? null,
-      inspection_templates: undefined,
-      assignee_profile: undefined,
-    })) as Instance[]
-  }
 
   if (error) throw new ApiError("INTERNAL_ERROR", error.message)
 

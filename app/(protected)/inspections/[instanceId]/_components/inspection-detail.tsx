@@ -28,13 +28,11 @@ import { SignaturePad } from "@/components/signature-pad"
 import { StatusBadge } from "@/components/status-badge"
 import { FrequencyBadge } from "@/components/frequency-badge"
 import type { Instance } from "@/lib/server/services/instances"
-import type { Template } from "@/lib/server/services/templates"
 import type { InspectionEvent } from "@/lib/server/services/events"
 import type { Signature } from "@/lib/server/services/signatures"
 
 interface InspectionDetailProps {
   instance: Instance
-  template: Template | null
   events: InspectionEvent[]
   signatures: Signature[]
   locationId: string
@@ -55,7 +53,6 @@ const EVENT_ICONS = {
 
 export function InspectionDetail({
   instance: initialInstance,
-  template,
   events,
   signatures,
   locationId,
@@ -192,15 +189,15 @@ export function InspectionDetail({
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1">
               <CardTitle>
-                {template?.task ?? "Inspection Task"}
+                {instance.template_task ?? "Inspection Task"}
               </CardTitle>
-              {template?.description && (
-                <CardDescription>{template.description}</CardDescription>
+              {instance.template_description && (
+                <CardDescription>{instance.template_description}</CardDescription>
               )}
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              {template?.frequency && (
-                <FrequencyBadge frequency={template.frequency} />
+              {instance.template_frequency && (
+                <FrequencyBadge frequency={instance.template_frequency} />
               )}
               <StatusBadge status={instance.status} />
             </div>
@@ -333,7 +330,7 @@ export function InspectionDetail({
       </Card>
 
       {/* Linked Form */}
-      {template?.form_template_id && (
+      {instance.form_template_id && (
         <Card>
           <CardContent className="flex items-center justify-between py-4">
             <div className="space-y-0.5">
@@ -345,7 +342,7 @@ export function InspectionDetail({
             <Button
               size="sm"
               onClick={() => router.push(
-                `/binders/${template.binder_id}/forms/${template.form_template_id}?loc=${locationId}&instanceId=${instance.id}`
+                `/binders/${instance.form_binder_id}/forms/${instance.form_template_id}?loc=${locationId}&instanceId=${instance.id}`
               )}
               disabled={isTerminal}
             >

@@ -21,7 +21,7 @@ export async function POST(request: Request) {
         id,
         due_at,
         location_id,
-        inspection_templates(task),
+        form_templates!form_template_id(name),
         locations(name)
       `
       )
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     if (unassignedOverdue && unassignedOverdue.length > 0 && ownerEmail) {
       try {
         const byLocation = unassignedOverdue.reduce((acc, instance) => {
-          const task = ((instance as any).inspection_templates as any)?.task ?? "Inspection"
+          const task = ((instance as any).form_templates as any)?.name ?? "Inspection"
           const locationName = ((instance as any).locations as any)?.name ?? "Unknown Location"
 
           if (!acc[locationName]) acc[locationName] = []
