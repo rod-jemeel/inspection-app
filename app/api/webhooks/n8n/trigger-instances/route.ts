@@ -10,21 +10,23 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Fetch all active templates with binder_id
-    const { data: templates, error: templatesError } = await supabase
-      .from("inspection_templates")
-      .select("id, location_id, frequency, default_assignee_profile_id, binder_id")
+    // Fetch all scheduling-active form templates (excluding as_needed)
+    const { data: forms, error: formsError } = await supabase
+      .from("form_templates")
+      .select("id, location_id, frequency, default_assignee_profile_id, binder_id, default_due_rule")
+      .eq("scheduling_active", true)
       .eq("active", true)
+      .neq("frequency", "as_needed")
 
-    if (templatesError) {
-      console.error("Query error fetching templates:", templatesError)
+    if (formsError) {
+      console.error("Query error fetching form templates:", formsError)
       return Response.json(
-        { error: "Failed to fetch templates" },
+        { error: "Failed to fetch form templates" },
         { status: 500 }
       )
     }
 
-    if (!templates || templates.length === 0) {
+    if (!forms || forms.length === 0) {
       return Response.json({
         generated: 0,
         skipped: 0,
@@ -35,7 +37,7 @@ export async function POST(request: Request) {
     }
 
     // Pre-fetch binder assignments
-    const binderIds = [...new Set(templates.map(t => t.binder_id).filter(Boolean))]
+    const binderIds = [...new Set(forms.map(f => f.binder_id).filter(Boolean))]
     const assignmentMap = new Map<string, string>()
 
     if (binderIds.length > 0) {
@@ -54,37 +56,37 @@ export async function POST(request: Request) {
       }
     }
 
-    // For each template, check if instance exists
+    // For each form, check if instance exists
     const results = await Promise.allSettled(
-      templates.map(async (template) => {
+      forms.map(async (form) => {
         const { data: existingInstances, error: checkError } = await supabase
           .from("inspection_instances")
           .select("id, status")
-          .eq("template_id", template.id)
+          .eq("form_template_id", form.id)
           .in("status", ["pending", "in_progress"])
           .limit(1)
 
         if (checkError) {
-          console.error(`Error checking instances for template ${template.id}:`, checkError)
-          return { status: "error" as const, templateId: template.id }
+          console.error(`Error checking instances for form ${form.id}:`, checkError)
+          return { status: "error" as const, formId: form.id }
         }
 
         if (existingInstances && existingInstances.length > 0) {
-          return { status: "skipped" as const, templateId: template.id }
+          return { status: "skipped" as const, formId: form.id }
         }
 
-        const dueDate = calculateNextDueDate(template.frequency)
+        const dueDate = calculateNextDueDate(form.frequency as "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years", undefined, form.default_due_rule)
 
         const assigneeProfileId =
-          template.default_assignee_profile_id ||
-          (template.binder_id ? assignmentMap.get(template.binder_id) : null) ||
+          form.default_assignee_profile_id ||
+          (form.binder_id ? assignmentMap.get(form.binder_id) : null) ||
           null
 
         const { error: insertError } = await supabase
           .from("inspection_instances")
           .insert({
-            template_id: template.id,
-            location_id: template.location_id,
+            form_template_id: form.id,
+            location_id: form.location_id,
             due_at: dueDate.toISOString(),
             assigned_to_profile_id: assigneeProfileId,
             status: "pending",
@@ -92,11 +94,11 @@ export async function POST(request: Request) {
           })
 
         if (insertError) {
-          console.error(`Error creating instance for template ${template.id}:`, insertError)
-          return { status: "error" as const, templateId: template.id }
+          console.error(`Error creating instance for form ${form.id}:`, insertError)
+          return { status: "error" as const, formId: form.id }
         }
 
-        return { status: "generated" as const, templateId: template.id }
+        return { status: "generated" as const, formId: form.id }
       })
     )
 
