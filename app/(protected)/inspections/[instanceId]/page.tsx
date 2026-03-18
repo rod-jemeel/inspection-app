@@ -24,7 +24,7 @@ async function InspectionDetailData({
   const instance = await getInstance(loc, instanceId)
 
   const [template, events, signatures] = await Promise.all([
-    getTemplate(loc, instance.template_id).catch(() => null),
+    instance.template_id ? getTemplate(loc, instance.template_id).catch(() => null) : Promise.resolve(null),
     listEvents(instanceId),
     getSignatures(instanceId),
   ])
