@@ -9,29 +9,17 @@ import type { FormResponseSyncPayload } from "./types"
 
 type DynamicRecordValue = string | number | boolean | null
 
-function sanitizeKey(label: string): string {
-  const normalized = label
-    .normalize("NFKD")
-    .replace(/[^\w\s-]/g, " ")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-
-  return normalized || "field"
-}
-
 function toUniqueKeys(snapshot: FormTemplateSnapshot) {
-  const keyCounts = new Map<string, number>()
+  const labelCounts = new Map<string, number>()
   const keyByFieldId = new Map<string, string>()
 
   for (const field of snapshot.fields) {
     if (field.field_type === "section_header") continue
 
-    const baseKey = sanitizeKey(field.label)
-    const count = (keyCounts.get(baseKey) ?? 0) + 1
-    keyCounts.set(baseKey, count)
-    keyByFieldId.set(field.id, count === 1 ? baseKey : `${baseKey}_${count}`)
+    const label = field.label.trim() || "Field"
+    const count = (labelCounts.get(label) ?? 0) + 1
+    labelCounts.set(label, count)
+    keyByFieldId.set(field.id, count === 1 ? label : `${label} ${count}`)
   }
 
   return keyByFieldId
@@ -84,15 +72,21 @@ function buildDynamicRecord(response: FormResponseWithFields): Record<string, Dy
   return record
 }
 
-export function buildFormResponseSyncPayload(params: {
+export async function buildFormResponseSyncPayload(params: {
   operation: "submitted" | "corrected"
   response: FormResponseWithFields
   googleSheetId: string | null
   googleSheetTab: string | null
   binderName: string | null
-}): FormResponseSyncPayload {
-  const { operation, response, googleSheetId, googleSheetTab, binderName } = params
+  locationTimezone: string | null
+}): Promise<FormResponseSyncPayload> {
+  const { operation, response, googleSheetId, googleSheetTab, binderName, locationTimezone } = params
   const isCorrection = operation === "corrected"
+
+  const [signatureUrl, selfieUrl] = await Promise.all([
+    response.completion_signature ? getFormImageUrl(response.completion_signature) : Promise.resolve(null),
+    response.completion_selfie ? getFormImageUrl(response.completion_selfie) : Promise.resolve(null),
+  ])
 
   return {
     event: isCorrection ? "form_response_corrected" : "form_response_submitted",
@@ -111,6 +105,7 @@ export function buildFormResponseSyncPayload(params: {
     overall_pass: response.overall_pass,
     google_sheet_id: googleSheetId,
     google_sheet_tab: googleSheetTab,
+    location_timezone: locationTimezone,
     submitted_by: {
       profile_id: response.submitted_by_profile_id,
       name: response.submitted_by_name ?? null,
@@ -123,12 +118,8 @@ export function buildFormResponseSyncPayload(params: {
       : null,
     record: buildDynamicRecord(response),
     media: {
-      completion_signature: response.completion_signature
-        ? getFormImageUrl(response.id, "signature")
-        : null,
-      completion_selfie: response.completion_selfie
-        ? getFormImageUrl(response.id, "selfie")
-        : null,
+      completion_signature: signatureUrl,
+      completion_selfie: selfieUrl,
     },
   }
 }

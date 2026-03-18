@@ -41,6 +41,7 @@ export interface FormResponseSyncPayload extends WebhookPayload {
   overall_pass: boolean | null
   google_sheet_id: string | null
   google_sheet_tab: string | null
+  location_timezone: string | null
   submitted_by: {
     profile_id: string
     name: string | null
