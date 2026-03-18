@@ -1,13 +1,13 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react";
 
 interface PushSubscriptionState {
-  isSupported: boolean
-  isSubscribed: boolean
-  isLoading: boolean
-  permission: NotificationPermission | null
-  error: string | null
+  isSupported: boolean;
+  isSubscribed: boolean;
+  isLoading: boolean;
+  permission: NotificationPermission | null;
+  error: string | null;
 }
 
 export function usePushNotifications() {
@@ -17,7 +17,7 @@ export function usePushNotifications() {
     isLoading: true,
     permission: null,
     error: null,
-  })
+  });
 
   useEffect(() => {
     const checkSupport = async () => {
@@ -26,23 +26,23 @@ export function usePushNotifications() {
         typeof window !== "undefined" &&
         "serviceWorker" in navigator &&
         "PushManager" in window &&
-        "Notification" in window
+        "Notification" in window;
 
       if (!supported) {
         setState((prev) => ({
           ...prev,
           isSupported: false,
           isLoading: false,
-        }))
-        return
+        }));
+        return;
       }
 
       try {
         // Wait for service worker to be ready (registered by ServiceWorkerRegister component)
-        const registration = await navigator.serviceWorker.ready
+        const registration = await navigator.serviceWorker.ready;
 
         // Check current subscription status
-        const existingSub = await registration.pushManager.getSubscription()
+        const existingSub = await registration.pushManager.getSubscription();
 
         setState({
           isSupported: true,
@@ -50,28 +50,34 @@ export function usePushNotifications() {
           isLoading: false,
           permission: Notification.permission,
           error: null,
-        })
+        });
       } catch (err) {
         setState((prev) => ({
           ...prev,
           isSupported: true,
           isLoading: false,
-          error: err instanceof Error ? err.message : "Failed to check subscription",
-        }))
+          error:
+            err instanceof Error ? err.message : "Failed to check subscription",
+        }));
       }
-    }
+    };
 
-    checkSupport()
-  }, [])
+    checkSupport();
+  }, []);
+
+  const isSupportedRef = useRef(state.isSupported)
+  useEffect(() => {
+    isSupportedRef.current = state.isSupported
+  }, [state.isSupported])
 
   const subscribe = useCallback(async () => {
-    if (!state.isSupported) return null
+    if (!isSupportedRef.current) return null;
 
-    setState((prev) => ({ ...prev, isLoading: true, error: null }))
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
       // Request notification permission
-      const permission = await Notification.requestPermission()
+      const permission = await Notification.requestPermission();
 
       if (permission !== "granted") {
         setState((prev) => ({
@@ -79,29 +85,29 @@ export function usePushNotifications() {
           isLoading: false,
           permission,
           error: "Notification permission denied",
-        }))
-        return null
+        }));
+        return null;
       }
 
-      const registration = await navigator.serviceWorker.ready
+      const registration = await navigator.serviceWorker.ready;
 
       // Subscribe to push notifications
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(
-          process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
+          process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
         ) as BufferSource,
-      })
+      });
 
       // Save subscription to server
       const response = await fetch("/api/push/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(subscription.toJSON()),
-      })
+      });
 
       if (!response.ok) {
-        throw new Error("Failed to save subscription")
+        throw new Error("Failed to save subscription");
       }
 
       setState((prev) => ({
@@ -109,39 +115,39 @@ export function usePushNotifications() {
         isSubscribed: true,
         isLoading: false,
         permission: "granted",
-      }))
+      }));
 
-      return subscription
+      return subscription;
     } catch (err) {
-      console.error("Push subscription error:", err)
-      let errorMessage = "Failed to subscribe"
+      console.error("Push subscription error:", err);
+      let errorMessage = "Failed to subscribe";
       if (err instanceof Error) {
         // Provide more specific error messages
         if (err.name === "NotAllowedError") {
-          errorMessage = "Notification permission denied"
+          errorMessage = "Notification permission denied";
         } else if (err.name === "AbortError") {
-          errorMessage = "Registration was aborted"
+          errorMessage = "Registration was aborted";
         } else if (err.message.includes("push service")) {
-          errorMessage = "Push service unavailable - try again later"
+          errorMessage = "Push service unavailable - try again later";
         } else {
-          errorMessage = err.message
+          errorMessage = err.message;
         }
       }
       setState((prev) => ({
         ...prev,
         isLoading: false,
         error: errorMessage,
-      }))
-      return null
+      }));
+      return null;
     }
-  }, [state.isSupported])
+  }, [])
 
   const unsubscribe = useCallback(async () => {
-    setState((prev) => ({ ...prev, isLoading: true, error: null }))
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      const registration = await navigator.serviceWorker.ready
-      const subscription = await registration.pushManager.getSubscription()
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
 
       if (subscription) {
         // Remove from server first
@@ -149,41 +155,41 @@ export function usePushNotifications() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ endpoint: subscription.endpoint }),
-        })
+        });
 
         // Then unsubscribe locally
-        await subscription.unsubscribe()
+        await subscription.unsubscribe();
       }
 
       setState((prev) => ({
         ...prev,
         isSubscribed: false,
         isLoading: false,
-      }))
+      }));
     } catch (err) {
       setState((prev) => ({
         ...prev,
         isLoading: false,
         error: err instanceof Error ? err.message : "Failed to unsubscribe",
-      }))
+      }));
     }
-  }, [])
+  }, []);
 
   return {
     ...state,
     subscribe,
     unsubscribe,
-  }
+  };
 }
 
 // Convert VAPID key from base64 to Uint8Array
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/")
-  const rawData = window.atob(base64)
-  const outputArray = new Uint8Array(rawData.length)
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
   for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i)
+    outputArray[i] = rawData.charCodeAt(i);
   }
-  return outputArray
+  return outputArray;
 }
