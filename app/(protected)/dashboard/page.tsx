@@ -143,6 +143,8 @@ async function DashboardData({ loc }: { loc: string }) {
     { data: statusBreakdown },
     { data: monthlyInstances },
     { data: recentInspections },
+    { data: bindersData },
+    { data: binderComplianceRaw },
   ] = await Promise.all([
     // Pending inspections
     addInspectorFilter(
@@ -267,6 +269,24 @@ async function DashboardData({ loc }: { loc: string }) {
         .order("due_at", { ascending: false })
         .limit(50)
     ),
+
+    // Binders list for this location
+    supabase
+      .from("binders")
+      .select("id, name")
+      .eq("location_id", loc)
+      .order("sort_order", { ascending: true }),
+
+    // Instances for binder compliance (last 30 days, with form_template binder_id)
+    addInspectorFilter(
+      supabase
+        .from("inspection_instances")
+        .select("status, form_templates!form_template_id(binder_id)")
+        .eq("location_id", loc)
+        .neq("status", "void")
+        .gte("due_at", thirtyDaysAgo.toISOString())
+        .lte("due_at", now.toISOString())
+    ),
   ])
 
   // Calculate compliance rate
@@ -374,6 +394,30 @@ async function DashboardData({ loc }: { loc: string }) {
     }
   })
 
+  // Process per-binder compliance (last 30 days)
+  const binderMap = new Map<string, { name: string; total: number; passed: number }>()
+  for (const b of (bindersData ?? []) as { id: string; name: string }[]) {
+    binderMap.set(b.id, { name: b.name, total: 0, passed: 0 })
+  }
+  for (const inst of (binderComplianceRaw ?? []) as Record<string, unknown>[]) {
+    const template = Array.isArray(inst.form_templates) ? inst.form_templates[0] : inst.form_templates
+    const binderId = (template as { binder_id?: string } | null)?.binder_id
+    if (!binderId) continue
+    const entry = binderMap.get(binderId)
+    if (!entry) continue
+    entry.total++
+    if (inst.status === "passed") entry.passed++
+  }
+  const binderCompliance = Array.from(binderMap.entries())
+    .filter(([, d]) => d.total > 0)
+    .map(([id, d]) => ({
+      binderId: id,
+      binderName: d.name,
+      passed: d.passed,
+      total: d.total,
+      rate: d.total > 0 ? Math.round((d.passed / d.total) * 100) : 0,
+    }))
+
   return (
     <DashboardContent
       stats={{
@@ -410,6 +454,7 @@ async function DashboardData({ loc }: { loc: string }) {
       statusBreakdown={statusCounts}
       monthlyCompliance={monthlyCompliance}
       recentInspections={recentInspectionsList}
+      binderCompliance={binderCompliance}
       locationId={loc}
       locationName={locationName}
       userRole={profile.role}

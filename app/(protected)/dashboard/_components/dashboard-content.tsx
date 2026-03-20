@@ -89,6 +89,14 @@ interface RecentInspection {
   completedAt: string | null
 }
 
+interface BinderCompliance {
+  binderId: string
+  binderName: string
+  passed: number
+  total: number
+  rate: number
+}
+
 interface DashboardContentProps {
   stats: {
     pending: number
@@ -109,6 +117,7 @@ interface DashboardContentProps {
   }
   monthlyCompliance: MonthlyCompliance[]
   recentInspections: RecentInspection[]
+  binderCompliance: BinderCompliance[]
   locationId: string
   locationName?: string | null
   userRole: Role
@@ -241,6 +250,7 @@ export function DashboardContent({
   statusBreakdown,
   monthlyCompliance,
   recentInspections,
+  binderCompliance,
   locationId,
   locationName,
   userRole,
@@ -571,10 +581,6 @@ export function DashboardContent({
             <BarChart3 className="size-3.5" />
             Analytics
           </TabsTrigger>
-          <TabsTrigger value="trends" className="gap-1.5 text-xs">
-            <TrendingUp className="size-3.5" />
-            Trends
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="calendar" className="mt-4">
@@ -588,73 +594,51 @@ export function DashboardContent({
             totalInspections={totalInspections}
             monthlyCompliance={monthlyCompliance}
           />
-        </TabsContent>
 
-        <TabsContent value="trends" className="mt-4">
-          <DashboardCharts
-            weeklyTrends={weeklyTrends}
-            pieData={pieData}
-            totalInspections={totalInspections}
-            monthlyCompliance={monthlyCompliance}
-          />
-
-          {/* Recent Inspections Table */}
-          {canExport && recentInspections.length > 0 && (
+          {/* Per-Binder Compliance */}
+          {binderCompliance.length > 0 && (
             <div className="mt-4 rounded-lg border bg-card">
-              <div className="flex items-center justify-between border-b px-4 py-3">
-                <h3 className="text-sm font-semibold">Recent Inspections</h3>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="gap-1.5 text-xs"
-                    onClick={handleExportCSV}
-                  >
-                    <Download className="size-3.5" />
-                    Export CSV
-                  </Button>
-                </div>
+              <div className="border-b px-4 py-3">
+                <h3 className="text-sm font-semibold">Compliance by Binder (Last 30 Days)</h3>
+                <p className="text-[11px] text-muted-foreground">Pass rate per inspection binder</p>
               </div>
-              <div className="max-h-[300px] overflow-auto">
-                <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-muted/50">
-                    <tr>
-                      <th className="px-4 py-2 text-left font-medium">Task</th>
-                      <th className="px-4 py-2 text-left font-medium">Due Date</th>
-                      <th className="px-4 py-2 text-left font-medium">Status</th>
-                      <th className="px-4 py-2 text-left font-medium">Assignee</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {recentInspections.slice(0, 10).map((inspection) => (
-                      <tr key={inspection.id} className="hover:bg-muted/30">
-                        <td className="px-4 py-2">{inspection.task}</td>
-                        <td className="px-4 py-2">{formatDate(inspection.dueAt)}</td>
-                        <td className="px-4 py-2">
-                          <Badge
-                            variant={
-                              inspection.status === "passed"
-                                ? "default"
-                                : inspection.status === "failed"
-                                  ? "destructive"
-                                  : "secondary"
-                            }
-                            className="text-[10px]"
-                          >
-                            {formatStatus(inspection.status)}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-2 text-muted-foreground">
-                          {inspection.assignee || "Unassigned"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="divide-y">
+                {binderCompliance.map((b) => (
+                  <div key={b.binderId} className="flex items-center gap-3 px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate text-xs font-medium">{b.binderName}</span>
+                        <span className={cn(
+                          "shrink-0 text-xs font-semibold tabular-nums",
+                          b.rate >= 90 ? "text-green-600 dark:text-green-400"
+                            : b.rate >= 75 ? "text-amber-600 dark:text-amber-400"
+                            : "text-destructive"
+                        )}>
+                          {b.rate}%
+                        </span>
+                      </div>
+                      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all",
+                            b.rate >= 90 ? "bg-green-500"
+                              : b.rate >= 75 ? "bg-amber-500"
+                              : "bg-destructive"
+                          )}
+                          style={{ width: `${b.rate}%` }}
+                        />
+                      </div>
+                      <div className="mt-1 text-[10px] text-muted-foreground">
+                        {b.passed} of {b.total} passed
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
         </TabsContent>
+
       </Tabs>
     </div>
   )
