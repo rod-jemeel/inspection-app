@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { requireBinderAccess } from "@/lib/server/auth-helpers";
 import { getBinder, canUserEditBinder } from "@/lib/server/services/binders";
 import { listFormTemplates } from "@/lib/server/services/form-templates";
+import { supabase } from "@/lib/server/db";
 import { LoadingSpinner } from "@/components/loading-spinner";
 import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
 import { BinderDetail } from "./_components/binder-detail";
@@ -26,6 +27,16 @@ async function BinderData({
     }),
   ]);
 
+  const formIds = templates.map((t) => t.id);
+  const { data: pendingInstances } = formIds.length > 0
+    ? await supabase
+        .from("inspection_instances")
+        .select("id, form_template_id, status, due_at")
+        .in("form_template_id", formIds)
+        .in("status", ["pending", "in_progress"])
+        .order("due_at", { ascending: true })
+    : { data: [] };
+
   return (
     <>
       <PageBreadcrumbs
@@ -40,6 +51,7 @@ async function BinderData({
         locationId={loc}
         canEdit={canEdit}
         profileId={profile.id}
+        pendingInstances={pendingInstances ?? []}
       />
     </>
   );

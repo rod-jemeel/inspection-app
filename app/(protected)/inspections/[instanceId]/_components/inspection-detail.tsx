@@ -67,6 +67,18 @@ export function InspectionDetail({
 
   const isTerminal = instance.status === "passed" || instance.status === "void"
   const isAssignedInspector = instance.assigned_to_profile_id === profileId
+
+  const LOG_TYPE_SLUGS: Record<string, string> = {
+    narcotic_log: "narcotic",
+    controlled_substance_inventory: "inventory",
+    crash_cart_checklist: "crash-cart",
+    narcotic_signout: "narcotic-signout",
+    daily_narcotic_count: "narcotic-count",
+    cardiac_arrest_record: "cardiac-arrest",
+    crash_cart_daily: "crash-cart-daily",
+  }
+
+  const logSlug = instance.log_type ? LOG_TYPE_SLUGS[instance.log_type] : null
   // Can sign if: passed + no signatures yet + (assigned to me OR no assignee)
   const canSign = instance.status === "passed" && signatures.length === 0 &&
     (!instance.assigned_to_profile_id || isAssignedInspector)
@@ -95,9 +107,16 @@ export function InspectionDetail({
       const updatedInstance = json.data ?? json
       setInstance(updatedInstance)
 
-      // Show signature pad if marking as passed
-      if (newStatus === "passed") {
+      // Show signature pad if marking as passed and signatures are required
+      if (newStatus === "passed" && (updatedInstance.require_signatures ?? true)) {
         setShowSignature(true)
+      } else if (newStatus === "passed") {
+        router.refresh()
+      } else if (newStatus === "in_progress" && logSlug) {
+        // Navigate to linked nursing log
+        router.push(
+          `/logs/${logSlug}?loc=${locationId}&instanceId=${instance.id}&date=${instance.due_at.split("T")[0]}`
+        )
       } else if (newStatus === "in_progress" && instance.form_binder_id && instance.form_template_id) {
         // Navigate directly to the linked form using current instance state (has view fields)
         router.push(
@@ -346,8 +365,8 @@ export function InspectionDetail({
         </CardContent>
       </Card>
 
-      {/* Linked Form */}
-      {instance.form_template_id && (
+      {/* Linked Form — hidden when a custom log UI handles this instance */}
+      {instance.form_template_id && !logSlug && (
         <Card>
           <CardContent className="flex items-center justify-between py-4">
             <div className="space-y-0.5">
@@ -370,8 +389,31 @@ export function InspectionDetail({
         </Card>
       )}
 
+      {/* Linked Nursing Log */}
+      {logSlug && (
+        <Card>
+          <CardContent className="flex items-center justify-between py-4">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium">Nursing Log</p>
+              <p className="text-xs text-muted-foreground">
+                Fill out the linked nursing log for this inspection
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => router.push(
+                `/logs/${logSlug}?loc=${locationId}&instanceId=${instance.id}&date=${instance.due_at.split("T")[0]}`
+              )}
+            >
+              <FileText className="size-3.5" />
+              {isTerminal ? "View Log" : "Open Log"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Signature Section */}
-      {(canSign || showSignature || signatures.length > 0 || (instance.status === "passed" && !isAssignedInspector)) && (
+      {(instance.require_signatures ?? true) && (canSign || showSignature || signatures.length > 0 || (instance.status === "passed" && !isAssignedInspector)) && (
         <Card>
           <CardHeader>
             <CardTitle className="text-sm">Signature</CardTitle>

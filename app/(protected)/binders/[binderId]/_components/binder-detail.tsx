@@ -49,6 +49,9 @@ interface FormTemplate {
   active: boolean;
   google_sheet_id: string | null;
   google_sheet_tab: string | null;
+  log_type: string | null;
+  require_signatures: boolean;
+  has_signature_field?: boolean;
 }
 
 interface Binder {
@@ -59,13 +62,38 @@ interface Binder {
   icon: string | null;
 }
 
+interface PendingInstance {
+  id: string;
+  form_template_id: string;
+  status: string;
+  due_at: string;
+}
+
 interface BinderDetailProps {
   binder: Binder;
   templates: FormTemplate[];
   locationId: string;
   canEdit: boolean;
   profileId: string;
+  pendingInstances?: PendingInstance[];
 }
+
+const LOG_TYPE_SLUGS: Record<string, string> = {
+  daily_narcotic_count: "narcotic-count",
+  crash_cart_daily: "crash-cart-daily",
+  controlled_substance_inventory: "inventory",
+  narcotic_signout: "narcotic-signout",
+  crash_cart_checklist: "crash-cart",
+  cardiac_arrest_record: "cardiac-arrest",
+};
+
+// Extra query params appended to the log URL for specific form names
+// (e.g. inventory forms need a ?drug= param to identify the specific ledger)
+const LOG_EXTRA_PARAMS: Record<string, Record<string, string>> = {
+  "Controlled Substances Perpetual Inventory - Ephedrine": { drug: "ephedrine" },
+  "Controlled Substances Perpetual Inventory - Fentanyl": { drug: "fentanyl" },
+  "Controlled Substances Perpetual Inventory - Versed": { drug: "versed" },
+};
 
 const frequencyColors: Record<string, string> = {
   daily: "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400",
@@ -316,6 +344,7 @@ export function BinderDetail({
   templates,
   locationId,
   canEdit,
+  pendingInstances = [],
 }: BinderDetailProps) {
   const router = useRouter();
   const binderIcon = getBinderIconOption(binder.icon);
@@ -332,6 +361,16 @@ export function BinderDetail({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const pendingInstanceMap = useMemo(() => {
+    const map = new Map<string, PendingInstance>();
+    for (const inst of pendingInstances) {
+      if (!map.has(inst.form_template_id)) {
+        map.set(inst.form_template_id, inst);
+      }
+    }
+    return map;
+  }, [pendingInstances]);
+
   const filteredTemplates = useMemo(() => {
     if (!searchQuery.trim()) return templates;
 
@@ -343,8 +382,27 @@ export function BinderDetail({
     );
   }, [templates, searchQuery]);
 
-  const handleFormClick = (formId: string) => {
-    router.push(`/binders/${binder.id}/forms/${formId}?loc=${locationId}`);
+  const handleFormClick = (template: FormTemplate) => {
+    const instance = pendingInstanceMap.get(template.id);
+
+    // If there's a pending/in-progress instance, go to the inspection page first
+    // so the user can start the inspection before filling out the log.
+    if (instance) {
+      router.push(`/inspections/${instance.id}?loc=${locationId}`);
+      return;
+    }
+
+    // No instance — go directly to the custom log UI or generic form renderer
+    if (template.log_type) {
+      const slug = LOG_TYPE_SLUGS[template.log_type];
+      if (slug) {
+        const extra = LOG_EXTRA_PARAMS[template.name] ?? {};
+        const extraQuery = Object.entries(extra).map(([k, v]) => `&${k}=${encodeURIComponent(v)}`).join("");
+        router.push(`/logs/${slug}?loc=${locationId}${extraQuery}`);
+        return;
+      }
+    }
+    router.push(`/binders/${binder.id}/forms/${template.id}?loc=${locationId}`);
   };
 
   const handleDeleteBinder = async () => {
@@ -488,20 +546,38 @@ export function BinderDetail({
         <TabsContent value="forms" className="mt-0 space-y-4">
           {filteredTemplates.length > 0 ? (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredTemplates.map((template) => (
+              {filteredTemplates.map((template) => {
+                const instance = pendingInstanceMap.get(template.id);
+                const isDue = !!instance;
+                const isOverdue = instance ? new Date(instance.due_at) < new Date() : false;
+
+                return (
                 <div
                   key={template.id}
                   role="button"
                   tabIndex={0}
-                  onClick={() => handleFormClick(template.id)}
-                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleFormClick(template.id); } }}
-                  className="group relative flex cursor-pointer flex-col gap-2 rounded-md border bg-card p-3 shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  onClick={() => handleFormClick(template)}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleFormClick(template); } }}
+                  className={cn(
+                    "group relative flex cursor-pointer flex-col gap-2 rounded-md border bg-card p-3 shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                    isDue && "ring-1 ring-primary/30",
+                  )}
                 >
                   {/* Form Name */}
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="flex-1 text-xs font-medium leading-tight">
-                      {template.name}
-                    </h3>
+                    <div className="flex flex-1 flex-wrap items-start gap-1.5">
+                      <h3 className="text-xs font-medium leading-tight">
+                        {template.name}
+                      </h3>
+                      {isDue && (
+                        <Badge
+                          variant={isOverdue ? "destructive" : "default"}
+                          className="h-4 shrink-0 px-1.5 text-[10px]"
+                        >
+                          {instance!.status === "in_progress" ? "In Progress" : isOverdue ? "Overdue" : "Due"}
+                        </Badge>
+                      )}
+                    </div>
                     {canEdit && (
                       <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                         <Button
@@ -540,24 +616,35 @@ export function BinderDetail({
                     </p>
                   )}
 
-                  {/* Frequency Badge */}
-                  {template.frequency && (
-                    <div className="mt-auto">
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "text-[10px] font-medium",
-                          frequencyColors[template.frequency] ||
-                            "bg-gray-100 text-gray-700",
-                        )}
-                      >
-                        {frequencyLabels[template.frequency] ||
-                          template.frequency}
-                      </Badge>
+                  {/* Frequency + Signature badges */}
+                  {(template.frequency || template.has_signature_field) && (
+                    <div className="mt-auto flex flex-wrap gap-1">
+                      {template.frequency && (
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-[10px] font-medium",
+                            frequencyColors[template.frequency] ||
+                              "bg-gray-100 text-gray-700",
+                          )}
+                        >
+                          {frequencyLabels[template.frequency] ||
+                            template.frequency}
+                        </Badge>
+                      )}
+                      {template.has_signature_field && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] font-medium bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-400"
+                        >
+                          Requires Signature
+                        </Badge>
+                      )}
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center rounded-md border border-dashed bg-muted/20 py-16">

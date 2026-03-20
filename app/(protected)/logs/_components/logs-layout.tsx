@@ -14,9 +14,11 @@ export function LogsLayout({ children }: LogsLayoutProps) {
   const searchParams = useSearchParams()
   const loc = searchParams.get("loc")
   const drug = searchParams.get("drug")
+  const instanceId = searchParams.get("instanceId")
 
   // Only show back button on sub-pages (not the /logs listing itself)
-  const isSubpage = pathname !== "/logs"
+  // Hide when instanceId is present — the log component shows "Back to Inspection" instead
+  const isSubpage = pathname !== "/logs" && !instanceId
 
   // Determine back destination based on current context
   let backHref = `/logs${loc ? `?loc=${loc}` : ""}`
