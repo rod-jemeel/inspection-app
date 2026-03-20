@@ -6,6 +6,8 @@ import { upsertLogEntry, listLogEntries, getLogEntryByIdentity } from "@/lib/ser
 import { uploadFormImage } from "@/lib/server/services/form-responses"
 import { appendLogEntryEvent } from "@/lib/server/services/log-entry-events"
 import { diffLogEntryAudit } from "@/lib/server/services/log-entry-diff"
+import { supabase } from "@/lib/server/db"
+import { revalidateTag } from "next/cache"
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value)
@@ -141,6 +143,21 @@ export async function POST(
           meta: { source: "logs-api" },
         },
       })
+    }
+
+    // Auto-pass linked inspection instance when log is submitted as complete
+    if (parsed.data.status === "complete" && entry.inspection_instance_id) {
+      await supabase
+        .from("inspection_instances")
+        .update({
+          status: "passed",
+          passed_at: new Date().toISOString(),
+          inspected_at: new Date().toISOString(),
+        })
+        .eq("id", entry.inspection_instance_id)
+        .eq("location_id", locationId)
+        .in("status", ["pending", "in_progress"])
+      revalidateTag("instances")
     }
 
     return Response.json(entry, { status: 200 })

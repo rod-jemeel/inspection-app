@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { ArrowLeft } from "lucide-react"
 import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
 import { LogActionBar } from "../../_components/log-action-bar"
 import { LogFormLayout } from "../../_components/log-form-layout"
@@ -10,6 +12,7 @@ import { RecentLogChangesPanel } from "../../_components/recent-log-changes-pane
 import { NarcoticSignoutTable } from "./narcotic-signout-table"
 import { emptyNarcoticSignoutLogData } from "@/lib/validations/log-entry"
 import type { NarcoticSignoutLogData } from "@/lib/validations/log-entry"
+import { useStartInstance } from "@/hooks/use-start-instance"
 
 interface LogEntryData {
   id: string | null
@@ -25,6 +28,7 @@ interface NarcoticSignoutLogProps {
   initialEntry: LogEntryData | null
   isAdmin?: boolean
   availableDateValues?: string[]
+  instanceId?: string | null
 }
 
 export function NarcoticSignoutLog({
@@ -33,9 +37,11 @@ export function NarcoticSignoutLog({
   initialEntry,
   isAdmin = false,
   availableDateValues,
+  instanceId = null,
 }: NarcoticSignoutLogProps) {
   const router = useRouter()
   const [, startTransition] = useTransition()
+  useStartInstance(locationId, instanceId)
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(false)
 
@@ -158,6 +164,7 @@ export function NarcoticSignoutLog({
           log_key: "",
           data,
           status: newStatus,
+          ...(instanceId ? { inspection_instance_id: instanceId } : {}),
         }),
       })
 
@@ -182,6 +189,16 @@ export function NarcoticSignoutLog({
   const isDisabled = status === "complete"
 
   return (
+    <>
+    {instanceId && (
+      <Link
+        href={`/inspections/${instanceId}?loc=${locationId}`}
+        className="mb-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="size-3.5" />
+        Back to Inspection
+      </Link>
+    )}
     <LogFormLayout
       title="Narcotic Sign-out"
       status={status}
@@ -241,5 +258,6 @@ export function NarcoticSignoutLog({
         isDraft={status === "draft"}
       />
     </LogFormLayout>
+    </>
   )
 }

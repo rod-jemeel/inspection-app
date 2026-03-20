@@ -13,9 +13,11 @@ export const metadata: Metadata = {
 async function CrashCartLoader({
   loc,
   year,
+  instanceId,
 }: {
   loc: string
   year: number
+  instanceId: string | null
 }) {
   const { profile } = await requireLocationAccess(loc)
 
@@ -48,6 +50,7 @@ async function CrashCartLoader({
       initialEntry={initialEntry}
       isAdmin={isAdmin}
       availableYearValues={availableYearValues}
+      instanceId={instanceId}
     />
   )
 }
@@ -55,9 +58,9 @@ async function CrashCartLoader({
 export default async function CrashCartPage({
   searchParams,
 }: {
-  searchParams: Promise<{ loc?: string; year?: string }>
+  searchParams: Promise<{ loc?: string; year?: string; instanceId?: string }>
 }) {
-  const { loc, year: yearParam } = await searchParams
+  const { loc, year: yearParam, instanceId } = await searchParams
   const year = yearParam ? parseInt(yearParam, 10) : new Date().getFullYear()
 
   if (!loc) {
@@ -77,7 +80,7 @@ export default async function CrashCartPage({
         </div>
       }
     >
-      <CrashCartLoader loc={loc} year={year} />
+      <CrashCartLoader loc={loc} year={year} instanceId={instanceId ?? null} />
     </Suspense>
   )
 }

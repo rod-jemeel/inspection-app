@@ -26,11 +26,13 @@ async function CardiacArrestLoader({
   id,
   date,
   month,
+  instanceId,
 }: {
   loc: string
   id?: string
   date: string
   month: string
+  instanceId: string | null
 }) {
   const { profile } = await requireLocationAccess(loc)
   const isAdmin = profile.role === "admin" || profile.role === "owner"
@@ -69,6 +71,7 @@ async function CardiacArrestLoader({
       backMonth={month}
       isAdmin={isAdmin}
       availableDateValues={availableDateValues}
+      instanceId={instanceId}
     />
   )
 }
@@ -95,9 +98,9 @@ async function CardiacArrestSummaryLoader({
 export default async function CardiacArrestPage({
   searchParams,
 }: {
-  searchParams: Promise<{ loc?: string; id?: string; date?: string; month?: string }>
+  searchParams: Promise<{ loc?: string; id?: string; date?: string; month?: string; instanceId?: string }>
 }) {
-  const { loc, id, date, month } = await searchParams
+  const { loc, id, date, month, instanceId } = await searchParams
 
   if (!loc) {
     return (
@@ -121,7 +124,7 @@ export default async function CardiacArrestPage({
           </div>
         }
       >
-        <CardiacArrestLoader loc={loc} id={id} date={logDate} month={currentMonth} />
+        <CardiacArrestLoader loc={loc} id={id} date={logDate} month={currentMonth} instanceId={instanceId ?? null} />
       </Suspense>
     )
   }

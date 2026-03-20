@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
 import { LogActionBar } from "../../_components/log-action-bar"
@@ -11,6 +13,7 @@ import { CrashCartTable } from "./crash-cart-table"
 import { CrashCartTop } from "./crash-cart-top"
 import { emptyCrashCartLogData } from "@/lib/validations/log-entry"
 import type { CrashCartLogData } from "@/lib/validations/log-entry"
+import { useStartInstance } from "@/hooks/use-start-instance"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -29,6 +32,7 @@ interface CrashCartLogProps {
   initialEntry: EntryData | null
   isAdmin?: boolean
   availableYearValues?: number[]
+  instanceId?: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -41,9 +45,11 @@ export function CrashCartLog({
   initialEntry,
   isAdmin = false,
   availableYearValues,
+  instanceId = null,
 }: CrashCartLogProps) {
   const router = useRouter()
   const [, startTransition] = useTransition()
+  useStartInstance(locationId, instanceId)
   const [saving, setSaving] = useState(false)
   const [loadingYear, setLoadingYear] = useState(false)
 
@@ -145,6 +151,7 @@ export function CrashCartLog({
           log_date: "1970-01-01",
           data: data,
           status: newStatus,
+          ...(instanceId ? { inspection_instance_id: instanceId } : {}),
         }),
       })
 
@@ -169,6 +176,16 @@ export function CrashCartLog({
   const isDisabled = status === "complete"
 
   return (
+    <>
+    {instanceId && (
+      <Link
+        href={`/inspections/${instanceId}?loc=${locationId}`}
+        className="mb-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="size-3.5" />
+        Back to Inspection
+      </Link>
+    )}
     <LogFormLayout
       title="Crash Cart Monthly Checklist"
       status={status}
@@ -255,5 +272,6 @@ export function CrashCartLog({
         </div>
       </div>
     </LogFormLayout>
+    </>
   )
 }

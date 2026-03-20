@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { ArrowLeft } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
 import { LogActionBar } from "../../_components/log-action-bar"
@@ -27,9 +29,10 @@ interface NarcoticLogProps {
   initialEntry: LogEntryData | null
   isAdmin?: boolean
   availableDateValues?: string[]
+  instanceId?: string | null
 }
 
-export function NarcoticLog({ locationId, initialDate, initialEntry, isAdmin = false, availableDateValues }: NarcoticLogProps) {
+export function NarcoticLog({ locationId, initialDate, initialEntry, isAdmin = false, availableDateValues, instanceId = null }: NarcoticLogProps) {
   const router = useRouter()
   const [, startTransition] = useTransition()
   const [saving, setSaving] = useState(false)
@@ -181,6 +184,7 @@ export function NarcoticLog({ locationId, initialDate, initialEntry, isAdmin = f
           log_date: currentDate,
           data: { ...data, end_count: filledEndCount },
           status: newStatus,
+          ...(instanceId ? { inspection_instance_id: instanceId } : {}),
         }),
       })
 
@@ -205,6 +209,16 @@ export function NarcoticLog({ locationId, initialDate, initialEntry, isAdmin = f
   const isDisabled = status === "complete"
 
   return (
+    <>
+    {instanceId && (
+      <Link
+        href={`/inspections/${instanceId}?loc=${locationId}`}
+        className="mb-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="size-3.5" />
+        Back to Inspection
+      </Link>
+    )}
     <Tabs
       value={activeTab}
       onValueChange={(value) => setActiveTab(value as "fill" | "summary")}
@@ -282,5 +296,6 @@ export function NarcoticLog({ locationId, initialDate, initialEntry, isAdmin = f
         </TabsContent>
       </LogFormLayout>
     </Tabs>
+    </>
   )
 }

@@ -14,10 +14,12 @@ async function CrashCartDailyLoader({
   loc,
   year,
   month,
+  instanceId,
 }: {
   loc: string
   year: number
   month: number
+  instanceId: string | null
 }) {
   const { profile } = await requireLocationAccess(loc)
 
@@ -58,6 +60,7 @@ async function CrashCartDailyLoader({
       isAdmin={isAdmin}
       availableMonthRange={availableMonthRange}
       availableMonthValues={monthKeys}
+      instanceId={instanceId}
     />
   )
 }
@@ -65,9 +68,9 @@ async function CrashCartDailyLoader({
 export default async function CrashCartDailyPage({
   searchParams,
 }: {
-  searchParams: Promise<{ loc?: string; year?: string; month?: string }>
+  searchParams: Promise<{ loc?: string; year?: string; month?: string; instanceId?: string }>
 }) {
-  const { loc, year: yearParam, month: monthParam } = await searchParams
+  const { loc, year: yearParam, month: monthParam, instanceId } = await searchParams
   const now = new Date()
   const year = yearParam ? parseInt(yearParam, 10) : now.getFullYear()
   const month = monthParam ? parseInt(monthParam, 10) : now.getMonth() + 1
@@ -89,7 +92,7 @@ export default async function CrashCartDailyPage({
         </div>
       }
     >
-      <CrashCartDailyLoader loc={loc} year={year} month={month} />
+      <CrashCartDailyLoader loc={loc} year={year} month={month} instanceId={instanceId ?? null} />
     </Suspense>
   )
 }

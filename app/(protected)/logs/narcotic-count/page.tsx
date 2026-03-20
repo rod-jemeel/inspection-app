@@ -30,10 +30,12 @@ async function NarcoticCountLoader({
   loc,
   year,
   month,
+  instanceId,
 }: {
   loc: string
   year: number
   month: number
+  instanceId: string | null
 }) {
   const { profile } = await requireLocationAccess(loc)
 
@@ -80,6 +82,7 @@ async function NarcoticCountLoader({
       isAdmin={isAdmin}
       availableMonthValues={availableMonthValues}
       availableDateValues={availableDateValues}
+      instanceId={instanceId}
     />
   )
 }
@@ -87,9 +90,9 @@ async function NarcoticCountLoader({
 export default async function NarcoticCountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ loc?: string; year?: string; month?: string }>
+  searchParams: Promise<{ loc?: string; year?: string; month?: string; instanceId?: string }>
 }) {
-  const { loc, year: yearParam, month: monthParam } = await searchParams
+  const { loc, year: yearParam, month: monthParam, instanceId } = await searchParams
   const year = yearParam ? parseInt(yearParam, 10) : new Date().getFullYear()
   const month = monthParam
     ? parseInt(monthParam, 10)
@@ -114,7 +117,7 @@ export default async function NarcoticCountPage({
         </div>
       }
     >
-      <NarcoticCountLoader loc={loc} year={year} month={month} />
+      <NarcoticCountLoader loc={loc} year={year} month={month} instanceId={instanceId ?? null} />
     </Suspense>
   )
 }

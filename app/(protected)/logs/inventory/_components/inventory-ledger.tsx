@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Save, CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react"
+import Link from "next/link"
+import { Save, CalendarIcon, ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react"
 import { addMonths, endOfMonth, format, startOfMonth } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -21,6 +22,7 @@ import {
 } from "@/lib/logs/inventory"
 import { emptyInventoryLogData } from "@/lib/validations/log-entry"
 import type { InventoryLogData, PresetDrug } from "@/lib/validations/log-entry"
+import { useStartInstance } from "@/hooks/use-start-instance"
 
 interface EntryData {
   id: string | null
@@ -36,6 +38,7 @@ interface InventoryLedgerProps {
   presetDrug?: PresetDrug
   initialEntry: EntryData | null
   isAdmin?: boolean
+  instanceId?: string | null
 }
 
 function countMeaningfulRows(rows: InventoryLogData["rows"]): number {
@@ -61,9 +64,11 @@ export function InventoryLedger({
   presetDrug,
   initialEntry,
   isAdmin = false,
+  instanceId = null,
 }: InventoryLedgerProps) {
   const router = useRouter()
   const [, startTransition] = useTransition()
+  useStartInstance(locationId, instanceId)
   const [saving, setSaving] = useState(false)
 
   const [data, setData] = useState<InventoryLogData>(() => {
@@ -114,6 +119,7 @@ export function InventoryLedger({
           data: nextData,
           // Perpetual inventory should remain editable; persist as draft/ongoing.
           status: "draft",
+          ...(instanceId ? { inspection_instance_id: instanceId } : {}),
         }),
       })
 
@@ -152,6 +158,16 @@ export function InventoryLedger({
     : undefined
 
   return (
+    <>
+    {instanceId && (
+      <Link
+        href={`/inspections/${instanceId}?loc=${locationId}`}
+        className="mb-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="size-3.5" />
+        Back to Inspection
+      </Link>
+    )}
     <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -259,5 +275,6 @@ export function InventoryLedger({
         refreshKey={auditRefreshKey}
       />
     </div>
+    </>
   )
 }

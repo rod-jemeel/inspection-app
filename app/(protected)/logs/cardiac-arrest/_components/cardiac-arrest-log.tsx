@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { ChevronLeft } from "lucide-react"
+import Link from "next/link"
+import { ArrowLeft, ChevronLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { LogPdfExportDialog } from "@/components/log-pdf-export-dialog"
 import { LogActionBar } from "../../_components/log-action-bar"
@@ -11,6 +12,7 @@ import { RecentLogChangesPanel } from "../../_components/recent-log-changes-pane
 import { CardiacArrestTable } from "./cardiac-arrest-table"
 import { emptyCardiacArrestRecordData } from "@/lib/validations/log-entry"
 import type { CardiacArrestRecordData } from "@/lib/validations/log-entry"
+import { useStartInstance } from "@/hooks/use-start-instance"
 
 interface EntryData {
   id: string | null
@@ -27,6 +29,7 @@ interface CardiacArrestLogProps {
   backMonth?: string
   isAdmin?: boolean
   availableDateValues?: string[]
+  instanceId?: string | null
 }
 
 export function CardiacArrestLog({
@@ -36,9 +39,11 @@ export function CardiacArrestLog({
   backMonth,
   isAdmin = false,
   availableDateValues,
+  instanceId = null,
 }: CardiacArrestLogProps) {
   const router = useRouter()
   const [, startTransition] = useTransition()
+  useStartInstance(locationId, instanceId)
   const [saving, setSaving] = useState(false)
 
   const [data, setData] = useState<CardiacArrestRecordData>(() => {
@@ -93,6 +98,7 @@ export function CardiacArrestLog({
           log_date: data.arrest_date || initialDate,
           data,
           status: newStatus,
+          ...(instanceId ? { inspection_instance_id: instanceId } : {}),
         }),
       })
 
@@ -127,6 +133,16 @@ export function CardiacArrestLog({
 
   return (
     <div className="space-y-4 overflow-hidden max-w-full">
+      {/* Back to Inspection */}
+      {instanceId && (
+        <Link
+          href={`/inspections/${instanceId}?loc=${locationId}`}
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="size-3.5" />
+          Back to Inspection
+        </Link>
+      )}
       {/* Back button */}
       {backMonth && (
         <Button

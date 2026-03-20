@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useTransition, useEffect, Fragment } from "react"
 import { useRouter } from "next/navigation"
-import { Save, CheckCircle2, RotateCcw, ChevronLeft, ChevronRight, Table2, ClipboardList, CalendarIcon } from "lucide-react"
+import Link from "next/link"
+import { Save, CheckCircle2, RotateCcw, ChevronLeft, ChevronRight, Table2, ClipboardList, CalendarIcon, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
@@ -18,6 +19,7 @@ import {
 } from "@/lib/validations/log-entry"
 import { cn } from "@/lib/utils"
 import type { DailyNarcoticCountLogData, NarcoticCountEntry } from "@/lib/validations/log-entry"
+import { useStartInstance } from "@/hooks/use-start-instance"
 
 // ---------------------------------------------------------------------------
 // Shared cell style constants (for summary view)
@@ -57,6 +59,7 @@ interface NarcoticCountLogProps {
   isAdmin?: boolean
   availableMonthValues?: string[]
   availableDateValues?: string[]
+  instanceId?: string | null
 }
 
 interface SummaryRow {
@@ -184,9 +187,11 @@ export function NarcoticCountLog({
   isAdmin = false,
   availableMonthValues,
   availableDateValues,
+  instanceId = null,
 }: NarcoticCountLogProps) {
   const router = useRouter()
   const [, startTransition] = useTransition()
+  useStartInstance(locationId, instanceId)
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(false)
   const [viewMode, setViewMode] = useState<"form" | "summary">("form")
@@ -399,6 +404,7 @@ export function NarcoticCountLog({
           log_date: "1970-01-01",
           data: data,
           status: newStatus,
+          ...(instanceId ? { inspection_instance_id: instanceId } : {}),
         }),
       })
 
@@ -430,6 +436,16 @@ export function NarcoticCountLog({
   })
 
   return (
+    <>
+    {instanceId && (
+      <Link
+        href={`/inspections/${instanceId}?loc=${locationId}`}
+        className="mb-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="size-3.5" />
+        Back to Inspection
+      </Link>
+    )}
     <div className="space-y-6 overflow-hidden max-w-full">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -669,5 +685,6 @@ export function NarcoticCountLog({
         defaultOpen={viewMode === "form"}
       />
     </div>
+    </>
   )
 }

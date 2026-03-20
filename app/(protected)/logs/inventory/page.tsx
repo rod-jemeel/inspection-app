@@ -21,9 +21,11 @@ export const metadata: Metadata = {
 async function InventoryLoader({
   loc,
   drug,
+  instanceId,
 }: {
   loc: string
   drug: string
+  instanceId: string | null
 }) {
   const { profile } = await requireLocationAccess(loc)
 
@@ -50,6 +52,7 @@ async function InventoryLoader({
       presetDrug={preset ?? undefined}
       initialEntry={initialEntry}
       isAdmin={isAdmin}
+      instanceId={instanceId}
     />
   )
 }
@@ -57,9 +60,9 @@ async function InventoryLoader({
 export default async function InventoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ loc?: string; drug?: string }>
+  searchParams: Promise<{ loc?: string; drug?: string; instanceId?: string }>
 }) {
-  const { loc, drug } = await searchParams
+  const { loc, drug, instanceId } = await searchParams
 
   if (!loc) {
     return (
@@ -132,7 +135,7 @@ export default async function InventoryPage({
         </div>
       }
     >
-      <InventoryLoader loc={loc} drug={drug} />
+      <InventoryLoader loc={loc} drug={drug} instanceId={instanceId ?? null} />
     </Suspense>
   )
 }

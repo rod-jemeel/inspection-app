@@ -13,9 +13,11 @@ export const metadata: Metadata = {
 async function NarcoticSignoutLoader({
   loc,
   date,
+  instanceId,
 }: {
   loc: string
   date: string
+  instanceId: string | null
 }) {
   const { profile } = await requireLocationAccess(loc)
 
@@ -49,6 +51,7 @@ async function NarcoticSignoutLoader({
       initialEntry={initialEntry}
       isAdmin={isAdmin}
       availableDateValues={availableDateValues}
+      instanceId={instanceId}
     />
   )
 }
@@ -56,9 +59,9 @@ async function NarcoticSignoutLoader({
 export default async function NarcoticSignoutPage({
   searchParams,
 }: {
-  searchParams: Promise<{ loc?: string; date?: string }>
+  searchParams: Promise<{ loc?: string; date?: string; instanceId?: string }>
 }) {
-  const { loc, date } = await searchParams
+  const { loc, date, instanceId } = await searchParams
 
   if (!loc) {
     return (
@@ -79,7 +82,7 @@ export default async function NarcoticSignoutPage({
         </div>
       }
     >
-      <NarcoticSignoutLoader loc={loc} date={logDate} />
+      <NarcoticSignoutLoader loc={loc} date={logDate} instanceId={instanceId ?? null} />
     </Suspense>
   )
 }

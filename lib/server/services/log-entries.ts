@@ -20,6 +20,7 @@ export interface LogEntry {
   data: Record<string, unknown>
   submitted_by_profile_id: string
   status: "draft" | "complete"
+  inspection_instance_id?: string | null
   created_at: string
   updated_at: string
   // Enriched
@@ -38,20 +39,22 @@ export async function upsertLogEntry(
   // Validate the JSONB data against the log-type-specific schema
   const validatedData = validateLogData(input.log_type, input.data)
 
+  const upsertPayload: Record<string, unknown> = {
+    location_id: locationId,
+    log_type: input.log_type,
+    log_key: input.log_key,
+    log_date: input.log_date,
+    data: validatedData as Record<string, unknown>,
+    submitted_by_profile_id: profileId,
+    status: input.status,
+  }
+  if (input.inspection_instance_id !== undefined) {
+    upsertPayload.inspection_instance_id = input.inspection_instance_id
+  }
+
   const { data, error } = await supabase
     .from("log_entries")
-    .upsert(
-      {
-        location_id: locationId,
-        log_type: input.log_type,
-        log_key: input.log_key,
-        log_date: input.log_date,
-        data: validatedData as Record<string, unknown>,
-        submitted_by_profile_id: profileId,
-        status: input.status,
-      },
-      { onConflict: "location_id,log_type,log_key,log_date" }
-    )
+    .upsert(upsertPayload, { onConflict: "location_id,log_type,log_key,log_date" })
     .select()
     .single()
 

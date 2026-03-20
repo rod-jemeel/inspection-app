@@ -115,6 +115,7 @@ export const upsertLogEntrySchema = z.object({
   log_date: z.string().date(),
   data: z.record(z.string(), z.unknown()),
   status: logStatusEnum.default("draft"),
+  inspection_instance_id: z.string().nullable().optional(),
 })
 
 export type UpsertLogEntryInput = z.infer<typeof upsertLogEntrySchema>
