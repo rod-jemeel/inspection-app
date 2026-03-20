@@ -13,6 +13,7 @@ export interface Instance {
   id: string
   form_template_id?: string | null
   form_binder_id?: string | null
+  log_type?: string | null
   template_task?: string
   template_description?: string | null
   template_frequency?: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years" | null
@@ -33,6 +34,7 @@ export interface Instance {
   latest_signature_at?: string | null
   event_count?: number
   assignee_name?: string | null
+  require_signatures?: boolean
 }
 
 const VALID_TRANSITIONS: Record<string, string[]> = {

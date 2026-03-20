@@ -28,10 +28,21 @@ import { InspectionActions } from "./inspection-actions"
 import { InspectionSignatureSection } from "./inspection-signature"
 import { InspectionTimeline } from "./inspection-timeline"
 
+const LOG_TYPE_SLUGS: Record<string, string> = {
+  narcotic_log: "narcotic",
+  controlled_substance_inventory: "inventory",
+  crash_cart_checklist: "crash-cart",
+  narcotic_signout: "narcotic-signout",
+  daily_narcotic_count: "narcotic-count",
+  cardiac_arrest_record: "cardiac-arrest",
+  crash_cart_daily: "crash-cart-daily",
+}
+
 interface Instance {
   id: string
   form_template_id: string | null
   form_binder_id: string | null
+  log_type?: string | null
   template_task?: string
   template_description?: string | null
   template_frequency?: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years" | null
@@ -44,6 +55,7 @@ interface Instance {
   inspected_at: string | null
   failed_at: string | null
   passed_at: string | null
+  require_signatures?: boolean
 }
 
 interface InspectionEvent {
@@ -74,6 +86,7 @@ interface PreloadedInstance {
   id: string
   form_template_id?: string | null
   form_binder_id?: string | null
+  log_type?: string | null
   template_task?: string
   template_description?: string | null
   template_frequency?: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years" | null
@@ -88,6 +101,7 @@ interface PreloadedInstance {
   passed_at?: string | null
   signature_count?: number
   event_count?: number
+  require_signatures?: boolean
 }
 
 interface InspectionModalProps {
@@ -138,6 +152,7 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
           id: preloaded.id,
           form_template_id: preloaded.form_template_id ?? null,
           form_binder_id: preloaded.form_binder_id ?? null,
+          log_type: preloaded.log_type ?? null,
           template_task: preloaded.template_task,
           template_description: preloaded.template_description ?? null,
           template_frequency: preloaded.template_frequency,
@@ -150,6 +165,7 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
           inspected_at: preloaded.inspected_at,
           failed_at: preloaded.failed_at ?? null,
           passed_at: preloaded.passed_at ?? null,
+          require_signatures: preloaded.require_signatures ?? true,
         })
         setRemarks(preloaded.remarks ?? "")
 
@@ -244,6 +260,7 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
   }, [setInstanceId, router])
 
   const hasLinkedForm = !!(instance?.form_template_id && instance?.form_binder_id)
+  const hasLinkedLog = !!(instance?.log_type && LOG_TYPE_SLUGS[instance.log_type])
 
   const handleStatusChange = async (newStatus: string) => {
     if (!instance) return
@@ -269,14 +286,22 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
       const updated = updatedJson.data ?? updatedJson
       setInstance(updated)
 
+      // If starting inspection with linked log, navigate to log
+      if (newStatus === "in_progress" && instance.log_type && LOG_TYPE_SLUGS[instance.log_type]) {
+        router.push(
+          `/logs/${LOG_TYPE_SLUGS[instance.log_type]}?loc=${locationId}&instanceId=${instance.id}&date=${instance.due_at.split("T")[0]}`
+        )
+        return
+      }
+
       // If starting inspection with linked form, navigate to form
       if (newStatus === "in_progress" && hasLinkedForm) {
         router.push(`/binders/${instance.form_binder_id}/forms/${instance.form_template_id}?loc=${locationId}&instanceId=${instance.id}`)
         return
       }
 
-      // Show signature pad if marking as passed and user is assigned
-      if (newStatus === "passed" && updated.assigned_to_profile_id === profileId) {
+      // Show signature pad if marking as passed, signatures required, and user is assigned
+      if (newStatus === "passed" && (updated.require_signatures ?? true) && updated.assigned_to_profile_id === profileId) {
         setShowSignature(true)
       }
       // Don't call router.refresh() here - let the modal stay responsive
@@ -291,6 +316,13 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
   const handleNavigateToForm = () => {
     if (!instance?.form_template_id || !instance?.form_binder_id) return
     router.push(`/binders/${instance.form_binder_id}/forms/${instance.form_template_id}?loc=${locationId}&instanceId=${instance.id}`)
+  }
+
+  const handleNavigateToLog = () => {
+    if (!instance?.log_type) return
+    const slug = LOG_TYPE_SLUGS[instance.log_type]
+    if (!slug) return
+    router.push(`/logs/${slug}?loc=${locationId}&instanceId=${instance.id}&date=${instance.due_at.split("T")[0]}`)
   }
 
   const handleSignatureSave = async (data: { imageBlob: Blob; points: unknown; signerName: string }) => {
@@ -582,9 +614,12 @@ export function InspectionModal({ locationId, profileId, instances = [] }: Inspe
                   instance={instance}
                   loading={loading}
                   hasLinkedForm={hasLinkedForm}
+                  hasLinkedLog={hasLinkedLog}
                   isAssignedInspector={isAssignedInspector}
+                  requireSignatures={instance.require_signatures ?? true}
                   onStatusChange={handleStatusChange}
                   onNavigateToForm={handleNavigateToForm}
+                  onNavigateToLog={handleNavigateToLog}
                   onCompleteAndSign={() => setShowSignature(true)}
                 />
               </>

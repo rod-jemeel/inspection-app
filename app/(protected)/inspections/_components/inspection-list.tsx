@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { parseAsString, useQueryState } from "nuqs"
-import { AlertTriangle, ChevronRight, Search } from "lucide-react"
+import { AlertTriangle, ChevronRight, Search, PenLine } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -43,6 +43,7 @@ export interface Instance {
   is_overdue?: boolean
   signature_count?: number
   event_count?: number
+  require_signatures?: boolean
 }
 
 const STATUS_TABS = [
@@ -287,6 +288,11 @@ export function InspectionList({
           <div className="flex shrink-0 items-center gap-2">
             {inst.template_frequency && (
               <FrequencyBadge frequency={inst.template_frequency} />
+            )}
+            {(inst.require_signatures ?? true) && (
+              <span title="Requires signature" className="flex items-center">
+                <PenLine className="size-3.5 text-muted-foreground" />
+              </span>
             )}
             <StatusBadge status={inst.status} />
             <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />

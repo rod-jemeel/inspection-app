@@ -1,6 +1,6 @@
 "use client"
 
-import { Play, XCircle, CheckCircle, Ban, RefreshCw } from "lucide-react"
+import { Play, XCircle, CheckCircle, Ban, RefreshCw, PenLine } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 interface Instance {
@@ -22,9 +22,12 @@ interface InspectionActionsProps {
   instance: Instance
   loading: boolean
   hasLinkedForm: boolean
+  hasLinkedLog?: boolean
   isAssignedInspector: boolean
+  requireSignatures?: boolean
   onStatusChange: (status: string) => void
   onNavigateToForm: () => void
+  onNavigateToLog?: () => void
   onCompleteAndSign: () => void
 }
 
@@ -32,9 +35,12 @@ export function InspectionActions({
   instance,
   loading,
   hasLinkedForm,
+  hasLinkedLog = false,
   isAssignedInspector,
+  requireSignatures = true,
   onStatusChange,
   onNavigateToForm,
+  onNavigateToLog,
   onCompleteAndSign,
 }: InspectionActionsProps) {
   const isTerminal = instance.status === "passed" || instance.status === "void"
@@ -70,7 +76,16 @@ export function InspectionActions({
 
       {instance.status === "in_progress" && (
         <>
-          {hasLinkedForm ? (
+          {hasLinkedLog && onNavigateToLog ? (
+            <Button
+              onClick={onNavigateToLog}
+              disabled={loading}
+              size="sm"
+            >
+              <Play className="size-3.5" />
+              Fill Log
+            </Button>
+          ) : hasLinkedForm ? (
             <Button
               onClick={onNavigateToForm}
               disabled={loading}
@@ -80,14 +95,25 @@ export function InspectionActions({
               Fill Form
             </Button>
           ) : isAssignedInspector ? (
-            <Button
-              onClick={onCompleteAndSign}
-              disabled={loading}
-              size="sm"
-            >
-              <CheckCircle className="size-3.5" />
-              Complete & Sign
-            </Button>
+            requireSignatures ? (
+              <Button
+                onClick={onCompleteAndSign}
+                disabled={loading}
+                size="sm"
+              >
+                <PenLine className="size-3.5" />
+                Complete & Sign
+              </Button>
+            ) : (
+              <Button
+                onClick={() => onStatusChange("passed")}
+                disabled={loading}
+                size="sm"
+              >
+                <CheckCircle className="size-3.5" />
+                Complete
+              </Button>
+            )
           ) : (
             <Button disabled size="sm" variant="outline">
               <CheckCircle className="size-3.5" />

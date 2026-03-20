@@ -11,11 +11,25 @@ export const instanceStatusEnum = z.enum([
 
 export type InstanceStatus = z.infer<typeof instanceStatusEnum>
 
+export const LOG_TYPE_VALUES = [
+  "narcotic_log",
+  "controlled_substance_inventory",
+  "crash_cart_checklist",
+  "narcotic_signout",
+  "daily_narcotic_count",
+  "cardiac_arrest_record",
+  "crash_cart_daily",
+] as const
+
+export const logTypeEnum = z.enum(LOG_TYPE_VALUES)
+export type LogType = z.infer<typeof logTypeEnum>
+
 export const createInstanceSchema = z.object({
   template_id: templateIdSchema,
   due_at: z.string().datetime(),
   assigned_to_profile_id: z.string().uuid().optional(),
   assigned_to_email: z.string().email().optional(),
+  log_type: logTypeEnum.nullable().optional(),
 })
 
 export type CreateInstanceInput = z.infer<typeof createInstanceSchema>
@@ -26,6 +40,7 @@ export const updateInstanceSchema = z.object({
   inspected_at: z.string().datetime().optional(),
   assigned_to_profile_id: z.string().uuid().nullable().optional(),
   assigned_to_email: z.string().email().nullable().optional(),
+  log_type: logTypeEnum.nullable().optional(),
 })
 
 export type UpdateInstanceInput = z.infer<typeof updateInstanceSchema>
