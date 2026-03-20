@@ -157,7 +157,7 @@ export async function POST(
         .eq("id", entry.inspection_instance_id)
         .eq("location_id", locationId)
         .in("status", ["pending", "in_progress"])
-      revalidateTag("instances")
+      revalidateTag("instances", "max")
     }
 
     return Response.json(entry, { status: 200 })
