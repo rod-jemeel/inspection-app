@@ -153,7 +153,7 @@ export function AddFieldDialog({
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "Failed to add field")
+        throw new Error(error.error?.message || error.message || "Failed to add field")
       }
 
       const field = await response.json()

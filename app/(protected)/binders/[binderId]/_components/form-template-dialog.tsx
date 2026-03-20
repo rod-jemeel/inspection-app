@@ -41,6 +41,7 @@ interface FormTemplate {
   google_sheet_tab: string | null
   default_due_rule?: DueRule | null
   scheduling_active?: boolean
+  require_signatures?: boolean
 }
 
 const DAYS_OF_WEEK = [
@@ -104,6 +105,7 @@ export function FormTemplateDialog({
   const [googleSheetId, setGoogleSheetId] = useState(template?.google_sheet_id || "")
   const [googleSheetTab, setGoogleSheetTab] = useState(template?.google_sheet_tab || "")
   const [schedulingActive, setSchedulingActive] = useState(template?.scheduling_active ?? false)
+  const [requireSignatures, setRequireSignatures] = useState(template?.require_signatures ?? true)
   const [dayOfWeek, setDayOfWeek] = useState(template?.default_due_rule?.dayOfWeek ?? 1)
   const [dayOfMonth, setDayOfMonth] = useState(template?.default_due_rule?.dayOfMonth ?? 1)
   const [month, setMonth] = useState(template?.default_due_rule?.month ?? 1)
@@ -156,6 +158,9 @@ export function FormTemplateDialog({
       body.scheduling_active = showScheduling ? schedulingActive : false
       body.default_due_rule = showScheduling && schedulingActive ? buildDueRule() : null
 
+      // Signatures
+      body.require_signatures = requireSignatures
+
       // Always send google_sheet_id so users can clear it by emptying the field
       if (isEditMode) {
         body.google_sheet_id = googleSheetId.trim() || null
@@ -196,6 +201,7 @@ export function FormTemplateDialog({
         setGoogleSheetId("")
         setGoogleSheetTab("")
         setSchedulingActive(false)
+        setRequireSignatures(true)
         setDayOfWeek(1)
         setDayOfMonth(1)
         setMonth(1)
@@ -221,6 +227,7 @@ export function FormTemplateDialog({
         setGoogleSheetId("")
         setGoogleSheetTab("")
         setSchedulingActive(false)
+        setRequireSignatures(true)
         setDayOfWeek(1)
         setDayOfMonth(1)
         setMonth(1)
@@ -374,6 +381,18 @@ export function FormTemplateDialog({
               )}
             </div>
           )}
+
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <div>
+              <Label className="text-xs font-medium">Require signatures</Label>
+              <p className="text-[11px] text-muted-foreground">Inspector must sign to complete this inspection</p>
+            </div>
+            <Switch
+              checked={requireSignatures}
+              onCheckedChange={setRequireSignatures}
+              disabled={isLoading}
+            />
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="googleSheetId" className="text-xs">

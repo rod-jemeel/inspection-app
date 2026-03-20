@@ -36,11 +36,11 @@ export const createFormFieldSchema = z.object({
   label: z.string().min(1).max(200),
   field_type: fieldTypeEnum,
   required: z.boolean().default(true),
-  options: z.array(z.string()).optional(),
-  validation_rules: validationRulesSchema,
-  help_text: z.string().max(1000).optional(),
-  placeholder: z.string().max(200).optional(),
-  default_value: z.string().max(500).optional(),
+  options: z.array(z.string()).nullable().optional(),
+  validation_rules: validationRulesSchema.nullable(),
+  help_text: z.string().max(1000).nullable().optional(),
+  placeholder: z.string().max(200).nullable().optional(),
+  default_value: z.string().max(500).nullable().optional(),
   sort_order: z.number().int().min(0).default(0),
 })
 

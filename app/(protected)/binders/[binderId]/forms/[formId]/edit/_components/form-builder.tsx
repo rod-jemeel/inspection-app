@@ -74,6 +74,7 @@ interface FormTemplate {
   google_sheet_tab: string | null
   default_due_rule: DueRule | null
   scheduling_active: boolean
+  require_signatures: boolean
 }
 
 interface FormBuilderProps {
@@ -494,6 +495,8 @@ export function FormBuilder({ binder, template, fields: initialFields, locationI
   const [googleSheetTab, setGoogleSheetTab] = useState(template.google_sheet_tab ?? "")
   const [schedulingActive, setSchedulingActive] = useState(template.scheduling_active)
   const [schedulingSaving, setSchedulingSaving] = useState(false)
+  const [requireSignatures, setRequireSignatures] = useState(template.require_signatures)
+  const [signaturesSaving, setSignaturesSaving] = useState(false)
   // Due rule fields
   const [scheduleDayOfWeek, setScheduleDayOfWeek] = useState(template.default_due_rule?.dayOfWeek ?? 1)
   const [scheduleDayOfMonth, setScheduleDayOfMonth] = useState(template.default_due_rule?.dayOfMonth ?? 1)
@@ -528,7 +531,7 @@ export function FormBuilder({ binder, template, fields: initialFields, locationI
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "Failed to update field")
+        throw new Error(error.error?.message || error.message || "Failed to update field")
       }
 
       const updated = await response.json()
@@ -551,7 +554,7 @@ export function FormBuilder({ binder, template, fields: initialFields, locationI
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "Failed to delete field")
+        throw new Error(error.error?.message || error.message || "Failed to delete field")
       }
 
       setFields((prev) => prev.filter((f) => f.id !== fieldId))
@@ -654,6 +657,28 @@ export function FormBuilder({ binder, template, fields: initialFields, locationI
       setSchedulingSaving(false)
     }
   }, [schedulingActive, buildDueRule, locationId, template.id])
+
+  const handleSaveSignatures = useCallback(async () => {
+    setSignaturesSaving(true)
+    try {
+      const response = await fetch(`/api/locations/${locationId}/forms/${template.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ require_signatures: requireSignatures }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to update signature settings")
+      }
+
+      toast.success("Signature settings updated")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update signature settings")
+    } finally {
+      setSignaturesSaving(false)
+    }
+  }, [requireSignatures, locationId, template.id])
 
   return (
     <div className="container mx-auto max-w-4xl py-6">
@@ -803,6 +828,36 @@ export function FormBuilder({ binder, template, fields: initialFields, locationI
           </Button>
         </div>
       )}
+
+      {/* Signatures Panel */}
+      <div className="mb-6 rounded-lg border bg-card p-4 shadow-sm">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-medium">Signatures</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              When enabled, the assigned inspector must sign to complete this inspection.
+            </p>
+          </div>
+          <Switch
+            checked={requireSignatures}
+            onCheckedChange={setRequireSignatures}
+            disabled={signaturesSaving}
+          />
+        </div>
+        <Button
+          type="button"
+          onClick={handleSaveSignatures}
+          disabled={signaturesSaving}
+          className="h-8 text-xs"
+        >
+          {signaturesSaving ? (
+            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+          ) : (
+            <Save className="mr-1 h-3 w-3" />
+          )}
+          Save
+        </Button>
+      </div>
 
       <div className="mb-6 rounded-lg border bg-card p-4 shadow-sm">
         <div className="mb-4">

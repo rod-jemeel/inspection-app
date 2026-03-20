@@ -27,6 +27,7 @@ export const createFormTemplateSchema = z.object({
   google_sheet_tab: z.string().max(200).optional(),
   default_due_rule: z.record(z.string(), z.unknown()).nullable().optional(),
   scheduling_active: z.boolean().optional(),
+  require_signatures: z.boolean().optional(),
 })
 
 export type CreateFormTemplateInput = z.infer<typeof createFormTemplateSchema>
@@ -45,6 +46,7 @@ export const updateFormTemplateSchema = z.object({
   google_sheet_tab: z.string().max(200).nullable().optional(),
   default_due_rule: z.record(z.string(), z.unknown()).nullable().optional(),
   scheduling_active: z.boolean().optional(),
+  require_signatures: z.boolean().optional(),
 })
 
 export type UpdateFormTemplateInput = z.infer<typeof updateFormTemplateSchema>

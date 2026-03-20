@@ -364,7 +364,7 @@ export function FormRenderer({
 }: FormRendererProps) {
   const router = useRouter()
   const isEditMode = !!existingResponse
-  const isPreviewMode = !inspectionInstanceId && !isEditMode
+  const isPreviewMode = false
   const [selectedRevisionNumber, setSelectedRevisionNumber] = useState<number | null>(
     existingResponse?.current_revision_number ?? null
   )
