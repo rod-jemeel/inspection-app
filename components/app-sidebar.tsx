@@ -3,7 +3,6 @@
 import {
   Home,
   ClipboardCheck,
-  FileSpreadsheet,
   Users,
   Settings,
   HelpCircle,
@@ -49,7 +48,6 @@ export function AppSidebar({
   const mainItems = [
     { title: "Dashboard", url: "/dashboard", icon: Home },
     { title: "Inspections", url: "/inspections", icon: ClipboardCheck },
-    { title: "Logs", url: "/logs", icon: FileSpreadsheet },
   ]
 
   const adminItems = isAdmin
