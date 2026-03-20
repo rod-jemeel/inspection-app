@@ -617,7 +617,7 @@ export function BinderDetail({
                   )}
 
                   {/* Frequency + Signature badges */}
-                  {(template.frequency || template.has_signature_field) && (
+                  {(template.frequency || template.require_signatures) && (
                     <div className="mt-auto flex flex-wrap gap-1">
                       {template.frequency && (
                         <Badge
@@ -632,10 +632,10 @@ export function BinderDetail({
                             template.frequency}
                         </Badge>
                       )}
-                      {template.has_signature_field && (
+                      {template.require_signatures && (
                         <Badge
                           variant="outline"
-                          className="text-[10px] font-medium bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-400"
+                          className="text-[10px] font-medium bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-400"
                         >
                           Requires Signature
                         </Badge>

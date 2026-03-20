@@ -23,6 +23,7 @@ export interface Binder {
   icon: string | null;
   sort_order: number;
   active: boolean;
+  show_in_nav: boolean;
   created_at: string;
   updated_at: string;
   created_by_profile_id: string | null;
