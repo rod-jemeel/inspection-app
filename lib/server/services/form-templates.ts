@@ -34,7 +34,10 @@ export interface FormTemplate {
   google_sheet_tab: string | null
   default_due_rule: Record<string, unknown> | null
   scheduling_active: boolean
+  require_signatures: boolean
+  log_type: string | null
   field_count?: number
+  has_signature_field?: boolean
 }
 
 async function fetchFormTemplates(locationId: string, binderId: string, active?: boolean) {
@@ -60,18 +63,21 @@ async function fetchFormTemplates(locationId: string, binderId: string, active?:
   const templateIds = templates.map((t: { id: string }) => t.id)
   const { data: fieldCounts } = await supabase
     .from("form_fields")
-    .select("form_template_id")
+    .select("form_template_id, field_type")
     .in("form_template_id", templateIds)
     .eq("active", true)
 
   const countMap: Record<string, number> = {}
+  const sigMap: Record<string, boolean> = {}
   for (const row of fieldCounts ?? []) {
     countMap[row.form_template_id] = (countMap[row.form_template_id] || 0) + 1
+    if (row.field_type === "signature") sigMap[row.form_template_id] = true
   }
 
   return templates.map((t: Record<string, unknown>) => ({
     ...t,
     field_count: countMap[t.id as string] || 0,
+    has_signature_field: sigMap[t.id as string] || false,
   })) as FormTemplate[]
 }
 
