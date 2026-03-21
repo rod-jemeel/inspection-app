@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Lock, ShieldCheck } from "lucide-react"
+import { ShieldCheck } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,7 +17,6 @@ import {
 
 export function ChangePasswordForm() {
   const router = useRouter()
-  const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -33,44 +32,27 @@ export function ChangePasswordForm() {
     }
 
     if (newPassword !== confirmPassword) {
-      setError("New passwords do not match")
-      return
-    }
-
-    if (currentPassword === newPassword) {
-      setError("New password must be different from current password")
+      setError("Passwords do not match")
       return
     }
 
     setLoading(true)
 
     try {
-      // Change password via Better Auth
-      const response = await fetch("/api/auth/change-password", {
+      const response = await fetch("/api/users/me/set-initial-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          currentPassword,
-          newPassword,
-        }),
+        body: JSON.stringify({ newPassword }),
       })
 
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.message || "Failed to change password")
+        throw new Error(data.error || "Failed to change password")
       }
 
-      // Clear the must_change_password flag
-      await fetch("/api/users/me/clear-password-flag", {
-        method: "POST",
-      })
-
-      // Redirect to dashboard
       router.push("/dashboard")
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to change password"
-      )
+      setError(err instanceof Error ? err.message : "Failed to change password")
     } finally {
       setLoading(false)
     }
@@ -81,36 +63,15 @@ export function ChangePasswordForm() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <ShieldCheck className="size-5" />
-          Change Password Required
+          Set Your Password
         </CardTitle>
         <CardDescription>
-          For security, you must change your temporary password before
-          continuing.
+          Choose a new password to secure your account before continuing.
         </CardDescription>
       </CardHeader>
 
       <CardContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <Field>
-            <FieldLabel
-              htmlFor="currentPassword"
-              className="gap-2 flex items-center"
-            >
-              <Lock className="size-4" />
-              <span>Current Password</span>
-            </FieldLabel>
-            <Input
-              id="currentPassword"
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder="Your temporary password"
-              required
-              autoComplete="current-password"
-              disabled={loading}
-            />
-          </Field>
-
           <Field>
             <FieldLabel htmlFor="newPassword">New Password</FieldLabel>
             <Input
@@ -126,15 +87,13 @@ export function ChangePasswordForm() {
           </Field>
 
           <Field>
-            <FieldLabel htmlFor="confirmPassword">
-              Confirm New Password
-            </FieldLabel>
+            <FieldLabel htmlFor="confirmPassword">Confirm Password</FieldLabel>
             <Input
               id="confirmPassword"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm your new password"
+              placeholder="Repeat your new password"
               required
               autoComplete="new-password"
               disabled={loading}
@@ -145,7 +104,7 @@ export function ChangePasswordForm() {
 
           <Button type="submit" disabled={loading} className="w-full gap-2">
             <ShieldCheck className="size-4" />
-            {loading ? "Changing..." : "Change Password & Continue"}
+            {loading ? "Saving..." : "Set Password & Continue"}
           </Button>
         </form>
       </CardContent>
