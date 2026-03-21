@@ -84,7 +84,7 @@ function formatWeekLabel(date: Date): string {
 async function DashboardData({ loc }: { loc: string }) {
   // Get profile for role-based filtering
   const { profile } = await requireLocationAccess(loc)
-  const isInspector = profile.role === "inspector" || profile.role === "nurse"
+  const isInspector = profile.role === "inspector"
 
   // Fetch location name
   const { data: locationData } = await supabase
