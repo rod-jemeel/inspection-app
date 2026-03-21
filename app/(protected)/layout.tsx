@@ -2,7 +2,7 @@ import { Suspense } from "react"
 import { redirect } from "next/navigation"
 import { getSession, getProfile } from "@/lib/server/auth-helpers"
 import { supabase } from "@/lib/server/db"
-import { listBinders } from "@/lib/server/services/binders"
+import { getBindersForUser } from "@/lib/server/services/binders"
 import { LoadingSpinner } from "@/components/loading-spinner"
 import { AppShell } from "./_components/app-shell"
 
@@ -33,7 +33,10 @@ async function AuthenticatedShell({ children }: { children: React.ReactNode }) {
   let binders: { id: string; name: string; color: string | null; icon: string | null }[] = []
   if (locations.length > 0) {
     try {
-      const allBinders = await listBinders(locations[0].id)
+      const allBinders = await getBindersForUser(locations[0].id, profile.id, profile.role, {
+        can_manage_binders: profile.can_manage_binders,
+        can_manage_forms: profile.can_manage_forms,
+      })
       binders = allBinders.map((b) => ({
         id: b.id,
         name: b.name,
