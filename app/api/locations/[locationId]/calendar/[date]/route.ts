@@ -37,9 +37,11 @@ export async function GET(
         due_at,
         status,
         assigned_to_email,
+        assigned_to_profile_id,
         passed_at,
         failed_at,
-        form_templates!form_template_id(name, description, frequency)
+        form_templates!form_template_id(name, description, frequency),
+        profiles!assigned_to_profile_id(full_name)
       `)
       .eq("location_id", locationId)
       .gte("due_at", startOfDay)
@@ -59,13 +61,15 @@ export async function GET(
 
     const events = (queryData ?? []).map((row: Record<string, unknown>) => {
       const template = row.form_templates as { name?: string; description?: string | null; frequency?: string } | null
+      const assigneeProfile = row.profiles as { full_name?: string } | null
+      const assigneeName = assigneeProfile?.full_name ?? (row.assigned_to_email as string | null) ?? null
       return {
         id: row.id,
         task: template?.name ?? "Inspection",
         description: template?.description ?? null,
         dueAt: row.due_at,
         status: row.status,
-        assignee: row.assigned_to_email,
+        assignee: assigneeName,
         frequency: template?.frequency ?? null,
         passedAt: row.passed_at,
         failedAt: row.failed_at,

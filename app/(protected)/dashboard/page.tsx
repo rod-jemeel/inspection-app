@@ -16,6 +16,7 @@ interface InspectionInstanceRow {
   due_at: string
   status: "pending" | "in_progress" | "failed" | "passed" | "void"
   assigned_to_email: string | null
+  assignee_name: string | null
   form_templates: {
     name: string
     frequency: string | null
@@ -57,11 +58,15 @@ function normalizeInstance(inst: Record<string, unknown>): InspectionInstanceRow
     ? template[0] ?? null
     : template ?? null
 
+  const profileRel = inst.profiles as { full_name?: string } | null
+  const assigneeName = profileRel?.full_name ?? (inst.assigned_to_email as string | null) ?? null
+
   return {
     id: inst.id as string,
     due_at: inst.due_at as string,
     status: inst.status as InspectionInstanceRow["status"],
     assigned_to_email: inst.assigned_to_email as string | null,
+    assignee_name: assigneeName,
     form_templates: normalizedTemplate as InspectionInstanceRow["form_templates"],
   }
 }
@@ -212,7 +217,7 @@ async function DashboardData({ loc }: { loc: string }) {
     addInspectorFilter(
       supabase
         .from("inspection_instances")
-        .select("id, due_at, status, assigned_to_email, form_templates!form_template_id(name, frequency)")
+        .select("id, due_at, status, assigned_to_email, form_templates!form_template_id(name, frequency), profiles!assigned_to_profile_id(full_name)")
         .eq("location_id", loc)
         .gte("due_at", threeMonthsAgo.toISOString())
         .lte("due_at", threeMonthsAhead.toISOString())
@@ -224,7 +229,7 @@ async function DashboardData({ loc }: { loc: string }) {
     addInspectorFilter(
       supabase
         .from("inspection_instances")
-        .select("id, due_at, status, assigned_to_email, form_templates!form_template_id(name, frequency)")
+        .select("id, due_at, status, assigned_to_email, form_templates!form_template_id(name, frequency), profiles!assigned_to_profile_id(full_name)")
         .eq("location_id", loc)
         .in("status", ["pending", "in_progress"])
         .lt("due_at", now.toISOString())
@@ -263,7 +268,7 @@ async function DashboardData({ loc }: { loc: string }) {
     addInspectorFilter(
       supabase
         .from("inspection_instances")
-        .select("id, due_at, status, passed_at, assigned_to_email, form_templates!form_template_id(name)")
+        .select("id, due_at, status, passed_at, assigned_to_email, form_templates!form_template_id(name), profiles!assigned_to_profile_id(full_name)")
         .eq("location_id", loc)
         .neq("status", "void")
         .order("due_at", { ascending: false })
@@ -389,7 +394,7 @@ async function DashboardData({ loc }: { loc: string }) {
       task: (normalizedTemplate as { name?: string } | null)?.name ?? "Inspection",
       dueAt: row.due_at as string,
       status: row.status as string,
-      assignee: row.assigned_to_email as string | null,
+      assignee: (row.profiles as { full_name?: string } | null)?.full_name ?? (row.assigned_to_email as string | null) ?? null,
       completedAt: row.passed_at as string | null,
     }
   })
@@ -435,7 +440,7 @@ async function DashboardData({ loc }: { loc: string }) {
           task: inst.form_templates?.name ?? "Inspection",
           dueAt: inst.due_at,
           status: inst.status,
-          assignee: inst.assigned_to_email,
+          assignee: inst.assignee_name,
           frequency: inst.form_templates?.frequency ?? null,
         }
       })}
@@ -445,7 +450,7 @@ async function DashboardData({ loc }: { loc: string }) {
           id: inst.id,
           task: inst.form_templates?.name ?? "Inspection",
           dueAt: inst.due_at,
-          assignee: inst.assigned_to_email,
+          assignee: inst.assignee_name,
           frequency: inst.form_templates?.frequency ?? null,
           daysOverdue: Math.floor((now.getTime() - new Date(inst.due_at).getTime()) / (1000 * 60 * 60 * 24)),
         }
