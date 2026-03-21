@@ -41,7 +41,6 @@ interface AppShellProps {
     icon: string | null;
   }[];
   children: React.ReactNode;
-  mustChangePassword?: boolean;
 }
 
 const pageTitles: Record<string, string> = {
@@ -165,7 +164,6 @@ export function AppShell({
   locations,
   binders,
   children,
-  mustChangePassword,
 }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -183,12 +181,6 @@ export function AppShell({
     }
   }, [locationId, firstLocationId, setLocationId]);
 
-  // Redirect to change-password if required
-  useEffect(() => {
-    if (mustChangePassword && pathname !== "/change-password") {
-      router.push("/change-password");
-    }
-  }, [mustChangePassword, pathname, router]);
 
   const handleSignOut = async () => {
     await signOut();

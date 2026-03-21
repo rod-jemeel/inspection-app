@@ -50,7 +50,6 @@ async function AuthenticatedShell({ children }: { children: React.ReactNode }) {
       user={{ name: profile.full_name, email: profile.email, role: profile.role }}
       locations={locations}
       binders={binders}
-      mustChangePassword={profile.must_change_password}
     >
       {children}
     </AppShell>
