@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Loader2, Settings, FolderOpen } from "lucide-react"
+import { Loader2, Settings, FolderOpen, MapPin } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -46,6 +46,11 @@ interface Binder {
   id: string
   name: string
   color: string | null
+}
+
+interface LocationOption {
+  id: string
+  name: string
 }
 
 const roleColors: Record<string, string> = {
@@ -98,9 +103,31 @@ export function MemberDetailDialog({
   const [savingAssignments, setSavingAssignments] = useState(false)
   const [savingPermission, setSavingPermission] = useState<string | null>(null)
 
-  // Fetch binders + assignments when dialog opens
+  // Location state
+  const [allLocations, setAllLocations] = useState<LocationOption[]>([])
+  const [memberLocationIds, setMemberLocationIds] = useState<string[]>([])
+  const [pendingLocationIds, setPendingLocationIds] = useState<string[]>([])
+  const [loadingLocations, setLoadingLocations] = useState(false)
+  const [savingLocations, setSavingLocations] = useState(false)
+
+  // Fetch binders + assignments + locations when dialog opens
   useEffect(() => {
     if (!open || !member) return
+
+    // Fetch locations
+    setLoadingLocations(true)
+    Promise.all([
+      fetch("/api/locations").then((r) => r.ok ? r.json() : []),
+      fetch(`/api/users/${member.user_id}/locations`).then((r) => r.ok ? r.json() : []),
+    ])
+      .then(([locs, memberships]) => {
+        setAllLocations(locs.map((l: { id: string; name: string }) => ({ id: l.id, name: l.name })))
+        const ids = (memberships as { location_id: string }[]).map((m) => m.location_id)
+        setMemberLocationIds(ids)
+        setPendingLocationIds(ids)
+      })
+      .catch(() => {})
+      .finally(() => setLoadingLocations(false))
 
     setLoadingAssignments(true)
     Promise.all([
@@ -183,6 +210,42 @@ export function MemberDetailDialog({
     JSON.stringify(pendingAssignments.map((a) => a.binder_id + a.can_edit).sort()) !==
     JSON.stringify(assignments.map((a) => a.binder_id + a.can_edit).sort())
 
+  const locationsDirty =
+    JSON.stringify([...pendingLocationIds].sort()) !==
+    JSON.stringify([...memberLocationIds].sort())
+
+  const handleToggleLocation = (locationId: string) => {
+    setPendingLocationIds((prev) =>
+      prev.includes(locationId) ? prev.filter((id) => id !== locationId) : [...prev, locationId]
+    )
+  }
+
+  const handleSaveLocations = async () => {
+    if (!member) return
+    setSavingLocations(true)
+    try {
+      const res = await fetch(`/api/users/${member.user_id}/locations`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location_ids: pendingLocationIds }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        toast.error(err.error?.message ?? "Failed to save locations")
+        return
+      }
+      const saved: { location_id: string }[] = await res.json()
+      const ids = saved.map((m) => m.location_id)
+      setMemberLocationIds(ids)
+      setPendingLocationIds(ids)
+      toast.success("Location access saved")
+    } catch {
+      toast.error("Network error. Please try again.")
+    } finally {
+      setSavingLocations(false)
+    }
+  }
+
   if (!member) return null
 
   const isOwnerOrAdmin = member.role === "owner" || member.role === "admin"
@@ -216,7 +279,7 @@ export function MemberDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <DialogTitle>{member.full_name}</DialogTitle>
@@ -230,6 +293,66 @@ export function MemberDetailDialog({
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Location Access Section */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <MapPin className="size-4 text-muted-foreground" />
+              <h3 className="text-sm font-medium">Location Access</h3>
+            </div>
+
+            {loadingLocations ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : allLocations.length === 0 ? (
+              <div className="rounded-md border border-dashed p-4 text-center">
+                <p className="text-xs text-muted-foreground">No locations found.</p>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  {allLocations.map((loc) => {
+                    const assigned = pendingLocationIds.includes(loc.id)
+                    return (
+                      <div key={loc.id} className="flex items-center gap-3 rounded-md border p-2.5">
+                        <MapPin className="size-3 shrink-0 text-muted-foreground" />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-medium">{loc.name}</div>
+                        </div>
+                        {canEdit && (
+                          <Switch
+                            checked={assigned}
+                            onCheckedChange={() => handleToggleLocation(loc.id)}
+                            disabled={savingLocations}
+                            className="scale-75"
+                          />
+                        )}
+                        {!canEdit && assigned && (
+                          <span className="text-[10px] text-muted-foreground">Assigned</span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {canEdit && (
+                  <Button
+                    size="sm"
+                    onClick={handleSaveLocations}
+                    disabled={!locationsDirty || savingLocations}
+                    className="w-full"
+                  >
+                    {savingLocations && <Loader2 className="size-3.5 animate-spin" />}
+                    Save Location Access
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="border-t" />
+
           {/* Permissions Section */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">

@@ -4,6 +4,18 @@ import { supabase } from "@/lib/server/db"
 import { requireSession } from "@/lib/server/auth-helpers"
 import { TIMEZONES } from "@/lib/validations/location"
 import { seedNursingLogTemplates } from "@/lib/server/services/nursing-log-templates"
+import { listLocations } from "@/lib/server/services/locations"
+import { handleError } from "@/lib/server/errors"
+
+export async function GET() {
+  try {
+    await requireSession()
+    const locations = await listLocations()
+    return Response.json(locations)
+  } catch (error) {
+    return handleError(error)
+  }
+}
 
 const createLocationSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),

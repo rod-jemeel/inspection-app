@@ -177,6 +177,63 @@ export async function removeMemberFromLocation(
   if (error) throw new ApiError("INTERNAL_ERROR", error.message)
 }
 
+export async function listLocations(): Promise<Location[]> {
+  const { data, error } = await supabase
+    .from("locations")
+    .select("id, name, address, timezone, active, created_at, updated_at")
+    .eq("active", true)
+    .order("name", { ascending: true })
+
+  if (error) throw new ApiError("INTERNAL_ERROR", error.message)
+  return (data ?? []) as Location[]
+}
+
+export async function getProfileLocationMemberships(
+  profileId: string
+): Promise<{ location_id: string; location_name: string }[]> {
+  const { data, error } = await supabase
+    .from("profile_locations")
+    .select("location_id, locations(name)")
+    .eq("profile_id", profileId)
+
+  if (error) throw new ApiError("INTERNAL_ERROR", error.message)
+
+  return (data ?? []).map((row: any) => ({
+    location_id: row.location_id,
+    location_name: row.locations?.name ?? "Unknown",
+  }))
+}
+
+export async function updateProfileLocationMemberships(
+  profileId: string,
+  locationIds: string[]
+): Promise<void> {
+  // Prevent removing owner from all locations (safety check)
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", profileId)
+    .single()
+
+  if (profile?.role === "owner" && locationIds.length === 0) {
+    throw new ApiError("FORBIDDEN", "Cannot remove owner from all locations")
+  }
+
+  // Delete all existing memberships for this profile
+  const { error: deleteError } = await supabase
+    .from("profile_locations")
+    .delete()
+    .eq("profile_id", profileId)
+
+  if (deleteError) throw new ApiError("INTERNAL_ERROR", deleteError.message)
+
+  if (locationIds.length > 0) {
+    const rows = locationIds.map((location_id) => ({ profile_id: profileId, location_id }))
+    const { error: insertError } = await supabase.from("profile_locations").insert(rows)
+    if (insertError) throw new ApiError("INTERNAL_ERROR", insertError.message)
+  }
+}
+
 export async function updateMemberPermissions(
   locationId: string,
   profileId: string,
