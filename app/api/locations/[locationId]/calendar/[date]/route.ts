@@ -23,73 +23,56 @@ export async function GET(
 
     const { profile } = await requireLocationAccess(locationId)
 
-    // Role-based filtering
-    const isInspector = profile.role === "inspector" || profile.role === "nurse"
+    // Role-based filtering — only external inspectors are filtered by email
+    const isInspector = profile.role === "inspector"
     const inspectorEmail = isInspector ? profile.email : null
 
-    // Use RPC function if available, otherwise fallback to direct query
-    const { data, error } = await supabase.rpc("get_events_for_date", {
-      p_location_id: locationId,
-      p_date: date,
-      p_inspector_email: inspectorEmail,
-    })
+    const startOfDay = `${date}T00:00:00.000Z`
+    const endOfDay = `${date}T23:59:59.999Z`
 
-    if (error) {
-      // Fallback to direct query if RPC doesn't exist
-      // PostgREST returns PGRST202 (HTTP 404) when the function doesn't exist
-      if (error.code === "42883" || error.code === "PGRST202") { // function does not exist
-        const startOfDay = `${date}T00:00:00.000Z`
-        const endOfDay = `${date}T23:59:59.999Z`
+    let query = supabase
+      .from("inspection_instances")
+      .select(`
+        id,
+        due_at,
+        status,
+        assigned_to_email,
+        passed_at,
+        failed_at,
+        form_templates!form_template_id(name, description, frequency)
+      `)
+      .eq("location_id", locationId)
+      .gte("due_at", startOfDay)
+      .lte("due_at", endOfDay)
+      .neq("status", "void")
+      .order("due_at", { ascending: true })
 
-        let query = supabase
-          .from("inspection_instances")
-          .select(`
-            id,
-            due_at,
-            status,
-            assigned_to_email,
-            passed_at,
-            failed_at,
-            form_templates!form_template_id(name, description, frequency)
-          `)
-          .eq("location_id", locationId)
-          .gte("due_at", startOfDay)
-          .lte("due_at", endOfDay)
-          .neq("status", "void")
-          .order("due_at", { ascending: true })
-
-        if (inspectorEmail) {
-          query = query.eq("assigned_to_email", inspectorEmail)
-        }
-
-        const { data: fallbackData, error: fallbackError } = await query
-
-        if (fallbackError) {
-          throw new ApiError("INTERNAL_ERROR", fallbackError.message)
-        }
-
-        // Transform to expected format
-        const events = (fallbackData ?? []).map((row: Record<string, unknown>) => {
-          const template = row.form_templates as { name?: string; description?: string | null; frequency?: string } | null
-          return {
-            id: row.id,
-            task: template?.name ?? "Inspection",
-            description: template?.description ?? null,
-            dueAt: row.due_at,
-            status: row.status,
-            assignee: row.assigned_to_email,
-            frequency: template?.frequency ?? null,
-            passedAt: row.passed_at,
-            failedAt: row.failed_at,
-          }
-        })
-
-        return NextResponse.json({ events, date })
-      }
-      throw new ApiError("INTERNAL_ERROR", error.message)
+    if (inspectorEmail) {
+      query = query.eq("assigned_to_email", inspectorEmail)
     }
 
-    return NextResponse.json({ events: data ?? [], date })
+    const { data: queryData, error: queryError } = await query
+
+    if (queryError) {
+      throw new ApiError("INTERNAL_ERROR", queryError.message)
+    }
+
+    const events = (queryData ?? []).map((row: Record<string, unknown>) => {
+      const template = row.form_templates as { name?: string; description?: string | null; frequency?: string } | null
+      return {
+        id: row.id,
+        task: template?.name ?? "Inspection",
+        description: template?.description ?? null,
+        dueAt: row.due_at,
+        status: row.status,
+        assignee: row.assigned_to_email,
+        frequency: template?.frequency ?? null,
+        passedAt: row.passed_at,
+        failedAt: row.failed_at,
+      }
+    })
+
+    return NextResponse.json({ events, date })
   } catch (err) {
     return handleError(err)
   }
