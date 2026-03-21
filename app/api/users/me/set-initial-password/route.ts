@@ -1,6 +1,6 @@
 import "server-only"
 import { z } from "zod"
-import { auth } from "@/lib/auth"
+import { hashPassword } from "better-auth/crypto"
 import { supabase } from "@/lib/server/db"
 import { getSession, getProfile } from "@/lib/server/auth-helpers"
 
@@ -29,19 +29,31 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { newPassword } = schema.parse(body)
 
-    // Use the admin API to set the password directly (no current password needed)
-    await auth.api.setUserPassword({
-      body: {
-        userId: session.user.id,
-        newPassword,
-      },
-    })
+    // Hash the password using the same algorithm Better Auth uses (scrypt)
+    const hashed = await hashPassword(newPassword)
+
+    // Update the password directly in the account table
+    const { error: updateError } = await supabase
+      .from("account")
+      .update({ password: hashed })
+      .eq("userId", session.user.id)
+      .eq("providerId", "credential")
+
+    if (updateError) {
+      console.error("Failed to update password:", updateError)
+      return Response.json({ error: "Failed to update password" }, { status: 500 })
+    }
 
     // Clear the must_change_password flag
-    await supabase
+    const { error: flagError } = await supabase
       .from("profiles")
       .update({ must_change_password: false })
       .eq("id", profile.id)
+
+    if (flagError) {
+      console.error("Failed to clear password flag:", flagError)
+      // Password was changed successfully, just log the flag error
+    }
 
     return Response.json({ success: true })
   } catch (error) {
