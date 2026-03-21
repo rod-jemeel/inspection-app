@@ -1,4 +1,5 @@
 import "server-only"
+import { hashPassword } from "better-auth/crypto"
 import { supabase } from "@/lib/server/db"
 import { requireRole } from "@/lib/server/auth-helpers"
 import { generateSecurePassword } from "@/lib/server/utils/password"
@@ -29,10 +30,8 @@ export async function POST(
     const tempPassword = generateSecurePassword(16)
 
     // 4. Update password in Better Auth user table
-    // Better Auth stores password hash in the account table
-    const { createHash } = await import("crypto")
-    const bcrypt = await import("bcryptjs")
-    const hashedPassword = await bcrypt.hash(tempPassword, 10)
+    // Better Auth stores password hash in the account table (scrypt: salt:hash)
+    const hashedPassword = await hashPassword(tempPassword)
 
     const { error: updateError } = await supabase
       .from("account")
