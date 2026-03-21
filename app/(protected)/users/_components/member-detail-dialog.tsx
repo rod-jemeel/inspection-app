@@ -1,8 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Loader2, Settings } from "lucide-react"
+import { Loader2, Settings, FolderOpen } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -14,7 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import type { Role } from "@/lib/permissions"
 
 interface MemberDetailDialogProps {
   member: {
@@ -40,8 +38,14 @@ interface MemberDetailDialogProps {
 interface BinderAssignment {
   binder_id: string
   binder_name: string
-  binder_color: string
-  access_level: "editor" | "viewer"
+  binder_color: string | null
+  can_edit: boolean
+}
+
+interface Binder {
+  id: string
+  name: string
+  color: string | null
 }
 
 const roleColors: Record<string, string> = {
@@ -87,28 +91,97 @@ export function MemberDetailDialog({
   onSuccess,
   canEdit,
 }: MemberDetailDialogProps) {
-  const router = useRouter()
+  const [allBinders, setAllBinders] = useState<Binder[]>([])
   const [assignments, setAssignments] = useState<BinderAssignment[]>([])
+  const [pendingAssignments, setPendingAssignments] = useState<BinderAssignment[]>([])
   const [loadingAssignments, setLoadingAssignments] = useState(false)
+  const [savingAssignments, setSavingAssignments] = useState(false)
   const [savingPermission, setSavingPermission] = useState<string | null>(null)
 
-  // Fetch binder assignments when dialog opens
+  // Fetch binders + assignments when dialog opens
   useEffect(() => {
-    if (open && member) {
-      setLoadingAssignments(true)
-      fetch(`/api/locations/${locationId}/members/${member.id}/assignments`)
-        .then((res) => {
-          if (res.ok) return res.json()
-          throw new Error("Failed to load assignments")
-        })
-        .then((data) => setAssignments(data.assignments || []))
-        .catch(() => {
-          toast.error("Failed to load binder assignments")
-          setAssignments([])
-        })
-        .finally(() => setLoadingAssignments(false))
-    }
+    if (!open || !member) return
+
+    setLoadingAssignments(true)
+    Promise.all([
+      fetch(`/api/locations/${locationId}/binders`).then((r) => r.ok ? r.json() : []),
+      fetch(`/api/locations/${locationId}/members/${member.id}/assignments`).then((r) =>
+        r.ok ? r.json() : []
+      ),
+    ])
+      .then(([binders, currentAssignments]) => {
+        setAllBinders(binders ?? [])
+        const normalized: BinderAssignment[] = (currentAssignments ?? []).map(
+          (a: { binder_id: string; binder_name: string; binder_color: string | null; can_edit: boolean }) => ({
+            binder_id: a.binder_id,
+            binder_name: a.binder_name,
+            binder_color: a.binder_color,
+            can_edit: a.can_edit,
+          })
+        )
+        setAssignments(normalized)
+        setPendingAssignments(normalized)
+      })
+      .catch(() => {
+        toast.error("Failed to load binder assignments")
+      })
+      .finally(() => setLoadingAssignments(false))
   }, [open, member, locationId])
+
+  const isAssigned = (binderId: string) =>
+    pendingAssignments.some((a) => a.binder_id === binderId)
+
+  const canEditBinder = (binderId: string) =>
+    pendingAssignments.find((a) => a.binder_id === binderId)?.can_edit ?? false
+
+  const handleToggleAssigned = (binder: Binder) => {
+    setPendingAssignments((prev) => {
+      if (prev.some((a) => a.binder_id === binder.id)) {
+        return prev.filter((a) => a.binder_id !== binder.id)
+      }
+      return [...prev, { binder_id: binder.id, binder_name: binder.name, binder_color: binder.color, can_edit: false }]
+    })
+  }
+
+  const handleToggleCanEdit = (binderId: string) => {
+    setPendingAssignments((prev) =>
+      prev.map((a) => (a.binder_id === binderId ? { ...a, can_edit: !a.can_edit } : a))
+    )
+  }
+
+  const handleSaveAssignments = async () => {
+    if (!member) return
+    setSavingAssignments(true)
+    try {
+      const res = await fetch(`/api/locations/${locationId}/members/${member.id}/assignments`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assignments: pendingAssignments.map((a) => ({
+            binder_id: a.binder_id,
+            can_edit: a.can_edit,
+          })),
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        toast.error(err.error?.message ?? "Failed to save assignments")
+        return
+      }
+      const saved: BinderAssignment[] = await res.json()
+      setAssignments(saved)
+      setPendingAssignments(saved)
+      toast.success("Binder assignments saved")
+    } catch {
+      toast.error("Network error. Please try again.")
+    } finally {
+      setSavingAssignments(false)
+    }
+  }
+
+  const assignmentsDirty =
+    JSON.stringify(pendingAssignments.map((a) => a.binder_id + a.can_edit).sort()) !==
+    JSON.stringify(assignments.map((a) => a.binder_id + a.can_edit).sort())
 
   if (!member) return null
 
@@ -205,49 +278,92 @@ export function MemberDetailDialog({
 
           {/* Binder Assignments Section */}
           <div className="space-y-3">
-            <h3 className="text-sm font-medium">Binder Assignments</h3>
+            <div className="flex items-center gap-2">
+              <FolderOpen className="size-4 text-muted-foreground" />
+              <h3 className="text-sm font-medium">Binder Assignments</h3>
+            </div>
 
-            {loadingAssignments ? (
+            {isOwnerOrAdmin ? (
+              <div className="rounded-md border border-muted bg-muted/20 p-3">
+                <p className="text-xs text-muted-foreground">
+                  {member.role === "owner" ? "Owners" : "Admins"} have access to all binders by default.
+                </p>
+              </div>
+            ) : loadingAssignments ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="size-5 animate-spin text-muted-foreground" />
               </div>
-            ) : assignments.length === 0 ? (
+            ) : allBinders.length === 0 ? (
               <div className="rounded-md border border-dashed p-4 text-center">
-                <p className="text-xs text-muted-foreground">
-                  No binder assignments yet.
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Manage assignments from individual binder pages.
-                </p>
+                <p className="text-xs text-muted-foreground">No binders found for this location.</p>
               </div>
             ) : (
-              <div className="space-y-2">
-                {assignments.map((assignment) => (
-                  <div
-                    key={assignment.binder_id}
-                    className="flex items-center gap-3 rounded-md border p-2.5"
+              <>
+                <div className="space-y-2">
+                  {allBinders.map((binder) => {
+                    const assigned = isAssigned(binder.id)
+                    const canEdit = canEditBinder(binder.id)
+                    return (
+                      <div
+                        key={binder.id}
+                        className="flex items-center gap-3 rounded-md border p-2.5"
+                      >
+                        <div
+                          className="size-3 shrink-0 rounded-full"
+                          style={{ backgroundColor: binder.color ?? "#6b7280" }}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-medium">{binder.name}</div>
+                        </div>
+                        {assigned && canEditPermissions && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] text-muted-foreground">Can edit</span>
+                            <Switch
+                              checked={canEdit}
+                              onCheckedChange={() => handleToggleCanEdit(binder.id)}
+                              disabled={savingAssignments}
+                              className="scale-75"
+                            />
+                          </div>
+                        )}
+                        {assigned && !canEditPermissions && (
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[10px]",
+                              canEdit
+                                ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300"
+                                : "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/20 dark:text-gray-300"
+                            )}
+                          >
+                            {canEdit ? "Editor" : "Viewer"}
+                          </Badge>
+                        )}
+                        {canEditPermissions && (
+                          <Switch
+                            checked={assigned}
+                            onCheckedChange={() => handleToggleAssigned(binder)}
+                            disabled={savingAssignments}
+                            className="scale-75"
+                          />
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {canEditPermissions && (
+                  <Button
+                    size="sm"
+                    onClick={handleSaveAssignments}
+                    disabled={!assignmentsDirty || savingAssignments}
+                    className="w-full"
                   >
-                    <div
-                      className="size-3 shrink-0 rounded-full"
-                      style={{ backgroundColor: assignment.binder_color }}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-medium">{assignment.binder_name}</div>
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "text-[10px]",
-                        assignment.access_level === "editor"
-                          ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300"
-                          : "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/20 dark:text-gray-300"
-                      )}
-                    >
-                      {assignment.access_level === "editor" ? "Editor" : "Viewer"}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
+                    {savingAssignments && <Loader2 className="size-3.5 animate-spin" />}
+                    Save Assignments
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </div>

@@ -7,6 +7,7 @@ import type {
   CreateBinderInput,
   UpdateBinderInput,
   UpdateBinderAssignmentsInput,
+  UpdateProfileAssignmentsInput,
 } from "@/lib/validations/binder";
 
 function revalidateBindersCache(locationId: string) {
@@ -346,6 +347,50 @@ export async function getBindersForUser(
     ...b,
     form_count: countMap[b.id as string] || 0,
   })) as Binder[];
+}
+
+export async function updateProfileAssignments(
+  locationId: string,
+  profileId: string,
+  input: UpdateProfileAssignmentsInput,
+  assignedByProfileId: string,
+) {
+  // Get all binder IDs in this location so we only delete assignments scoped to it
+  const { data: locationBinders, error: bindersError } = await supabase
+    .from("binders")
+    .select("id")
+    .eq("location_id", locationId);
+
+  if (bindersError) throw new ApiError("INTERNAL_ERROR", bindersError.message);
+
+  const locationBinderIds = (locationBinders ?? []).map((b: { id: string }) => b.id);
+
+  if (locationBinderIds.length > 0) {
+    const { error: deleteError } = await supabase
+      .from("binder_assignments")
+      .delete()
+      .eq("profile_id", profileId)
+      .in("binder_id", locationBinderIds);
+
+    if (deleteError) throw new ApiError("INTERNAL_ERROR", deleteError.message);
+  }
+
+  if (input.assignments.length > 0) {
+    const rows = input.assignments.map((a) => ({
+      binder_id: a.binder_id,
+      profile_id: profileId,
+      can_edit: a.can_edit,
+      assigned_by_profile_id: assignedByProfileId,
+    }));
+
+    const { error: insertError } = await supabase
+      .from("binder_assignments")
+      .insert(rows);
+
+    if (insertError) throw new ApiError("INTERNAL_ERROR", insertError.message);
+  }
+
+  return getAssignmentsForProfile(locationId, profileId);
 }
 
 export async function getAssignmentsForProfile(

@@ -33,3 +33,15 @@ export const updateBinderAssignmentsSchema = z.object({
 })
 
 export type UpdateBinderAssignmentsInput = z.infer<typeof updateBinderAssignmentsSchema>
+
+// For updating assignments from the member/user side (binder_id instead of profile_id)
+export const updateProfileAssignmentsSchema = z.object({
+  assignments: z.array(
+    z.object({
+      binder_id: z.string().uuid(),
+      can_edit: z.boolean().default(false),
+    })
+  ),
+})
+
+export type UpdateProfileAssignmentsInput = z.infer<typeof updateProfileAssignmentsSchema>
