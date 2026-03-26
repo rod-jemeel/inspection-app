@@ -31,6 +31,7 @@ async function AuthenticatedShell({ children }: { children: React.ReactNode }) {
 
   // Fetch binders for sidebar navigation
   let binders: { id: string; name: string; color: string | null; icon: string | null }[] = []
+  let pendingCount = 0
   if (locations.length > 0) {
     try {
       const allBinders = await getBindersForUser(locations[0].id, profile.id, profile.role, {
@@ -43,8 +44,28 @@ async function AuthenticatedShell({ children }: { children: React.ReactNode }) {
         color: b.color,
         icon: b.icon,
       }))
+    } catch (err) {
+      // Binders are optional for sidebar — don't block render, but log in dev
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[layout] Failed to load sidebar binders:", err)
+      }
+    }
+
+    // Fetch pending inspection count for sidebar badge
+    try {
+      const isNonAdmin = !["owner", "admin"].includes(profile.role)
+      let query = supabase
+        .from("inspection_instances")
+        .select("*", { count: "exact", head: true })
+        .eq("location_id", locations[0].id)
+        .in("status", ["pending", "in_progress"])
+      if (isNonAdmin && profile.email) {
+        query = query.eq("assigned_to_email", profile.email)
+      }
+      const { count } = await query
+      pendingCount = count ?? 0
     } catch {
-      // Ignore - binders are optional for sidebar
+      // Non-critical — sidebar badge is a nice-to-have
     }
   }
 
@@ -53,6 +74,7 @@ async function AuthenticatedShell({ children }: { children: React.ReactNode }) {
       user={{ name: profile.full_name, email: profile.email, role: profile.role }}
       locations={locations}
       binders={binders}
+      pendingCount={pendingCount}
     >
       {children}
     </AppShell>

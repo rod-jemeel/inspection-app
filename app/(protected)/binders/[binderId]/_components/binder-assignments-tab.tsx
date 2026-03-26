@@ -175,7 +175,13 @@ export function BinderAssignmentsTab({
         return;
       }
 
-      toast.success("Assignments saved successfully");
+      const result = await res.json();
+      const autoAssigned = result.autoAssignedCount ?? 0;
+      if (autoAssigned > 0) {
+        toast.success(`Assignments saved. ${autoAssigned} pending inspection${autoAssigned === 1 ? "" : "s"} auto-assigned.`);
+      } else {
+        toast.success("Assignments saved");
+      }
       setHasChanges(false);
     } catch (error) {
       console.error("Failed to save assignments:", error);

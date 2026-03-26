@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { requireLocationAccess } from "@/lib/server/auth-helpers";
 import { listInstances } from "@/lib/server/services/instances";
 import { listBinders } from "@/lib/server/services/binders";
+import { supabase } from "@/lib/server/db";
+import type { InstanceFilters, InstanceStatus } from "@/lib/validations/instance";
 import { LoadingSpinner } from "@/components/loading-spinner";
 import { InspectionList } from "./_components/inspection-list";
 import { InspectionModal } from "./_components/inspection-modal";
@@ -22,18 +24,29 @@ async function InspectionsData({
 }) {
   const { profile } = await requireLocationAccess(loc);
 
-  const filters: any = {
-    status: status as any,
+  const filters: InstanceFilters = {
+    status: status as InstanceStatus | undefined,
     limit: 50,
+    ...(binder && { binder_id: binder }),
   };
-  if (binder) filters.binder_id = binder;
 
   const [instances, allBinders] = await Promise.all([
     listInstances(loc, filters),
     listBinders(loc).catch(() => []),
   ]);
 
-  const binderOptions = allBinders.map((b: any) => ({
+  // Check if non-admin user has any binder assignments
+  const isNonAdmin = !["owner", "admin"].includes(profile.role);
+  let hasBinderAssignments = true;
+  if (isNonAdmin) {
+    const { count } = await supabase
+      .from("binder_assignments")
+      .select("*", { count: "exact", head: true })
+      .eq("profile_id", profile.id);
+    hasBinderAssignments = (count ?? 0) > 0;
+  }
+
+  const binderOptions = allBinders.map((b) => ({
     id: b.id,
     name: b.name,
   }));
@@ -46,6 +59,7 @@ async function InspectionsData({
         activeStatus={status}
         binders={binderOptions}
         activeBinder={binder}
+        hasBinderAssignments={hasBinderAssignments}
       />
       <InspectionModal
         locationId={loc}

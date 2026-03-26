@@ -8,6 +8,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
@@ -17,6 +18,7 @@ interface NavMainProps {
     title: string
     url: string
     icon: LucideIcon
+    badge?: number
   }[]
   locationId: string | null
   label?: string
@@ -41,6 +43,11 @@ export function NavMain({ items, locationId, label = "Navigation" }: NavMainProp
                   <span>{item.title}</span>
                 </Link>
               </SidebarMenuButton>
+              {item.badge != null && item.badge > 0 && (
+                <SidebarMenuBadge className="text-[10px]">
+                  {item.badge > 99 ? "99+" : item.badge}
+                </SidebarMenuBadge>
+              )}
             </SidebarMenuItem>
           )
         })}

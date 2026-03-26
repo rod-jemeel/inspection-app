@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { parseAsString, useQueryState } from "nuqs"
-import { AlertTriangle, ChevronRight, Search, PenLine } from "lucide-react"
+import { AlertTriangle, ChevronRight, FolderOpen, Search, PenLine } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -72,12 +72,7 @@ interface FrequencyGroups {
   every_3_years: Instance[]
 }
 
-// Hoisted static JSX for empty state
-const EmptyState = (
-  <div className="py-20 text-center text-xs text-muted-foreground">
-    No inspections found
-  </div>
-)
+// Empty state is now dynamic based on context — see getEmptyState() below
 
 export function InspectionList({
   instances,
@@ -85,12 +80,14 @@ export function InspectionList({
   activeStatus,
   binders,
   activeBinder,
+  hasBinderAssignments = true,
 }: {
   instances: Instance[]
   locationId: string
   activeStatus?: string
   binders?: { id: string; name: string }[]
   activeBinder?: string
+  hasBinderAssignments?: boolean
 }) {
   const router = useRouter()
   const [, setInstanceId] = useQueryState("instance", parseAsString)
@@ -99,6 +96,25 @@ export function InspectionList({
     parse: (v) => (v === "frequency" ? "frequency" : "urgency"),
   })
   const [search, setSearch] = useState("")
+
+  const emptyState = !hasBinderAssignments ? (
+    <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+      <FolderOpen className="mb-3 size-10 opacity-20" />
+      <p className="text-xs font-medium">No binders assigned</p>
+      <p className="mt-1 max-w-xs text-center text-xs text-muted-foreground/70">
+        You haven&apos;t been assigned to any binders yet. Contact your administrator to get started.
+      </p>
+    </div>
+  ) : search || activeStatus ? (
+    <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+      <Search className="mb-3 size-10 opacity-20" />
+      <p className="text-xs">No inspections match the current filters</p>
+    </div>
+  ) : (
+    <div className="py-20 text-center text-xs text-muted-foreground">
+      No inspections found
+    </div>
+  )
 
   // Debounce prefetch to avoid excessive API calls
   const prefetchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -416,7 +432,7 @@ export function InspectionList({
           {renderCollapsibleSection("Later", groupedByUrgency.later, false)}
           {renderCollapsibleSection("Passed", groupedByUrgency.passed, false, "text-green-600")}
 
-          {filteredInstances.length === 0 && EmptyState}
+          {filteredInstances.length === 0 && emptyState}
         </TabsContent>
 
         <TabsContent value="frequency" className="mt-4 space-y-4">
@@ -425,7 +441,7 @@ export function InspectionList({
           {renderCollapsibleSection("Yearly", groupedByFrequency.yearly, true)}
           {renderCollapsibleSection("Every 3 Years", groupedByFrequency.every_3_years, false)}
 
-          {filteredInstances.length === 0 && EmptyState}
+          {filteredInstances.length === 0 && emptyState}
         </TabsContent>
       </Tabs>
     </div>

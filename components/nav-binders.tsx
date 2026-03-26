@@ -10,6 +10,7 @@ import {
   Trash2,
   Loader2,
   ChevronRight,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 import { getBinderIconOption } from "@/components/binder-icon";
@@ -54,9 +55,10 @@ interface Binder {
 interface NavBindersProps {
   binders: Binder[];
   locationId: string | null;
+  isAdmin?: boolean;
 }
 
-export function NavBinders({ binders, locationId }: NavBindersProps) {
+export function NavBinders({ binders, locationId, isAdmin }: NavBindersProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [deletingBinder, setDeletingBinder] = useState<Binder | null>(null);
@@ -83,8 +85,6 @@ export function NavBinders({ binders, locationId }: NavBindersProps) {
     }
   };
 
-  if (binders.length === 0) return null;
-
   return (
     <>
       <Collapsible defaultOpen className="group/binders">
@@ -98,17 +98,29 @@ export function NavBinders({ binders, locationId }: NavBindersProps) {
                 <ChevronRight className="size-3 transition-transform" />
                 <span>Binders</span>
               </CollapsibleTrigger>
-              <button
-                onClick={() => router.push(`/binders?loc=${locationId}`)}
-                aria-label="Manage binders"
-                className="flex size-5 items-center justify-center rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-              >
-                <Plus className="size-3.5" aria-hidden="true" />
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => router.push(`/binders?loc=${locationId}`)}
+                  aria-label="Manage binders"
+                  className="flex size-5 items-center justify-center rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                >
+                  <Plus className="size-3.5" aria-hidden="true" />
+                </button>
+              )}
             </div>
           </SidebarGroupLabel>
           <CollapsibleContent>
             <SidebarMenu>
+              {binders.length === 0 && (
+                <SidebarMenuItem>
+                  <div className="flex items-center gap-2 px-2 py-2 text-sidebar-foreground/50">
+                    <Info className="size-3.5 shrink-0" />
+                    <span className="text-xs">
+                      {isAdmin ? "No binders yet" : "No binders assigned"}
+                    </span>
+                  </div>
+                </SidebarMenuItem>
+              )}
               {binders.map((binder) => {
                 const binderIcon = getBinderIconOption(binder.icon);
                 const binderPath = `/binders/${binder.id}`;

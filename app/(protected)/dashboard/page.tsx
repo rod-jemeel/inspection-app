@@ -294,6 +294,36 @@ async function DashboardData({ loc }: { loc: string }) {
     ),
   ])
 
+  // Check if this user has binder assignments (for non-admin Getting Started card)
+  let hasBinders = true
+  let unassignedMemberCount = 0
+
+  if (isInspector) {
+    const { count: binderAssignmentCount } = await supabase
+      .from("binder_assignments")
+      .select("*", { count: "exact", head: true })
+      .eq("profile_id", profile.id)
+    hasBinders = (binderAssignmentCount ?? 0) > 0
+  } else {
+    // For admins: count team members with no binder assignments
+    const { data: nonAdminProfiles } = await supabase
+      .from("profile_locations")
+      .select("profile_id, profiles!inner(id, role)")
+      .eq("location_id", loc)
+      .in("profiles.role", ["nurse", "inspector"])
+
+    if (nonAdminProfiles && nonAdminProfiles.length > 0) {
+      const profileIds = nonAdminProfiles.map((p: { profile_id: string }) => p.profile_id)
+      const { data: assignedProfiles } = await supabase
+        .from("binder_assignments")
+        .select("profile_id")
+        .in("profile_id", profileIds)
+
+      const assignedSet = new Set((assignedProfiles ?? []).map((a: { profile_id: string }) => a.profile_id))
+      unassignedMemberCount = profileIds.filter((id: string) => !assignedSet.has(id)).length
+    }
+  }
+
   // Calculate compliance rate
   const completed = completedLast30Days ?? 0
   const totalDue = totalDueLast30Days ?? 0
@@ -464,6 +494,8 @@ async function DashboardData({ loc }: { loc: string }) {
       locationName={locationName}
       userRole={profile.role}
       userName={profile.full_name}
+      hasBinders={hasBinders}
+      unassignedMemberCount={unassignedMemberCount}
     />
   )
 }

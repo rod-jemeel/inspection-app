@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic"
 import Link from "next/link"
-import { AlertTriangle, CheckCircle, Clock, CalendarDays, XCircle, TrendingUp, ChevronRight, Send, BarChart3, User, Download, FileText } from "lucide-react"
+import { AlertTriangle, BookOpen, CheckCircle, Clock, CalendarDays, XCircle, TrendingUp, ChevronRight, Send, BarChart3, User, Users, Download, FileText, HelpCircle, Settings } from "lucide-react"
 import type { Role } from "@/lib/permissions"
 import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -122,6 +122,8 @@ interface DashboardContentProps {
   locationName?: string | null
   userRole: Role
   userName: string
+  hasBinders?: boolean
+  unassignedMemberCount?: number
 }
 
 // Chart colors (for pie data preparation)
@@ -255,9 +257,12 @@ export function DashboardContent({
   locationName,
   userRole,
   userName,
+  hasBinders = true,
+  unassignedMemberCount = 0,
 }: DashboardContentProps) {
   const isInspector = userRole === "inspector" || userRole === "nurse"
-  const canExport = userRole === "owner" || userRole === "admin"
+  const isAdmin = userRole === "owner" || userRole === "admin"
+  const canExport = isAdmin
 
   // Prepare pie chart data
   const pieData = [
@@ -279,8 +284,57 @@ export function DashboardContent({
     exportToPDF(recentInspections, stats, `inspection-report-${date}.pdf`)
   }
 
+  // Non-admin with no binder assignments → show Getting Started instead of full dashboard
+  if (!hasBinders && isInspector) {
+    return (
+      <div className="space-y-6">
+        <div className="mx-auto flex max-w-lg flex-col items-center rounded-lg border bg-card p-8 text-center">
+          <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-primary/10">
+            <BookOpen className="size-6 text-primary" />
+          </div>
+          <h2 className="text-sm font-semibold">Welcome to Summit</h2>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            You haven&apos;t been assigned to any inspection binders yet.
+            Your administrator needs to add you to binders before you can
+            start working on inspections.
+          </p>
+          <div className="mt-6 flex items-center gap-3">
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/settings?loc=${locationId}`}>
+                <Settings className="size-3.5" />
+                Settings
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/help?loc=${locationId}`}>
+                <HelpCircle className="size-3.5" />
+                Help Guide
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
+      {/* Admin alert: team members without binder assignments */}
+      {isAdmin && unassignedMemberCount > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50/50 p-3 dark:border-amber-900 dark:bg-amber-950/20">
+          <Users className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <p className="flex-1 text-xs text-amber-800 dark:text-amber-300">
+            {unassignedMemberCount} team member{unassignedMemberCount === 1 ? "" : "s"} ha{unassignedMemberCount === 1 ? "s" : "ve"} no
+            binder assignments and can&apos;t see any inspections.
+          </p>
+          <Button variant="outline" size="sm" className="h-7 shrink-0 text-xs" asChild>
+            <Link href={`/users?loc=${locationId}`}>
+              Manage Team
+            </Link>
+          </Button>
+        </div>
+      )}
+
       {/* Role-based header with export buttons */}
       <div className="rounded-lg border bg-card p-3 sm:p-4">
         {/* Mobile: stacked layout, Desktop: horizontal layout */}

@@ -195,10 +195,16 @@ export function MemberDetailDialog({
         toast.error(err.error?.message ?? "Failed to save assignments")
         return
       }
-      const saved: BinderAssignment[] = await res.json()
+      const result = await res.json()
+      const saved: BinderAssignment[] = result.assignments ?? result
+      const autoAssigned = result.autoAssignedCount ?? 0
       setAssignments(saved)
       setPendingAssignments(saved)
-      toast.success("Binder assignments saved")
+      if (autoAssigned > 0) {
+        toast.success(`Binder assignments saved. ${autoAssigned} pending inspection${autoAssigned === 1 ? "" : "s"} auto-assigned.`)
+      } else {
+        toast.success("Binder assignments saved")
+      }
     } catch {
       toast.error("Network error. Please try again.")
     } finally {

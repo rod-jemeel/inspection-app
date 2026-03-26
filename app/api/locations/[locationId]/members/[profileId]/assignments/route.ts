@@ -30,8 +30,8 @@ export async function PUT(
     const parsed = updateProfileAssignmentsSchema.safeParse(body)
     if (!parsed.success) return validationError(parsed.error.issues).toResponse()
 
-    const assignments = await updateProfileAssignments(locationId, profileId, parsed.data, profile.id)
-    return Response.json(assignments)
+    const result = await updateProfileAssignments(locationId, profileId, parsed.data, profile.id)
+    return Response.json(result)
   } catch (error) {
     return handleError(error)
   }

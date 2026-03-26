@@ -38,8 +38,8 @@ export async function PUT(
     const parsed = updateBinderAssignmentsSchema.safeParse(body)
     if (!parsed.success) return validationError(parsed.error.issues).toResponse()
 
-    const assignments = await updateBinderAssignments(binderId, parsed.data, profile.id)
-    return Response.json(assignments)
+    const result = await updateBinderAssignments(binderId, parsed.data, profile.id)
+    return Response.json(result)
   } catch (error) {
     return handleError(error)
   }

@@ -32,6 +32,7 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   onLocationChange: (id: string) => void
   onSignOut: () => void
   binders?: { id: string; name: string; color: string | null; icon: string | null }[]
+  pendingCount?: number
 }
 
 export function AppSidebar({
@@ -41,13 +42,14 @@ export function AppSidebar({
   onLocationChange,
   onSignOut,
   binders = [],
+  pendingCount,
   ...props
 }: AppSidebarProps) {
   const isAdmin = user.role === "admin" || user.role === "owner"
 
   const mainItems = [
     { title: "Dashboard", url: "/dashboard", icon: Home },
-    { title: "Inspections", url: "/inspections", icon: ClipboardCheck },
+    { title: "Inspections", url: "/inspections", icon: ClipboardCheck, badge: pendingCount },
   ]
 
   const adminItems = isAdmin
@@ -71,7 +73,7 @@ export function AppSidebar({
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={mainItems} locationId={currentLocationId} label="Main" />
-        <NavBinders binders={binders} locationId={currentLocationId} />
+        <NavBinders binders={binders} locationId={currentLocationId} isAdmin={isAdmin} />
         <NavMain items={adminItems} locationId={currentLocationId} label={isAdmin ? "Admin" : "Account"} />
         <NavMain items={helpItems} locationId={currentLocationId} label="Support" />
       </SidebarContent>

@@ -40,6 +40,7 @@ interface AppShellProps {
     color: string | null;
     icon: string | null;
   }[];
+  pendingCount?: number;
   children: React.ReactNode;
 }
 
@@ -70,6 +71,7 @@ function AppShellChrome({
   handleLocationChange,
   handleSignOut,
   locations,
+  pendingCount,
   user,
 }: {
   binders?: {
@@ -84,6 +86,7 @@ function AppShellChrome({
   handleLocationChange: (id: string) => void;
   handleSignOut: () => void;
   locations: { id: string; name: string }[];
+  pendingCount?: number;
   user: {
     name: string;
     email: string | null;
@@ -102,6 +105,7 @@ function AppShellChrome({
         onLocationChange={handleLocationChange}
         onSignOut={handleSignOut}
         binders={binders}
+        pendingCount={pendingCount}
       />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
@@ -163,6 +167,7 @@ export function AppShell({
   user,
   locations,
   binders,
+  pendingCount,
   children,
 }: AppShellProps) {
   const pathname = usePathname();
@@ -243,6 +248,7 @@ export function AppShell({
           user={user}
           locations={locations}
           binders={binders}
+          pendingCount={pendingCount}
           currentLocationId={locationId}
           handleLocationChange={handleLocationChange}
           handleSignOut={handleSignOut}

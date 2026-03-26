@@ -10,6 +10,95 @@ import type {
   UpdateProfileAssignmentsInput,
 } from "@/lib/validations/binder";
 
+// ============================================================================
+// Instance Assignment Cascade
+// ============================================================================
+
+/**
+ * When a single new user is assigned to a binder, auto-assign all unassigned
+ * pending/in_progress instances within that binder to them.
+ * Returns the count of auto-assigned instances.
+ */
+async function cascadeInstanceAssignments(
+  binderId: string,
+  newlyAssignedProfileIds: string[],
+  actorProfileId: string,
+): Promise<number> {
+  // Only auto-assign when exactly 1 new user — avoids ambiguity
+  if (newlyAssignedProfileIds.length !== 1) return 0;
+
+  const profileId = newlyAssignedProfileIds[0];
+
+  // Get all active form templates in this binder
+  const { data: templates } = await supabase
+    .from("form_templates")
+    .select("id")
+    .eq("binder_id", binderId)
+    .eq("active", true);
+
+  const templateIds = (templates ?? []).map((t: { id: string }) => t.id);
+  if (templateIds.length === 0) return 0;
+
+  // Find unassigned pending/in_progress instances for these templates
+  const { data: unassignedInstances } = await supabase
+    .from("inspection_instances")
+    .select("id")
+    .in("form_template_id", templateIds)
+    .in("status", ["pending", "in_progress"])
+    .is("assigned_to_profile_id", null);
+
+  const instanceIds = (unassignedInstances ?? []).map((i: { id: string }) => i.id);
+  if (instanceIds.length === 0) return 0;
+
+  // Look up the user's email
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("email")
+    .eq("id", profileId)
+    .single();
+
+  const email = profile?.email ?? null;
+
+  // Batch-update all unassigned instances
+  const { error: updateError } = await supabase
+    .from("inspection_instances")
+    .update({
+      assigned_to_profile_id: profileId,
+      assigned_to_email: email,
+    })
+    .in("id", instanceIds);
+
+  if (updateError) {
+    console.error("[cascadeInstanceAssignments] Failed to update instances:", updateError);
+    return 0;
+  }
+
+  // Batch-insert assignment events
+  const eventRows = instanceIds.map((instanceId: string) => ({
+    inspection_instance_id: instanceId,
+    event_type: "assigned",
+    actor_profile_id: actorProfileId,
+    payload: {
+      source: "binder_assignment_cascade",
+      assigned_to_profile_id: profileId,
+      assigned_to_email: email,
+    },
+  }));
+
+  const { error: eventError } = await supabase
+    .from("inspection_events")
+    .insert(eventRows);
+
+  if (eventError) {
+    console.error("[cascadeInstanceAssignments] Failed to log events:", eventError);
+  }
+
+  // Bust the instances cache
+  revalidateTag("instances", "max");
+
+  return instanceIds.length;
+}
+
 function revalidateBindersCache(locationId: string) {
   revalidateTag("binders", "max");
   revalidateTag(`binders-${locationId}`, "max");
@@ -225,6 +314,10 @@ export async function updateBinderAssignments(
   input: UpdateBinderAssignmentsInput,
   assignedByProfileId: string,
 ) {
+  // Snapshot previous assignments to detect newly added users
+  const previousAssignments = await getBinderAssignments(binderId);
+  const previousProfileIds = new Set(previousAssignments.map((a) => a.profile_id));
+
   // Delete existing assignments
   const { error: deleteError } = await supabase
     .from("binder_assignments")
@@ -249,7 +342,19 @@ export async function updateBinderAssignments(
     if (insertError) throw new ApiError("INTERNAL_ERROR", insertError.message);
   }
 
-  return getBinderAssignments(binderId);
+  // Determine newly assigned profile IDs and cascade instance assignments
+  const newlyAssignedProfileIds = input.assignments
+    .map((a) => a.profile_id)
+    .filter((id) => !previousProfileIds.has(id));
+
+  const autoAssignedCount = await cascadeInstanceAssignments(
+    binderId,
+    newlyAssignedProfileIds,
+    assignedByProfileId,
+  );
+
+  const assignments = await getBinderAssignments(binderId);
+  return { assignments, autoAssignedCount };
 }
 
 /**
@@ -365,7 +470,18 @@ export async function updateProfileAssignments(
 
   const locationBinderIds = (locationBinders ?? []).map((b: { id: string }) => b.id);
 
+  // Snapshot previous assignments to detect newly added binders
+  const previousBinderIds = new Set<string>();
   if (locationBinderIds.length > 0) {
+    const { data: prevAssignments } = await supabase
+      .from("binder_assignments")
+      .select("binder_id")
+      .eq("profile_id", profileId)
+      .in("binder_id", locationBinderIds);
+    for (const a of prevAssignments ?? []) {
+      previousBinderIds.add(a.binder_id);
+    }
+
     const { error: deleteError } = await supabase
       .from("binder_assignments")
       .delete()
@@ -390,7 +506,22 @@ export async function updateProfileAssignments(
     if (insertError) throw new ApiError("INTERNAL_ERROR", insertError.message);
   }
 
-  return getAssignmentsForProfile(locationId, profileId);
+  // Cascade instance assignments for each newly assigned binder
+  const newlyAssignedBinderIds = input.assignments
+    .map((a) => a.binder_id)
+    .filter((id) => !previousBinderIds.has(id));
+
+  let autoAssignedCount = 0;
+  for (const binderId of newlyAssignedBinderIds) {
+    autoAssignedCount += await cascadeInstanceAssignments(
+      binderId,
+      [profileId],
+      assignedByProfileId,
+    );
+  }
+
+  const assignments = await getAssignmentsForProfile(locationId, profileId);
+  return { assignments, autoAssignedCount };
 }
 
 export async function getAssignmentsForProfile(
