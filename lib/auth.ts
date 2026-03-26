@@ -3,7 +3,7 @@ import { nextCookies } from "better-auth/next-js"
 import { admin, username } from "better-auth/plugins"
 import { Pool } from "pg"
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001"
 
 export const auth = betterAuth({
   database: new Pool({
@@ -41,6 +41,9 @@ export const auth = betterAuth({
   session: {
     expiresIn: 60 * 60 * 24 * 90, // 90 days (3 months)
     updateAge: 60 * 60 * 24, // Refresh token on daily activity (sliding expiration)
+  },
+  advanced: {
+    cookiePrefix: "inspection_app",
   },
   trustedOrigins: [APP_URL],
   plugins: [

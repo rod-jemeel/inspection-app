@@ -96,6 +96,10 @@ export async function POST(request: NextRequest) {
           })
 
         if (insertError) {
+          // Unique constraint violation → instance already exists (race with n8n webhook)
+          if (insertError.code === "23505") {
+            return { status: "skipped" as const, formId: form.id }
+          }
           console.error(`Error creating instance for form ${form.id}:`, insertError)
           return { status: "error" as const, formId: form.id }
         }

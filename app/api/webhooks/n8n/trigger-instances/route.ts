@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     // Fetch all scheduling-active form templates (excluding as_needed)
     const { data: forms, error: formsError } = await supabase
       .from("form_templates")
-      .select("id, location_id, frequency, default_assignee_profile_id, binder_id, default_due_rule")
+      .select("id, location_id, frequency, default_assignee_profile_id, binder_id, default_due_rule, log_type")
       .eq("scheduling_active", true)
       .eq("active", true)
       .neq("frequency", "as_needed")
@@ -91,9 +91,14 @@ export async function POST(request: Request) {
             assigned_to_profile_id: assigneeProfileId,
             status: "pending",
             created_by: "system",
+            ...(form.log_type ? { log_type: form.log_type } : {}),
           })
 
         if (insertError) {
+          // Unique constraint violation → instance already exists (race with cron)
+          if (insertError.code === "23505") {
+            return { status: "skipped" as const, formId: form.id }
+          }
           console.error(`Error creating instance for form ${form.id}:`, insertError)
           return { status: "error" as const, formId: form.id }
         }

@@ -3,7 +3,7 @@ import { z } from "zod"
 import { supabase } from "@/lib/server/db"
 import { requireSession } from "@/lib/server/auth-helpers"
 import { TIMEZONES } from "@/lib/validations/location"
-import { seedNursingLogTemplates } from "@/lib/server/services/nursing-log-templates"
+
 import { listLocations } from "@/lib/server/services/locations"
 import { handleError } from "@/lib/server/errors"
 
@@ -60,12 +60,7 @@ export async function POST(request: Request) {
       )
     }
 
-    // 5. Seed nursing log templates for the new location (fire and forget)
-    seedNursingLogTemplates(location.id).catch((err) =>
-      console.error("Failed to seed nursing log templates:", err)
-    )
-
-    // 6. Link current user's profile to the new location
+    // 5. Link current user's profile to the new location
     const { error: linkError } = await supabase
       .from("profile_locations")
       .insert({

@@ -30,7 +30,6 @@ const CUSTOM_LOG_SLUGS: Record<string, string> = {
   "Controlled Substances Perpetual Inventory - Fentanyl": "inventory",
   "Controlled Substances Perpetual Inventory - Versed": "inventory",
   "CRNA Narcotic Sign-Out Form": "narcotic-signout",
-  "Crash Cart Monthly Checklist": "crash-cart",
   "Cardiac Arrest Record": "cardiac-arrest",
 }
 
