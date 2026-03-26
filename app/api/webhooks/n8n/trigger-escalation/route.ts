@@ -43,9 +43,14 @@ export async function POST(request: Request) {
 
     if (unassignedOverdue && unassignedOverdue.length > 0 && ownerEmail) {
       try {
-        const byLocation = unassignedOverdue.reduce((acc, instance) => {
-          const task = ((instance as any).form_templates as any)?.name ?? "Inspection"
-          const locationName = ((instance as any).locations as any)?.name ?? "Unknown Location"
+        type InstanceWithJoins = typeof unassignedOverdue[0] & {
+          form_templates?: { name?: string } | null
+          locations?: { name?: string } | null
+        }
+        const byLocation = unassignedOverdue.reduce((acc, rawInstance) => {
+          const instance = rawInstance as InstanceWithJoins
+          const task = instance.form_templates?.name ?? "Inspection"
+          const locationName = instance.locations?.name ?? "Unknown Location"
 
           if (!acc[locationName]) acc[locationName] = []
           acc[locationName].push({

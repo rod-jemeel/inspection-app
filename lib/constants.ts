@@ -24,3 +24,7 @@ export const MIN_PASSWORD_LENGTH = 12
 // Session durations
 export const SESSION_DURATION_DAYS = 7
 export const INSPECTOR_SESSION_HOURS = 8
+
+// Storage signed URL expiry
+export const SIGNATURE_URL_EXPIRY_SECONDS = 60 * 60 * 24 * 365 // 1 year
+export const FILE_REDIRECT_URL_EXPIRY_SECONDS = 60 * 5 // 5 minutes

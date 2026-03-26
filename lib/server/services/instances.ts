@@ -38,7 +38,7 @@ export interface Instance {
 }
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  pending: ["in_progress", "void"],
+  pending: ["in_progress", "passed", "failed", "void"],
   in_progress: ["failed", "passed", "void"],
   failed: ["in_progress"], // re-inspection
   passed: [], // terminal

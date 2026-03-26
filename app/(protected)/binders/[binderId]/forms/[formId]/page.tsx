@@ -9,6 +9,7 @@ import { getBinder, canUserEditBinder } from "@/lib/server/services/binders"
 import { getInstance } from "@/lib/server/services/instances"
 import { getFormResponse } from "@/lib/server/services/form-responses"
 import { supabase } from "@/lib/server/db"
+import { SIGNATURE_URL_EXPIRY_SECONDS } from "@/lib/constants"
 import { LoadingSpinner } from "@/components/loading-spinner"
 import { PageBreadcrumbs } from "@/components/page-breadcrumbs"
 import { FormRenderer } from "./_components/form-renderer"
@@ -86,10 +87,10 @@ async function FormData({
       const bucket = process.env.SIGNATURES_BUCKET ?? "signatures"
       const [sigUrl, selfieUrl] = await Promise.all([
         raw.completion_signature
-          ? supabase.storage.from(bucket).createSignedUrl(raw.completion_signature, 31536000).then(r => r.data?.signedUrl ?? null)
+          ? supabase.storage.from(bucket).createSignedUrl(raw.completion_signature, SIGNATURE_URL_EXPIRY_SECONDS).then(r => r.data?.signedUrl ?? null)
           : Promise.resolve(null),
         raw.completion_selfie
-          ? supabase.storage.from(bucket).createSignedUrl(raw.completion_selfie, 31536000).then(r => r.data?.signedUrl ?? null)
+          ? supabase.storage.from(bucket).createSignedUrl(raw.completion_selfie, SIGNATURE_URL_EXPIRY_SECONDS).then(r => r.data?.signedUrl ?? null)
           : Promise.resolve(null),
       ])
       existingResponse = {

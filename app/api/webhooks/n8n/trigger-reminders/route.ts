@@ -95,10 +95,16 @@ export async function POST(request: Request) {
       reminderType: ReminderType
     }> = []
 
-    for (const instance of allInstances ?? []) {
-      const task = ((instance as any).form_templates as any)?.name ?? "Inspection"
-      const frequency = ((instance as any).form_templates as any)?.frequency as "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years" | null
-      const locationName = ((instance as any).locations as any)?.name ?? undefined
+    type InstanceWithJoins = typeof allInstances[0] & {
+      form_templates?: { name?: string; frequency?: string } | null
+      locations?: { name?: string } | null
+    }
+
+    for (const rawInstance of allInstances ?? []) {
+      const instance = rawInstance as InstanceWithJoins
+      const task = instance.form_templates?.name ?? "Inspection"
+      const frequency = instance.form_templates?.frequency as "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "every_3_years" | null
+      const locationName = instance.locations?.name ?? undefined
 
       if (!frequency) continue
 

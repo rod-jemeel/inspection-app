@@ -162,11 +162,13 @@ function InspectionsTab({
   const router = useRouter();
   const [instances, setInstances] = useState<InspectionInstance[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [freqFilter, setFreqFilter] = useState<string>("all");
 
   useEffect(() => {
     const fetchInstances = async () => {
       setLoading(true);
+      setFetchError(false);
       try {
         const res = await fetch(
           `/api/locations/${locationId}/instances?binder_id=${binderId}`,
@@ -174,9 +176,13 @@ function InspectionsTab({
         if (res.ok) {
           const result = await res.json();
           setInstances(result.data || []);
+        } else {
+          console.error("Failed to fetch instances:", res.status);
+          setFetchError(true);
         }
       } catch (error) {
         console.error("Failed to fetch instances:", error);
+        setFetchError(true);
       } finally {
         setLoading(false);
       }
@@ -212,6 +218,14 @@ function InspectionsTab({
     return (
       <div className="flex items-center justify-center py-16">
         <p className="text-xs text-muted-foreground">Loading inspections…</p>
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <p className="text-xs text-muted-foreground">Failed to load inspections. Please refresh and try again.</p>
       </div>
     );
   }

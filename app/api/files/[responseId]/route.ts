@@ -2,6 +2,7 @@ import { NextRequest } from "next/server"
 import { requireBinderAccess } from "@/lib/server/auth-helpers"
 import { supabase } from "@/lib/server/db"
 import { handleError } from "@/lib/server/errors"
+import { FILE_REDIRECT_URL_EXPIRY_SECONDS } from "@/lib/constants"
 
 export async function GET(
   request: NextRequest,
@@ -63,7 +64,7 @@ export async function GET(
   const bucket = process.env.SIGNATURES_BUCKET ?? "signatures"
   const { data: signedData, error: signError } = await supabase.storage
     .from(bucket)
-    .createSignedUrl(storagePath, 300)
+    .createSignedUrl(storagePath, FILE_REDIRECT_URL_EXPIRY_SECONDS)
 
   if (signError || !signedData?.signedUrl) {
     return Response.json({ error: "Failed to generate URL" }, { status: 500 })
