@@ -1,8 +1,14 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import dynamic from "next/dynamic"
 import Image from "next/image"
 import Lenis from "lenis"
+
+const HelpVideoPlayer = dynamic(
+  () => import("./video-guides/help-video-player").then((m) => ({ default: m.HelpVideoPlayer })),
+  { ssr: false, loading: () => <div className="aspect-[16/10] w-full animate-pulse rounded-md border bg-muted" /> }
+)
 import { cn } from "@/lib/utils"
 import {
   BookOpen,
@@ -21,6 +27,7 @@ import {
   UserPlus,
   BarChart3,
   AlertTriangle,
+  Shield,
   X,
   ZoomIn,
 } from "lucide-react"
@@ -32,6 +39,7 @@ import {
 
 const sections = [
   { id: "getting-started", label: "Getting Started", icon: PlayCircle },
+  { id: "admin-setup", label: "Admin Setup Guide", icon: Shield },
   { id: "authentication", label: "Authentication", icon: KeyRound },
   { id: "templates", label: "Template Management", icon: FileText },
   { id: "inspections", label: "Completing Inspections", icon: ClipboardCheck },
@@ -239,6 +247,102 @@ export function HelpContent() {
             </div>
           </section>
 
+          {/* Admin Setup Guide */}
+          <section id="admin-setup" className="mb-12 scroll-mt-6">
+            <div className="mb-4 flex items-center gap-2">
+              <div className="flex size-8 items-center justify-center rounded-md bg-primary/10">
+                <Shield className="size-4 text-primary" />
+              </div>
+              <h2 className="text-lg font-semibold">Admin Setup Guide</h2>
+            </div>
+
+            <div className="space-y-4 text-sm leading-relaxed text-foreground/80">
+              <p>
+                If you&apos;re an Admin or Owner, follow these steps to set up your location
+                so inspectors can start working.
+              </p>
+
+              <div className="rounded-md border-2 border-primary/30 bg-primary/5 p-4">
+                <h3 className="mb-3 font-semibold text-foreground">Step-by-Step Setup Checklist</h3>
+                <ol className="list-inside list-decimal space-y-3">
+                  <li>
+                    <strong>Create Invite Codes</strong>
+                    <p className="ml-5 mt-1 text-muted-foreground">
+                      Go to <strong>Invites</strong> in the sidebar. Click <strong>Create Invite Code</strong>.
+                      Share the generated 8-character code with your team. Each code can be used once
+                      and expires after 7 days.
+                    </p>
+                  </li>
+                  <li>
+                    <strong>Create Binders</strong>
+                    <p className="ml-5 mt-1 text-muted-foreground">
+                      Go to <strong>Binders</strong> in the sidebar. Click the <strong>+</strong> button
+                      to create a new binder. Binders group related inspection templates together
+                      (e.g., &quot;Fire Safety&quot;, &quot;Nursing Logs&quot;, &quot;Monthly Checks&quot;).
+                    </p>
+                  </li>
+                  <li>
+                    <strong>Create Templates Inside Binders</strong>
+                    <p className="ml-5 mt-1 text-muted-foreground">
+                      Open a binder and go to the <strong>Templates</strong> tab. Click <strong>Create Template</strong>.
+                      Set the name, frequency (daily, weekly, monthly, etc.), and optionally add form fields.
+                      Templates with scheduling enabled will automatically generate inspection instances.
+                    </p>
+                  </li>
+                  <li>
+                    <strong>Assign Users to Binders</strong>
+                    <p className="ml-5 mt-1 text-muted-foreground">
+                      Open a binder and go to the <strong>Assignments</strong> tab. Add team members
+                      to the binder. When you assign a single user, any pending unassigned inspections
+                      in that binder will be auto-assigned to them.
+                    </p>
+                  </li>
+                  <li>
+                    <strong>Verify Dashboard</strong>
+                    <p className="ml-5 mt-1 text-muted-foreground">
+                      Go to the <strong>Dashboard</strong> to confirm inspections are being generated
+                      and assigned. Inspectors should now see their work on their dashboard and
+                      in the Inspections page.
+                    </p>
+                  </li>
+                </ol>
+              </div>
+
+              <div className="rounded-md border bg-amber-500/10 p-4">
+                <h3 className="mb-2 font-medium text-foreground">Common Mistakes</h3>
+                <ul className="list-inside list-disc space-y-1">
+                  <li>Forgetting to assign users to binders &mdash; inspectors won&apos;t see any inspections</li>
+                  <li>Not enabling scheduling on templates &mdash; no automatic instances will be created</li>
+                  <li>Creating templates without a binder &mdash; templates must be inside a binder</li>
+                </ul>
+              </div>
+
+              <div className="rounded-md border bg-muted/30 p-4">
+                <h3 className="mb-2 font-medium text-foreground">Managing Users</h3>
+                <p className="mb-2">From the <strong>Users</strong> page you can:</p>
+                <ul className="list-inside list-disc space-y-1">
+                  <li>View all team members and their roles</li>
+                  <li>Click a member to see and edit their binder assignments</li>
+                  <li>Reset passwords for team members</li>
+                  <li>Change user roles (Owner, Admin, Staff, Inspector)</li>
+                </ul>
+              </div>
+
+              <div className="rounded-md border bg-muted/30 p-4">
+                <h3 className="mb-2 font-medium text-foreground">Understanding Inspections Flow</h3>
+                <p className="mb-2">Once setup is complete, inspections flow automatically:</p>
+                <ol className="list-inside list-decimal space-y-1">
+                  <li>System generates instances based on template frequency</li>
+                  <li>Instances appear as <strong>Pending</strong> on assigned user&apos;s dashboard</li>
+                  <li>Inspector opens and starts the inspection (<strong>In Progress</strong>)</li>
+                  <li>Inspector fills out the form and signs</li>
+                  <li>Inspection marked as <strong>Passed</strong> or <strong>Failed</strong></li>
+                  <li>Next instance is auto-generated for the next period</li>
+                </ol>
+              </div>
+            </div>
+          </section>
+
           {/* Authentication */}
           <section id="authentication" className="mb-12 scroll-mt-6">
             <div className="mb-4 flex items-center gap-2">
@@ -318,6 +422,8 @@ export function HelpContent() {
                 automatically based on its frequency setting.
               </p>
 
+              <HelpVideoPlayer composition="creating-template" />
+
               <ExpandableImage
                 src="/help/templates.png"
                 alt="Templates page"
@@ -395,6 +501,8 @@ export function HelpContent() {
             </div>
 
             <div className="space-y-4 text-sm leading-relaxed text-foreground/80">
+              <HelpVideoPlayer composition="completing-inspection" />
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <ExpandableImage
                   src="/help/inspections.png"
@@ -483,6 +591,8 @@ export function HelpContent() {
                 and creates a tamper-proof record.
               </p>
 
+              <HelpVideoPlayer composition="signing-inspection" />
+
               <div className="rounded-md border bg-muted/30 p-4">
                 <h3 className="mb-2 font-medium text-foreground">Signature Process</h3>
                 <ol className="list-inside list-decimal space-y-1">
@@ -527,6 +637,8 @@ export function HelpContent() {
             </div>
 
             <div className="space-y-4 text-sm leading-relaxed text-foreground/80">
+              <HelpVideoPlayer composition="invite-code-flow" />
+
               <ExpandableImage
                 src="/help/invites.png"
                 alt="Invites page"
@@ -589,6 +701,8 @@ export function HelpContent() {
             </div>
 
             <div className="space-y-4 text-sm leading-relaxed text-foreground/80">
+              <HelpVideoPlayer composition="dashboard-overview" />
+
               <ExpandableImage
                 src="/help/dashboard.png"
                 alt="Dashboard page"

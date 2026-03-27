@@ -31,6 +31,7 @@ const CUSTOM_LOG_SLUGS: Record<string, string> = {
   "Controlled Substances Perpetual Inventory - Versed": "inventory",
   "CRNA Narcotic Sign-Out Form": "narcotic-signout",
   "Cardiac Arrest Record": "cardiac-arrest",
+  "Crash Cart Monthly Checklist": "crash-cart",
 }
 
 const LOG_EXTRA_PARAMS: Record<string, Record<string, string>> = {
