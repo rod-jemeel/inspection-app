@@ -104,7 +104,7 @@ export function CrashCartLog({
         )
         if (res.ok) {
           const json = await res.json()
-          const entry = json.data?.[0] ?? null
+          const entry = json.entries?.[0] ?? null
           setData(entry?.data ?? emptyCrashCartLogData(newYear))
           setStatus(entry?.status ?? "draft")
         } else {
